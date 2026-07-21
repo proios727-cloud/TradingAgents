@@ -71,6 +71,27 @@ guardrails are non-negotiable.
   sane spread/OI. Shortest failing conviction → step out an expiry, never force it. Same
   shorter-dated-if-conviction preference applies to equity watchlist swaps and auto-entries.
 
+## State ledger, open planner, GEX map (added 16:25 UTC — remediation of design review)
+- **supertrades/state.json** is the persistent ledger: day P&L/halt/entry counters, per-position
+  rails + HWM/ratchet state, prior-cycle marks/volumes/day-%/crossed flags, open plan. Loop
+  reads it first and writes it last every cycle; broker queries (positions/BP) remain the truth
+  for existence/sizing. Fixes the restart-wipes-state class of failures.
+- **Sell mechanics**: stops post at BID (marketable), targets at mark; fills verified ~60s,
+  one cancel-replace crossing the spread if unfilled. Entry spread cap: ≤10% of ask, hard.
+- **Churn guard**: ≥4 manual round-trips/day → push with estimated spread cost; manual 0DTE
+  index buys without GEX levels get flagged once in chat.
+- **Premarket open-planner Routine** (weekdays 9:10am ET): rolls the day block, reads settled
+  BP, gap-scans the universe (extended hours), pre-builds ranked buyable contracts within cap,
+  pre-arms the GEX gate on red gaps, verifies the 5-min loop is alive before the bell.
+- **GEX map panel** (heatseeker-style, dashboard): net GEX by strike from Robinhood chain data
+  (call OI×γ − put OI×γ), king node + spot gap + money-in-between, whale rows by V:OI (>20×,
+  >$1M premium flagged). Refreshes ~30 min, at premarket, on gate arming, or node cross.
+  Caveats: OI is T-1, naive dealer-sign assumption, aggregate flow only (no sweep prints).
+- Entry conviction now includes above-intraday-VWAP check and time-of-day weighting
+  (prefer 9:40–11:00 ET and 3:00–3:30 ET; skip 12:00–14:00 ET unless day-move > 3%).
+- Power-hour carve-out: GEX-gated flip-reclaim with user levels may enter after 3pm (0DTE
+  allowed) but must close by 3:55pm ET.
+
 ## Flow watch & delivery (added 15:40 UTC)
 - Per-cycle 5-min volume deltas on held contracts: rising delta + favorable price acceleration
   = "flow picking up" push; falling delta 2+ cycles with stalled gains = "flow slowing" push.

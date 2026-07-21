@@ -1,0 +1,53 @@
+{
+  "schema": "supertrades-state-v1",
+  "updated_at": "2026-07-21T16:20:00Z",
+  "trading_date": "2026-07-21",
+  "day": {
+    "realized_pnl": -2.0,
+    "auto_entries_used": 0,
+    "auto_entries_max": 1,
+    "manual_round_trips": 3,
+    "churn_alert_threshold": 4,
+    "halt_at": -60.0,
+    "halted": false
+  },
+  "positions": {
+    "e136ddca-9e97-4b8d-9ec4-3b5b2fd03f02": {
+      "contract": "QQQ 7/21 $713C", "account": "902341866", "qty": 1, "entry": 0.11,
+      "class": "0dte_scalp", "target": 0.165, "stop": 0.08, "hwm": 0.11,
+      "be_ratchet_at": 0.14, "be_ratchet_engaged": false,
+      "hard_exit_utc": "2026-07-21T19:15:00Z", "sellout_utc": "2026-07-21T19:45:00Z",
+      "trend_break": "QQQ day% < 1.4 for 2 cycles while mark < 0.11"
+    },
+    "2feb20d0-198b-4ed1-96ac-9569418cd91a": {
+      "contract": "RIVN 7/24 $19C", "account": "902341866", "qty": 1, "entry": 0.11,
+      "class": "day_trade", "target": 0.165, "stop": 0.08, "hwm": 0.11,
+      "be_ratchet_at": 0.14, "be_ratchet_engaged": false,
+      "flatten_utc": "2026-07-21T19:45:00Z"
+    },
+    "9566d3c1-4834-47f2-b97f-35cf14f4f9a2": {
+      "contract": "IREN 7/24 $33P", "account": "812234458", "qty": 1, "entry": 0.39,
+      "class": "alert_only", "alerts": {"target": 0.59, "salvage_floor_bid": 0.05, "swing_pct": 30},
+      "time_stop_warn": "2026-07-23", "note": "margin acct - never trade; salvage recommended"
+    }
+  },
+  "prior_cycle": {
+    "at": "2026-07-21T16:11:00Z",
+    "marks": {"e136ddca": 0.105, "2feb20d0": 0.105, "9566d3c1": 0.14},
+    "contract_cum_volume": {"e136ddca": 33252, "2feb20d0": 445},
+    "day_pct": {"SPY": 0.82, "QQQ": 1.83, "IWM": 1.15, "NVDA": 1.43, "TSLA": 3.23, "AMD": 6.2,
+                 "INTC": 7.41, "RIVN": 2.52, "DIS": 0.09, "META": 0.21, "LMT": -0.96,
+                 "XOM": 1.68, "CVX": 0.17, "XLE": 0.47, "USO": 2.1},
+    "crossed_2pct": ["INTC", "AMD", "TSLA", "RIVN", "USO"],
+    "vol_note": "contract_cum_volume resets daily at market open — never diff across trading_date change"
+  },
+  "account": {
+    "bp_last_read": 7.58, "bp_read_at": "2026-07-21T16:05:00Z",
+    "pending": "~$282 settling T+1 + $250 deposit",
+    "rule": "ALWAYS re-read get_portfolio before sizing; never size off this cached value"
+  },
+  "open_plan": null,
+  "log": [
+    {"t": "2026-07-21", "event": "fills", "detail": "RIVN 18c +$1, NVDA 240c +$1, INTC 110c -$4 (user), QQQ 713c 0DTE + RIVN 19c opened 16:04-16:05 (user)"}
+  ]
+}
