@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-21T19:30:00Z",
+  "updated_at": "2026-07-21T20:03:00Z",
   "trading_date": "2026-07-21",
   "rule_version": "v3.1",
   "mode": {
@@ -168,9 +168,9 @@
     ]
   },
   "prior_cycle": {
-    "at": "2026-07-21T19:11:00Z",
+    "at": "2026-07-21T20:02:00Z",
     "marks": {
-      "9566d3c1": 0.21
+      "9566d3c1": 0.2
     },
     "contract_cum_volume": {},
     "day_pct": {
@@ -197,7 +197,7 @@
       "RIVN",
       "USO"
     ],
-    "note": "IREN put last 0.21 (+55% swing logged); all other keys pruned after closes"
+    "note": "EOD: IREN put closed 0.20 (-49%); Agentic flat; loop silent until 8:55am ET"
   },
   "gex_map": {
     "QQQ": {
@@ -227,6 +227,11 @@
       "t": "2026-07-21T19:11Z",
       "event": "fill",
       "detail": "FIRST AGENTIC EXECUTION: RIVN 7/24 19c stop (breached -36% during session-restart outage) sold @ 0.07 limit-at-bid, filled instantly (-$4, order 6a5fc460, placed_agent=agentic). Day realized -$10. Agentic acct FLAT. IREN put swung +55% to 0.21 (IREN selling off) \u2014 salvage improved, alert-only."
+    },
+    {
+      "t": "2026-07-21T20:02Z",
+      "event": "eod",
+      "detail": "Day close: realized -$10 (5 round-trips, ~$8-10 spread cost). Agentic flat. IREN 0.20. Pages EOD-published from repo paths (URL continuity verified). Tomorrow: rollover-first rule, premarket plan 9:05-9:30, expected settled BP ~$540, cap $216/trade, delta 0.30-0.50, entries from 9:40 with OR+VWAP."
     }
   ]
 }

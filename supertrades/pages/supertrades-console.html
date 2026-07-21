@@ -92,15 +92,15 @@
 <div class="wrap">
   <header>
     <h1>SUPERTRADES v3 · CONSOLE</h1>
-    <span class="live">LIVE</span>
+    <span class="chip mut">AFTER HOURS</span>
     <span class="stamp mono">Cycle 2026-07-21 · 17:01 UTC (1:01 ET) — slow/DND mode, republishes every 15 min on change</span>
   </header>
 
   <section class="kpis" aria-label="Account summary">
     <div class="kpi"><div class="v mono">$308.32</div><div class="l">Agentic account value</div><div class="s">acct ••••1866 · 2 scalps open</div></div>
-    <div class="kpi"><div class="v mono" style="color:var(--warn)">$7.58</div><div class="l">Buying power</div><div class="s">~$282 settling T+1 + $250 deposit pending</div></div>
+    <div class="kpi"><div class="v mono" style="color:var(--good)">~$540</div><div class="l">BP expected at open</div><div class="s">$282 settles + $250 deposit · cap $216/trade</div></div>
     <div class="kpi"><div class="v mono pl-neg">−$4.00</div><div class="l">Agentic day P&amp;L</div><div class="s">−$2 realized · −$2 open · halt −$60</div></div>
-    <div class="kpi"><div class="v mono">3</div><div class="l">Open positions</div><div class="s">2 auto-managed scalps · 1 alert-only</div></div>
+    <div class="kpi"><div class="v mono">1</div><div class="l">Open positions</div><div class="s">IREN put (margin, alert-only) · Agentic FLAT</div></div>
     <div class="kpi"><div class="v mono" style="color:var(--warn)">FROZEN</div><div class="l">Auto-entries</div><div class="s">BP below floor · 0/1 used today</div></div>
   </section>
 
@@ -113,30 +113,7 @@
         <th class="num">P&amp;L</th><th>Stop ◄ mark ► target</th><th>Notes</th>
       </tr></thead>
       <tbody>
-        <tr>
-          <td class="mono">QQQ 7/21 $713C ×1 · 0DTE</td>
-          <td><span class="chip good">AUTO-EXIT</span></td>
-          <td class="num">0.11</td><td class="num">0.095</td>
-          <td class="num pl-neg">−$1.50</td>
-          <td>
-            <div class="rail" title="stop 0.08 · entry 0.11 · target 0.165"><div class="fill"></div>
-              <span class="entry" style="left:35%"></span><span class="dot" style="left:29%"></span></div>
-            <div class="rail-labels mono"><span>0.08</span><span>0.165</span></div>
-          </td>
-          <td class="rsi">QQQ +1.83% · needs +0.60% to strike · trend-break exit &lt;+1.4% ·HARD EXIT 3:15 ET</td>
-        </tr>
-        <tr>
-          <td class="mono">RIVN 7/24 $19C ×1 · 3DTE</td>
-          <td><span class="chip good">AUTO-EXIT</span></td>
-          <td class="num">0.11</td><td class="num">0.105</td>
-          <td class="num pl-neg">−$0.50</td>
-          <td>
-            <div class="rail" title="stop 0.08 · entry 0.11 · target 0.165"><div class="fill"></div>
-              <span class="entry" style="left:35%"></span><span class="dot" style="left:29%"></span></div>
-            <div class="rail-labels mono"><span>0.08</span><span>0.165</span></div>
-          </td>
-          <td class="rsi">Γ0.20 · day-trade class — flatten 3:45 ET unless BE-ratchet @ 0.14</td>
-        </tr>
+        
         <tr>
           <td class="mono">IREN 7/24 $33P ×1</td>
           <td><span class="chip crit">ALERT-ONLY</span></td>
@@ -152,7 +129,7 @@
       </tbody>
     </table>
     </div>
-    <p class="rsi" style="margin:10px 0 0">Closed today (all by user): RIVN 8/21 $18C 1.41→1.42 (+$1) · NVDA 8/21 $240C 0.85→0.86 (+$1) · INTC 7/22 $110C 0.58→0.54 (−$4). Agentic acct flat; loop in watch mode — new positions get rails armed automatically on discovery.</p>
+    <p class="rsi" style="margin:10px 0 0">Closed today: RIVN 18c +$1 · NVDA 240c +$1 · INTC 110c −$4 · QQQ 713c 0DTE −$4 (user) · RIVN 19c −$4 (agentic stop, first live execution). Day −$10. Tomorrow: premarket plan 9:05, no entries before 9:40, OR+VWAP confirmation, Δ0.30–0.50 sizing.</p>
   </section>
 
   <div class="cols">
@@ -195,7 +172,7 @@
   </div>
 
   <section class="panel">
-    <p class="eyebrow">GEX Map — QQQ 0DTE · heatseeker-style · 16:20 UTC · spot $708.69</p>
+    <p class="eyebrow">GEX Map — QQQ 0DTE · STALE (expiry passed) · rebuilds premarket</p>
     <div class="scroll">
       <div role="img" aria-label="Net GEX by strike: 690 minus 16, 695 minus 53, 700 minus 6, 705 plus 571, 710 plus 678 king node, 715 plus 92, 720 plus 13; spot between 705 and 710">
         <div class="bar-row"><span class="t">720</span><div class="bar-track" title="net +13 · call OI 8,493"><div class="bar" style="width:2%"></div></div><span class="v2">+13</span></div>

@@ -78,7 +78,7 @@
   <header>
     <h1>SUPERTRADES · INDEX DESK</h1>
     <span class="chip warn">GATE: STANDBY</span>
-    <span class="stamp mono">2026-07-21 · 17:05 UTC (1:05 ET) · slow/DND — alerts land here, not your phone</span>
+    <span class="stamp mono">2026-07-21 · END OF DAY · slow/DND — alerts land here, not your phone</span>
   </header>
 
   <section class="kpis" aria-label="Index board">
@@ -90,7 +90,7 @@
 
   <div class="cols">
     <section class="panel">
-      <p class="eyebrow">QQQ GEX map — 0DTE · built 16:20 UTC (refreshes ~30 min / on node cross)</p>
+      <p class="eyebrow">QQQ GEX map — 0DTE · STALE (expiry passed; rebuilds premarket)</p>
       <div role="img" aria-label="QQQ net GEX by strike; king node 710; spot 709.5 between 705 and 710">
         <div class="bar-row"><span class="t">720</span><div class="bar-track"><div class="bar" style="width:2%"></div></div><span class="v2">+13</span></div>
         <div class="bar-row"><span class="t">715</span><div class="bar-track"><div class="bar" style="width:14%"></div></div><span class="v2">+92</span></div>
@@ -129,6 +129,9 @@
     <table class="feed">
       <thead><tr><th>Time ET</th><th>Alert</th><th>Class</th></tr></thead>
       <tbody>
+        <tr><td>4:02p</td><td>EOD: day −$10 (5 round-trips); Agentic flat; agentic stop execution on RIVN 19c @ 0.07 during outage recovery; IREN put closed 0.20 (−49%, off the lows); loop silent until 8:55a</td><td><span class="chip mut">EOD</span></td></tr>
+        <tr><td>3:11p</td><td>STOP EXECUTED (pushed): RIVN 7/24 19c @ 0.07 (−36% breach found on reconcile) — first agentic order</td><td><span class="chip crit">FILL</span></td></tr>
+        <tr><td>1:12p</td><td>QQQ 713c 0DTE closed by user @ 0.07 (−$4); churn threshold hit — 4th round-trip, est. $8–10 of spread cost today</td><td><span class="chip warn">CHURN</span></td></tr>
         <tr><td>1:01p</td><td>QQQ 713c recovered to $0.095; QQQ 709.54 pressing 710 king node; contract flow active (41.4k cum.)</td><td><span class="chip good">FLOW</span></td></tr>
         <tr><td>12:28p</td><td>QQQ 713c within half a cent of $0.08 stop — theta bleed while pinned under king node</td><td><span class="chip warn">NEAR STOP</span></td></tr>
         <tr><td>12:20p</td><td>GEX map built: king node 710, battleground 705 ($56.6M calls, 84× OI puts), put shelf 695</td><td><span class="chip mut">STRUCTURE</span></td></tr>
