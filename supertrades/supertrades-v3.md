@@ -4,8 +4,13 @@
 > (positions, rails, watchlist, counters, settlement) lives in `state.json` —
 > the loop reads it first and writes it last every cycle. Broker queries are
 > the sole truth for position existence and buying power. Rebuild procedure
-> after a session restart: re-arm the 5-min cron with the pointer prompt in
-> §Loop, then let the first cycle reconcile state.json against the broker.
+> after a session restart: re-arm the cron using the CADENCE AND MODE recorded
+> in state.json `mode` (user-set; slow/DND persists until the user reverts it),
+> with the pointer prompt in §Loop; let the first cycle reconcile state.json
+> against the broker. If the broker reconcile FAILS during a rebuild (MCP not
+> reconnected, calls erroring), push a notification immediately — system-failure
+> pushes always override DND; a silently dead loop is never acceptable while
+> go-live authorization stands.
 
 ## 1. Mission & authorization
 - Phase-1 compounding: short-dated, high-conviction scalps, managed day-to-day.
@@ -22,7 +27,12 @@
 
 ## 3. Risk limits (single home for all constants)
 - Max 1 auto-entry/day · 1 contract/order · never below $30 remaining BP.
-- Per-trade contract cost ≤ 40% of settled BP.
+- Per-trade contract cost ≤ 40% of settled BP. **Settled BP = the buying_power
+  figure get_portfolio returns, nothing else** — never add pending settlement
+  or unconfirmed deposits to it. "Settlement-suppressed" means BP < $80; the
+  suppression lifts automatically on any BP read ≥ $80. state.json
+  `settlement.pending` is informational; entries clear at day rollover once
+  settles_on ≤ today.
 - Daily halt: day P&L (realized + open) ≤ −$60 → entries stop, exits stay live,
   one push.
 - Churn guard: ≥ 4 manual round-trips/day → push with spread-cost estimate.
@@ -37,6 +47,12 @@
 - `single_name` + `sector_etf`: day-trade only — flatten 3:45pm ET unless the
   breakeven ratchet engaged (then push keep/flatten; default flatten 3:55).
 - New tickers require user approval, then a class assignment.
+- **Position-class mapping** (ticker class + contract → class_defaults key in
+  state.json): margin-acct position → `alert_only`; index underlying with
+  delta ≥ 0.40 AND ≥ 30 DTE → `swing`; index 0DTE via the GEX gate →
+  `0dte_scalp`; everything else (all single names, sector ETFs, and any index
+  contract not meeting swing criteria) → `day_trade`.0–1 DTE day_trade
+  positions additionally inherit the 0dte hard-exit time.
 
 ## 5. Signals & gates
 - Momentum leaderboard: intraday % vs prior close across the universe (list in
@@ -44,9 +60,14 @@
 - Entry conviction: positive day-move AND above intraday VWAP AND (in the
   opening window) above the 15-min opening-range high. Daily RSI as context.
 - GEX gate arming (single definition): SPY/QQQ/IWM down ≥ 0.75% intraday OR
-  red-after-green → push "paste GEX flip/wall levels" (CRITICAL if a 0DTE
-  position is open — evaluate its stop immediately). Never guess levels; the
-  gex-pullback-scalper skill owns the play selection and its own rails.
+  red-after-green → alert "paste GEX flip/wall levels" (CRITICAL if a 0DTE
+  position is open — evaluate its stop immediately). IWM is an ARMING SIGNAL
+  ONLY — plays and maps are always SPY or QQQ (the gex-pullback-scalper skill's
+  scope); never trade IWM through the gate. Never guess levels; the skill owns
+  play selection and its own rails.
+- GEX maps carry `built_at` + `expiry` and are STALE when expiry < today or
+  age > 60 min during market hours — never plan or evaluate against a stale
+  map; rebuild first.
 - GEX map (approximation): net GEX = callOI×γ − putOI×γ on a $5 grid ±3 nodes
   around spot; king node, walls, V:OI whale rows (flag > 20× with > $1M
   premium). Caveats: OI is T-1, naive sign assumption, aggregate flow only.
@@ -89,12 +110,26 @@
   rewrite+republish only when displayed values changed; state.json write only
   on material change; git commit only on events (fills, rail changes, halt,
   day rollover) — never on a timer.
-- Day rollover: reset counters, clear crossed flags and cumulative volumes
-  (never diff volumes across dates).
+- **Day rollover — runs FIRST on ANY in-hours cycle where state.trading_date
+  != today** (not only in the 9:05–9:30 window; a late resurrection still
+  rolls before doing anything else): reset the ENTIRE day block (realized_pnl
+  → 0, auto_entries_used → 0, manual_round_trips → 0, churn_threshold_hit →
+  false, halted → false), clear prior_cycle ENTIRELY (marks, cumulative
+  volumes, day_pct, crossed flags, note — never diff any of them across
+  dates), mark all gex_map entries stale, clear settled settlement entries,
+  set trading_date. Then run the premarket plan if before 9:40 ET, else
+  proceed straight to the normal cycle. Additionally, prune prior_cycle keys
+  for any position the moment it closes intraday.
 - Resilience: hourly heartbeat Routine re-arms the cron from this file if the
-  session restarted. Push notifications: fills, rail trips, flow shifts on
-  held names, gate arming, halt. Dashboard republishes to the same artifact
-  URL (in state.json).
+  session restarted (cadence/mode from state.mode; failure-path push per the
+  rebuild procedure above).
+- Delivery: BOTH pages in state.json `pages` (console + index desk) are
+  maintained per its publish_rule (edit repo file, publish with file_path AND
+  stored url). The index desk's alert feed accumulates every DND-muted alert.
+- Push precedence: state.mode governs. Under DND only executed orders, the
+  daily halt, and system failures push; everything else (including the
+  premarket open-plan summary) goes to the pages and ledger silently. Every
+  state.json write bumps updated_at.
 
 ## Changelog
 - v3.1 (2026-07-21): /simplify consolidation — spec/state/cron role split,

@@ -1,31 +1,84 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-21T16:55:00Z",
+  "updated_at": "2026-07-21T19:30:00Z",
   "trading_date": "2026-07-21",
   "rule_version": "v3.1",
-  "mode": {"cadence_min": 15, "dnd": true, "set_at": "2026-07-21T17:00:00Z",
-            "note": "user-set slow/DND; push only on fills or halt; revert on user request (say 'fast mode' / 'notifications on')"},
+  "mode": {
+    "cadence_min": 15,
+    "dnd": true,
+    "set_at": "2026-07-21T17:00:00Z",
+    "note": "user-set slow/DND; push only on fills or halt; revert on user request (say 'fast mode' / 'notifications on')"
+  },
   "dashboard_url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4",
   "pages": {
-    "console": {"path": "supertrades/pages/supertrades-console.html",
-                 "url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4", "favicon": "⚡"},
-    "index_desk": {"path": "supertrades/pages/supertrades-indexes.html",
-                    "url": "https://claude.ai/code/artifact/ed76be77-02f7-42d1-9eb5-ae50f4159249", "favicon": "📡",
-                    "rule": "alert feed accumulates all DND-muted alerts"},
+    "console": {
+      "path": "supertrades/pages/supertrades-console.html",
+      "url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4",
+      "favicon": "\u26a1"
+    },
+    "index_desk": {
+      "path": "supertrades/pages/supertrades-indexes.html",
+      "url": "https://claude.ai/code/artifact/ed76be77-02f7-42d1-9eb5-ae50f4159249",
+      "favicon": "\ud83d\udce1",
+      "rule": "alert feed accumulates all DND-muted alerts"
+    },
     "publish_rule": "edit the repo file, then Artifact publish with BOTH file_path (repo path) AND url (stored above) so the existing URL is kept; republish only when displayed values changed"
   },
-  "universe": ["SPY","QQQ","IWM","NVDA","TSLA","AMD","INTC","RIVN","DIS","META","LMT","XOM","CVX","XLE","USO"],
+  "universe": [
+    "SPY",
+    "QQQ",
+    "IWM",
+    "NVDA",
+    "TSLA",
+    "AMD",
+    "INTC",
+    "RIVN",
+    "DIS",
+    "META",
+    "LMT",
+    "XOM",
+    "CVX",
+    "XLE",
+    "USO"
+  ],
   "ticker_classes": {
-    "SPY": "index", "QQQ": "index", "IWM": "index",
-    "NVDA": "single_name", "TSLA": "single_name", "AMD": "single_name",
-    "INTC": "single_name", "RIVN": "single_name", "DIS": "single_name",
-    "META": "single_name", "LMT": "single_name",
-    "XOM": "single_name", "CVX": "single_name", "XLE": "sector_etf", "USO": "sector_etf"
+    "SPY": "index",
+    "QQQ": "index",
+    "IWM": "index",
+    "NVDA": "single_name",
+    "TSLA": "single_name",
+    "AMD": "single_name",
+    "INTC": "single_name",
+    "RIVN": "single_name",
+    "DIS": "single_name",
+    "META": "single_name",
+    "LMT": "single_name",
+    "XOM": "single_name",
+    "CVX": "single_name",
+    "XLE": "sector_etf",
+    "USO": "sector_etf"
   },
   "class_defaults": {
-    "0dte_scalp": {"target_pct": 50, "stop_pct": -30, "ratchet_pct": 25, "hard_exit_et": "15:15"},
-    "day_trade":  {"target_pct": 50, "stop_pct": -30, "ratchet_pct": 25, "flatten_et": "15:45"},
-    "swing":      {"target_pct": 50, "stop_pct": -30, "ratchet_pct": 25, "time_stop": {"days_before_expiry": 14}},
+    "0dte_scalp": {
+      "target_pct": 50,
+      "stop_pct": -30,
+      "ratchet_pct": 25,
+      "hard_exit_et": "15:15"
+    },
+    "day_trade": {
+      "target_pct": 50,
+      "stop_pct": -30,
+      "ratchet_pct": 25,
+      "flatten_et": "15:45"
+    },
+    "swing": {
+      "target_pct": 50,
+      "stop_pct": -30,
+      "ratchet_pct": 25,
+      "time_stop": {
+        "days_before_expiry": 14
+      }
+    },
     "alert_only": {}
   },
   "day": {
@@ -37,53 +90,143 @@
   },
   "positions": {
     "9566d3c1-4834-47f2-b97f-35cf14f4f9a2": {
-      "contract": "IREN 7/24 $33P", "account": "812234458", "qty": 1,
-      "entry": 0.39, "hwm": 0.39, "ratchet_engaged": false,
-      "class": "alert_only", "expiry": "2026-07-24",
+      "contract": "IREN 7/24 $33P",
+      "account": "812234458",
+      "qty": 1,
+      "entry": 0.39,
+      "hwm": 0.39,
+      "ratchet_engaged": false,
+      "class": "alert_only",
+      "expiry": "2026-07-24",
       "exit_rules": [
-        {"type": "alert_target", "pct": 50},
-        {"type": "alert_bid_floor", "bid": 0.05},
-        {"type": "alert_swing", "pct": 30},
-        {"type": "alert_time_stop", "days_before_expiry": 1}
+        {
+          "type": "alert_target",
+          "pct": 50
+        },
+        {
+          "type": "alert_bid_floor",
+          "bid": 0.05
+        },
+        {
+          "type": "alert_swing",
+          "pct": 30
+        },
+        {
+          "type": "alert_time_stop",
+          "days_before_expiry": 1
+        }
       ],
       "note": "salvage recommended to user"
     }
   },
   "watchlist": [
-    {"id": "fa89a40f-56b6-4de3-a2b7-145736d1a280", "contract": "RIVN 8/7 $19C"},
-    {"id": "491ad6e6-2c17-41ed-ad24-a3e1eea9b438", "contract": "DIS 8/21 $110C"},
-    {"id": "34178965-a9b6-481e-836d-11b5cf067061", "contract": "NVDA 7/31 $225C"}
+    {
+      "id": "fa89a40f-56b6-4de3-a2b7-145736d1a280",
+      "contract": "RIVN 8/7 $19C"
+    },
+    {
+      "id": "491ad6e6-2c17-41ed-ad24-a3e1eea9b438",
+      "contract": "DIS 8/21 $110C"
+    },
+    {
+      "id": "34178965-a9b6-481e-836d-11b5cf067061",
+      "contract": "NVDA 7/31 $225C"
+    }
   ],
   "pool": [
-    {"id": "f3c80034-7027-4403-96fc-90a2134333e5", "contract": "NVDA 7/31 $220C"},
-    {"id": "9e66b7db-0699-4776-beb3-f9290775ea0a", "contract": "DIS 8/21 $105C"},
-    {"id": "d68712fc-7956-4131-ae60-c1ef25d330ea", "contract": "SPY 8/7 $765C"},
-    {"id": "82178806-3eb9-4e0d-97b7-a2b062d86543", "contract": "TSLA 7/31 $460C", "requires_delta": 0.08}
+    {
+      "id": "f3c80034-7027-4403-96fc-90a2134333e5",
+      "contract": "NVDA 7/31 $220C"
+    },
+    {
+      "id": "9e66b7db-0699-4776-beb3-f9290775ea0a",
+      "contract": "DIS 8/21 $105C"
+    },
+    {
+      "id": "d68712fc-7956-4131-ae60-c1ef25d330ea",
+      "contract": "SPY 8/7 $765C"
+    },
+    {
+      "id": "82178806-3eb9-4e0d-97b7-a2b062d86543",
+      "contract": "TSLA 7/31 $460C",
+      "requires_delta": 0.08
+    }
   ],
   "settlement": {
     "pending": [
-      {"amount": 282, "settles_on": "2026-07-22", "kind": "t1_settlement"},
-      {"amount": 250, "kind": "deposit", "expected": "2026-07-22"}
+      {
+        "amount": 282,
+        "settles_on": "2026-07-22",
+        "kind": "t1_settlement"
+      },
+      {
+        "amount": 250,
+        "settles_on": "2026-07-22",
+        "kind": "deposit",
+        "confirmed": false
+      }
     ]
   },
   "prior_cycle": {
-    "at": "2026-07-21T17:01:00Z",
-    "marks": {"e136ddca": 0.095, "2feb20d0": 0.105, "9566d3c1": 0.135},
-    "contract_cum_volume": {"e136ddca": 41356, "2feb20d0": 683},
-    "note": "QQQ 709.54 pressing 710 king node; 713c recovering with active flow",
-    "day_pct": {"SPY": 0.87, "QQQ": 1.82, "IWM": 1.16, "NVDA": 0.86, "TSLA": 3.14, "AMD": 6.69,
-                 "INTC": 7.27, "RIVN": 2.47, "DIS": 0.12, "META": 0.24, "LMT": -0.5,
-                 "XOM": 1.81, "CVX": 0.17, "XLE": 0.57, "USO": 2.19},
-    "crossed_2pct": ["INTC", "AMD", "TSLA", "RIVN", "USO"]
+    "at": "2026-07-21T19:11:00Z",
+    "marks": {
+      "9566d3c1": 0.21
+    },
+    "contract_cum_volume": {},
+    "day_pct": {
+      "SPY": 0.87,
+      "QQQ": 1.82,
+      "IWM": 1.16,
+      "NVDA": 0.86,
+      "TSLA": 3.14,
+      "AMD": 6.69,
+      "INTC": 7.27,
+      "RIVN": 2.47,
+      "DIS": 0.12,
+      "META": 0.24,
+      "LMT": -0.5,
+      "XOM": 1.81,
+      "CVX": 0.17,
+      "XLE": 0.57,
+      "USO": 2.19
+    },
+    "crossed_2pct": [
+      "INTC",
+      "AMD",
+      "TSLA",
+      "RIVN",
+      "USO"
+    ],
+    "note": "IREN put last 0.21 (+55% swing logged); all other keys pruned after closes"
   },
   "gex_map": {
-    "QQQ": {"built_at": "2026-07-21T16:20:00Z", "expiry": "2026-07-21", "king_node": 710,
-             "secondary": 705, "put_shelf": 695, "note": "spot pinned 705-710"}
+    "QQQ": {
+      "built_at": "2026-07-21T16:20:00Z",
+      "expiry": "2026-07-21",
+      "king_node": 710,
+      "secondary": 705,
+      "put_shelf": 695,
+      "note": "spot pinned 705-710",
+      "stale": true,
+      "stale_reason": "expiry 2026-07-21 passed; never plan on this map"
+    }
   },
   "open_plan": null,
   "log": [
-    {"t": "2026-07-21", "event": "fills", "detail": "RIVN 18c +$1, NVDA 240c +$1, INTC 110c -$4 (user closes); QQQ 713c 0DTE + RIVN 19c opened 16:04-16:05 (user)"},
-    {"t": "2026-07-21T17:12Z", "event": "fill", "detail": "QQQ 713c 0DTE sold by user @ 0.07 (-$4); day realized -$6; churn threshold hit (4 round-trips, ~spread cost est. $8-10 today) — DND: logged, not pushed"},
-    {"t": "2026-07-21T19:11Z", "event": "fill", "detail": "FIRST AGENTIC EXECUTION: RIVN 7/24 19c stop (breached -36% during session-restart outage) sold @ 0.07 limit-at-bid, filled instantly (-$4, order 6a5fc460, placed_agent=agentic). Day realized -$10. Agentic acct FLAT. IREN put swung +55% to 0.21 (IREN selling off) — salvage improved, alert-only."}
+    {
+      "t": "2026-07-21",
+      "event": "fills",
+      "detail": "RIVN 18c +$1, NVDA 240c +$1, INTC 110c -$4 (user closes); QQQ 713c 0DTE + RIVN 19c opened 16:04-16:05 (user)"
+    },
+    {
+      "t": "2026-07-21T17:12Z",
+      "event": "fill",
+      "detail": "QQQ 713c 0DTE sold by user @ 0.07 (-$4); day realized -$6; churn threshold hit (4 round-trips, ~spread cost est. $8-10 today) \u2014 DND: logged, not pushed"
+    },
+    {
+      "t": "2026-07-21T19:11Z",
+      "event": "fill",
+      "detail": "FIRST AGENTIC EXECUTION: RIVN 7/24 19c stop (breached -36% during session-restart outage) sold @ 0.07 limit-at-bid, filled instantly (-$4, order 6a5fc460, placed_agent=agentic). Day realized -$10. Agentic acct FLAT. IREN put swung +55% to 0.21 (IREN selling off) \u2014 salvage improved, alert-only."
+    }
   ]
 }
