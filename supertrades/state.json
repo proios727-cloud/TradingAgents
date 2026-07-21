@@ -81,9 +81,10 @@
     ]
   },
   "prior_cycle": {
-    "at": "2026-07-21T16:32:00Z",
-    "marks": {"e136ddca": 0.085, "2feb20d0": 0.105, "9566d3c1": 0.145},
-    "contract_cum_volume": {"e136ddca": 37242, "2feb20d0": 656},
+    "at": "2026-07-21T17:01:00Z",
+    "marks": {"e136ddca": 0.095, "2feb20d0": 0.105, "9566d3c1": 0.135},
+    "contract_cum_volume": {"e136ddca": 41356, "2feb20d0": 683},
+    "note": "QQQ 709.54 pressing 710 king node; 713c recovering with active flow",
     "day_pct": {"SPY": 0.87, "QQQ": 1.82, "IWM": 1.16, "NVDA": 0.86, "TSLA": 3.14, "AMD": 6.69,
                  "INTC": 7.27, "RIVN": 2.47, "DIS": 0.12, "META": 0.24, "LMT": -0.5,
                  "XOM": 1.81, "CVX": 0.17, "XLE": 0.57, "USO": 2.19},
