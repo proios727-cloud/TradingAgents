@@ -25,8 +25,9 @@ guardrails are non-negotiable.
 3. **GEX gate (SPY/QQQ only)**: arm the gex-pullback-scalper skill when SPY or QQQ is
    down ≥0.75% intraday. Requires user-supplied flip/wall levels; never guess strikes.
    Up-days = gate FAIL = no index scalp. A NO TRADE call is a valid output.
-- Ticker universe: watchlist underlyings only (RIVN, NVDA, DIS, INTC, TSLA, META, SPY, QQQ).
-  New tickers require user approval.
+- Ticker universe (user-approved 7/21, VERTEX PM watchlist + session names): SPY, QQQ, IWM,
+  NVDA, TSLA, AMD, INTC, RIVN, DIS, META, LMT, XOM, CVX, XLE, USO. Entry scans monitor the
+  top-3 momentum leaders each cycle. Tickers outside this list require user approval.
 
 ## Contract selection rules
 - **Premium cap**: ask ≤ current BP / 100 (hard affordability), target ~$1.00 or less.
