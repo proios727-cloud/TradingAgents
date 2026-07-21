@@ -1,0 +1,259 @@
+<title>SuperTrades v3 Console</title>
+<style>
+  :root{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  @media (prefers-color-scheme: dark){ :root{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }
+  :root[data-theme="light"]{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;
+    font:15px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 56px;display:flex;flex-direction:column;gap:20px}
+  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 16px;border-bottom:1px solid var(--line);padding-bottom:14px}
+  h1{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:19px;letter-spacing:.08em;margin:0;text-wrap:balance}
+  .live{display:inline-flex;align-items:center;gap:6px;background:var(--good-bg);color:var(--good);
+    border:1px solid var(--good);border-radius:3px;padding:1px 8px;font-size:11px;letter-spacing:.12em;font-weight:600}
+  .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--good)}
+  .stamp{margin-left:auto;color:var(--ink3);font-size:12px}
+  .eyebrow{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink3);margin:0 0 10px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px 18px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+  .kpi .v{font-family:ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;
+    font-size:24px;font-weight:600;line-height:1.2}
+  .kpi .l{font-size:12px;color:var(--ink2)}
+  .kpi .s{font-size:11px;color:var(--ink3)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th{color:var(--ink3);font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  .num{text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+  .scroll{overflow-x:auto}
+  .chip{display:inline-block;border-radius:3px;padding:1px 7px;font-size:10.5px;font-weight:600;letter-spacing:.08em;white-space:nowrap}
+  .chip.good{background:var(--good-bg);color:var(--good)}
+  .chip.warn{background:var(--warn-bg);color:var(--warn)}
+  .chip.crit{background:var(--crit-bg);color:var(--crit)}
+  .chip.mut{background:var(--surface2);color:var(--ink2)}
+  .pl-neg{color:var(--crit)} .pl-pos{color:var(--good)}
+  .rail{position:relative;height:6px;border-radius:3px;background:var(--surface2);min-width:120px}
+  .rail .fill{position:absolute;inset:0;border-radius:3px;
+    background:linear-gradient(90deg,var(--crit-bg),var(--surface2) 30%,var(--surface2) 70%,var(--good-bg))}
+  .rail .entry{position:absolute;top:-3px;width:1.5px;height:12px;background:var(--ink3)}
+  .rail .dot{position:absolute;top:-2.5px;width:11px;height:11px;border-radius:50%;
+    background:var(--accent);border:2px solid var(--surface)}
+  .rail-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--ink3);margin-top:3px}
+  .cols{display:grid;grid-template-columns:1.2fr 1fr;gap:20px}
+  @media(max-width:760px){.cols{grid-template-columns:1fr}}
+  .bar-row{display:grid;grid-template-columns:52px 1fr 58px;align-items:center;gap:10px;padding:4px 0}
+  .bar-track{height:14px;position:relative}
+  .bar{height:14px;border-radius:0 4px 4px 0;background:var(--accent);opacity:.85;min-width:2px}
+  .bar-row:hover .bar{opacity:1}
+  .bar-row .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--ink2)}
+  .bar-row .v2{font-family:ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;
+    font-size:12px;text-align:right;color:var(--ink)}
+  .rsi{color:var(--ink3);font-size:11px}
+  .rules{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:7px;font-size:13.5px}
+  .rules li{display:flex;gap:9px;align-items:baseline}
+  .rules .tick{color:var(--accent);font-family:ui-monospace,Menlo,Consolas,monospace}
+  .gate{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface2)}
+  .gate .big{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;font-weight:700;letter-spacing:.1em}
+  footer{color:var(--ink3);font-size:12px;border-top:1px solid var(--line);padding-top:12px}
+  .kill{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--surface2);
+    border:1px solid var(--line);border-radius:3px;padding:0 5px;font-size:12px}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>SUPERTRADES v3 · CONSOLE</h1>
+    <span class="live">LIVE</span>
+    <span class="stamp mono">Cycle 2026-07-21 · 17:01 UTC (1:01 ET) — slow/DND mode, republishes every 15 min on change</span>
+  </header>
+
+  <section class="kpis" aria-label="Account summary">
+    <div class="kpi"><div class="v mono">$308.32</div><div class="l">Agentic account value</div><div class="s">acct ••••1866 · 2 scalps open</div></div>
+    <div class="kpi"><div class="v mono" style="color:var(--warn)">$7.58</div><div class="l">Buying power</div><div class="s">~$282 settling T+1 + $250 deposit pending</div></div>
+    <div class="kpi"><div class="v mono pl-neg">−$4.00</div><div class="l">Agentic day P&amp;L</div><div class="s">−$2 realized · −$2 open · halt −$60</div></div>
+    <div class="kpi"><div class="v mono">3</div><div class="l">Open positions</div><div class="s">2 auto-managed scalps · 1 alert-only</div></div>
+    <div class="kpi"><div class="v mono" style="color:var(--warn)">FROZEN</div><div class="l">Auto-entries</div><div class="s">BP below floor · 0/1 used today</div></div>
+  </section>
+
+  <section class="panel">
+    <p class="eyebrow">Positions &amp; exit rails</p>
+    <div class="scroll">
+    <table>
+      <thead><tr>
+        <th>Contract</th><th>Mode</th><th class="num">Avg</th><th class="num">Mark</th>
+        <th class="num">P&amp;L</th><th>Stop ◄ mark ► target</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td class="mono">QQQ 7/21 $713C ×1 · 0DTE</td>
+          <td><span class="chip good">AUTO-EXIT</span></td>
+          <td class="num">0.11</td><td class="num">0.095</td>
+          <td class="num pl-neg">−$1.50</td>
+          <td>
+            <div class="rail" title="stop 0.08 · entry 0.11 · target 0.165"><div class="fill"></div>
+              <span class="entry" style="left:35%"></span><span class="dot" style="left:29%"></span></div>
+            <div class="rail-labels mono"><span>0.08</span><span>0.165</span></div>
+          </td>
+          <td class="rsi">QQQ +1.83% · needs +0.60% to strike · trend-break exit &lt;+1.4% ·HARD EXIT 3:15 ET</td>
+        </tr>
+        <tr>
+          <td class="mono">RIVN 7/24 $19C ×1 · 3DTE</td>
+          <td><span class="chip good">AUTO-EXIT</span></td>
+          <td class="num">0.11</td><td class="num">0.105</td>
+          <td class="num pl-neg">−$0.50</td>
+          <td>
+            <div class="rail" title="stop 0.08 · entry 0.11 · target 0.165"><div class="fill"></div>
+              <span class="entry" style="left:35%"></span><span class="dot" style="left:29%"></span></div>
+            <div class="rail-labels mono"><span>0.08</span><span>0.165</span></div>
+          </td>
+          <td class="rsi">Γ0.20 · day-trade class — flatten 3:45 ET unless BE-ratchet @ 0.14</td>
+        </tr>
+        <tr>
+          <td class="mono">IREN 7/24 $33P ×1</td>
+          <td><span class="chip crit">ALERT-ONLY</span></td>
+          <td class="num">0.39</td><td class="num">0.145</td>
+          <td class="num pl-neg">−$24.50 (−63%)</td>
+          <td>
+            <div class="rail" title="salvage floor 0.05 · entry 0.39 · target 0.59"><div class="fill"></div>
+              <span class="entry" style="left:63%"></span><span class="dot" style="left:17%"></span></div>
+            <div class="rail-labels mono"><span>0.05</span><span>0.59</span></div>
+          </td>
+          <td class="rsi">Margin acct · expires Fri · salvage recommended</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="rsi" style="margin:10px 0 0">Closed today (all by user): RIVN 8/21 $18C 1.41→1.42 (+$1) · NVDA 8/21 $240C 0.85→0.86 (+$1) · INTC 7/22 $110C 0.58→0.54 (−$4). Agentic acct flat; loop in watch mode — new positions get rails armed automatically on discovery.</p>
+  </section>
+
+  <div class="cols">
+    <section class="panel">
+      <p class="eyebrow">Signal board — intraday % vs prior close · 15:44 UTC</p>
+      <div role="img" aria-label="Bar chart of intraday percent change: INTC +6.8, TSLA +3.1, RIVN +2.2, QQQ +1.7, NVDA +1.5, SPY +0.7">
+        <div class="bar-row"><span class="t">INTC</span><div class="bar-track" title="INTC +6.8% · held via 7/22 110c · needs +6.1% more to strike"><div class="bar" style="width:100%"></div></div><span class="v2">+6.8%</span></div>
+        <div class="bar-row"><span class="t">TSLA</span><div class="bar-track" title="TSLA +3.1% · easing from +3.8% high"><div class="bar" style="width:46%"></div></div><span class="v2">+3.1%</span></div>
+        <div class="bar-row"><span class="t">RIVN</span><div class="bar-track" title="RIVN +2.2%"><div class="bar" style="width:32%"></div></div><span class="v2">+2.2%</span></div>
+        <div class="bar-row"><span class="t">QQQ</span><div class="bar-track" title="QQQ +1.7%"><div class="bar" style="width:25%"></div></div><span class="v2">+1.7%</span></div>
+        <div class="bar-row"><span class="t">NVDA</span><div class="bar-track" title="NVDA +1.5% · held via 8/21 240c"><div class="bar" style="width:22%"></div></div><span class="v2">+1.5%</span></div>
+        <div class="bar-row"><span class="t">SPY</span><div class="bar-track" title="SPY +0.7%"><div class="bar" style="width:11%"></div></div><span class="v2">+0.7%</span></div>
+      </div>
+      <p class="rsi" style="margin:10px 0 0">Flow: INTC 7/22 110c cum. volume 8,769 (hot — priority watch). NVDA 240c +377 contracts last 28 min (healthy). RIVN option flow went quiet before the close-out — consistent with the exit.</p>
+    </section>
+
+    <section class="panel" style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <p class="eyebrow">GEX pullback gate — SPY / QQQ scalps</p>
+        <div class="gate">
+          <span class="big" style="color:var(--warn)">STANDBY</span>
+          <span style="font-size:13px;color:var(--ink2)">Up day — 0 of 4 criteria. Arms at ≤ −0.75% or red-after-green; then paste flip/wall levels. Contract rule: shortest expiry that passes conviction (0.30–0.45Δ), stepping out if 0DTE fails.</span>
+        </div>
+      </div>
+      <div>
+        <p class="eyebrow">Watchlist &amp; standby pool</p>
+        <div class="scroll">
+        <table>
+          <thead><tr><th>Contract</th><th class="num">Ask</th><th class="num">Δ</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">RIVN 8/7 $19C</td><td class="num">0.84</td><td class="num">0.38</td><td><span class="chip good">LEAD CANDIDATE · AWAITING BP</span></td></tr>
+            <tr><td class="mono">NVDA 7/31 $225C</td><td class="num">0.56</td><td class="num">0.09</td><td><span class="chip mut">Δ BELOW ENTRY FLOOR</span></td></tr>
+            <tr><td class="mono">DIS 8/21 $110C</td><td class="num">0.67</td><td class="num">0.13</td><td><span class="chip mut">Δ BELOW ENTRY FLOOR</span></td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p class="rsi" style="margin:8px 0 0">Cap rule suspended during settlement (BP $29.58 is transient; ~$392 inbound). Resumes at BP &gt; $80.</p>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <p class="eyebrow">GEX Map — QQQ 0DTE · heatseeker-style · 16:20 UTC · spot $708.69</p>
+    <div class="scroll">
+      <div role="img" aria-label="Net GEX by strike: 690 minus 16, 695 minus 53, 700 minus 6, 705 plus 571, 710 plus 678 king node, 715 plus 92, 720 plus 13; spot between 705 and 710">
+        <div class="bar-row"><span class="t">720</span><div class="bar-track" title="net +13 · call OI 8,493"><div class="bar" style="width:2%"></div></div><span class="v2">+13</span></div>
+        <div class="bar-row"><span class="t">715</span><div class="bar-track" title="net +92 · call OI 4,688"><div class="bar" style="width:14%"></div></div><span class="v2">+92</span></div>
+        <div class="bar-row" style="background:var(--accent-soft);border-radius:4px"><span class="t">710★</span><div class="bar-track" title="KING NODE · net +678 · 710C traded $14.9M today, 32× OI"><div class="bar" style="width:100%"></div></div><span class="v2">+678</span></div>
+        <div class="bar-row"><span class="t" style="color:var(--accent)">◄708.7</span><div class="bar-track" title="SPOT — pinned between 705 and 710"><div class="bar" style="width:0.5%"></div></div><span class="v2">spot</span></div>
+        <div class="bar-row"><span class="t">705</span><div class="bar-track" title="net +571 · battleground: $56.6M call premium + 84× OI put volume"><div class="bar" style="width:84%"></div></div><span class="v2">+571</span></div>
+        <div class="bar-row"><span class="t">700</span><div class="bar-track" title="net −6 · near-flat"><div class="bar" style="width:1%;background:var(--crit)"></div></div><span class="v2">−6</span></div>
+        <div class="bar-row"><span class="t">695</span><div class="bar-track" title="net −53 · put support shelf"><div class="bar" style="width:8%;background:var(--crit)"></div></div><span class="v2">−53</span></div>
+        <div class="bar-row"><span class="t">690</span><div class="bar-track" title="net −16"><div class="bar" style="width:2%;background:var(--crit)"></div></div><span class="v2">−16</span></div>
+      </div>
+    </div>
+    <div class="cols" style="margin-top:12px">
+      <div>
+        <p class="eyebrow">Structure read</p>
+        <ul class="rules">
+          <li><span class="tick">▸</span>King node <span class="mono">$710</span> · gap from spot: <span class="mono">+$1.31 (+0.18%)</span> — spot pinned in the 705–710 dealer zone</li>
+          <li><span class="tick">▸</span>Money between spot and king node: <span class="mono">$14.9M</span> traded at 710C today</li>
+          <li><span class="tick">▸</span><span style="color:var(--warn)">Held QQQ $713C is ABOVE the king node</span> — needs a break through the 710 wall to pay</li>
+          <li><span class="tick">▸</span>Put support shelf <span class="mono">$695</span> · zero-gamma-ish <span class="mono">~$700</span></li>
+        </ul>
+      </div>
+      <div>
+        <p class="eyebrow">Whale / unusual flow (V:OI · premium)</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Strike</th><th class="num">Vol</th><th class="num">V:OI</th><th class="num">Premium</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">705C</td><td class="num">130,376</td><td class="num">10.9×</td><td class="num">$56.6M</td></tr>
+            <tr><td class="mono">710C</td><td class="num">202,739</td><td class="num">32×</td><td class="num">$14.9M</td></tr>
+            <tr><td class="mono">705P</td><td class="num">208,843</td><td class="num">84×</td><td class="num">$8.0M</td></tr>
+            <tr><td class="mono">700P</td><td class="num">166,546</td><td class="num">42×</td><td class="num">$2.4M</td></tr>
+          </tbody>
+        </table></div>
+        <p class="rsi" style="margin:8px 0 0">Derived from Robinhood chain data: net GEX ≈ (call OI×γ − put OI×γ); OI is T-1; V:OI runs hot on 0DTE by nature; aggregate anomalies, not sweep-level prints. Refreshes ~30 min + at premarket + on gate arming.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="eyebrow">Loop &amp; guardrails</p>
+    <div class="cols">
+      <ul class="rules">
+        <li><span class="tick">▸</span>5-min loop <span class="mono">05f43723</span>: scalp rails → position discovery → flow watch → dashboard republish · overnight policy active</li>
+        <li><span class="tick">▸</span>Hourly heartbeat rebuilds the loop from <span class="mono">supertrades/supertrades-v3.md</span> after session restarts</li>
+        <li><span class="tick">▸</span>Push notifications: fills, target/stop hits, flow shifts on held names, gamma-flip proxy, daily halt</li>
+        <li><span class="tick">▸</span>Kill switches: <span class="kill">pause trading</span> · <span class="kill">stop the loop</span></li>
+      </ul>
+      <ul class="rules">
+        <li><span class="tick">▸</span>Agentic acct only — margin acct never traded</li>
+        <li><span class="tick">▸</span>Max 1 entry/day · 1 contract · Δ ≥ 0.25 · ask ≤ BP÷100 · shortest expiry passing conviction</li>
+        <li><span class="tick">▸</span>No doubling a held ticker · never below $30 BP · breakeven ratchet at +25%</li>
+        <li><span class="tick">▸</span>Daily halt at −$60 day P&amp;L — entries stop, exits stay live</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    Decision-support console for a self-directed account; auto-execution per user-authorized rails, Agentic account only.
+    Republishes each 5-min cycle — refresh this page for the latest. Alerts and fills also arrive via push and chat.
+  </footer>
+</div>
