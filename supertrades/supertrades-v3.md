@@ -46,6 +46,12 @@ guardrails are non-negotiable.
 ## Exit ladder (executed automatically when live)
 - Positions in Agentic acct: **target +50% → sell to close; stop −30% → sell to close**
   (limit at mark, tick-rounded). ≥30% swing between scans → alert.
+- **Breakeven ratchet**: once a position's high-water mark hits +25%, the stop moves to entry.
+- **Momentum-stall exit** (low-delta positions): from 3:30pm ET, if the underlying's day is
+  flat/red and the position is below +20%, sell — theta wins stalls.
+- **Close watch**: alert on any universe ticker crossing ±2% intraday or reversing >1%
+  cycle-over-cycle. Gamma-flip proxy: SPY/QQQ turning red after green (or −0.75%) → prompt
+  user for GEX flip/wall levels; never guess levels.
 - Time stops: monthlies exited ~2 weeks before expiry if flat; short-dated positions not
   working within the planned window get closed — theta is the silent stop.
 - Margin-acct positions: alert-only versions of the same rails.
