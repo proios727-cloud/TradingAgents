@@ -25,24 +25,13 @@
     "alert_only": {}
   },
   "day": {
-    "realized_pnl": -2.0,
+    "realized_pnl": -6.0,
     "auto_entries_used": 0,
-    "manual_round_trips": 3,
+    "manual_round_trips": 4,
+    "churn_threshold_hit": true,
     "halted": false
   },
   "positions": {
-    "e136ddca-9e97-4b8d-9ec4-3b5b2fd03f02": {
-      "contract": "QQQ 7/21 $713C", "account": "902341866", "qty": 1,
-      "entry": 0.11, "hwm": 0.11, "ratchet_engaged": false,
-      "class": "0dte_scalp", "expiry": "2026-07-21",
-      "exit_rules": [
-        {"type": "target", "pct": 50},
-        {"type": "stop", "pct": -30},
-        {"type": "ratchet", "arm_pct": 25},
-        {"type": "class_session_stop"},
-        {"type": "underlying_trend_break", "day_pct_below": 1.4, "cycles": 2, "mark_below_entry": true}
-      ]
-    },
     "2feb20d0-198b-4ed1-96ac-9569418cd91a": {
       "contract": "RIVN 7/24 $19C", "account": "902341866", "qty": 1,
       "entry": 0.11, "hwm": 0.11, "ratchet_engaged": false,
@@ -100,6 +89,7 @@
   },
   "open_plan": null,
   "log": [
-    {"t": "2026-07-21", "event": "fills", "detail": "RIVN 18c +$1, NVDA 240c +$1, INTC 110c -$4 (user closes); QQQ 713c 0DTE + RIVN 19c opened 16:04-16:05 (user)"}
+    {"t": "2026-07-21", "event": "fills", "detail": "RIVN 18c +$1, NVDA 240c +$1, INTC 110c -$4 (user closes); QQQ 713c 0DTE + RIVN 19c opened 16:04-16:05 (user)"},
+    {"t": "2026-07-21T17:12Z", "event": "fill", "detail": "QQQ 713c 0DTE sold by user @ 0.07 (-$4); day realized -$6; churn threshold hit (4 round-trips, ~spread cost est. $8-10 today) — DND: logged, not pushed"}
   ]
 }
