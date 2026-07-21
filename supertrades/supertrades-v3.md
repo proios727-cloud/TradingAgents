@@ -58,6 +58,15 @@ guardrails are non-negotiable.
 - GEX index scalps (when armed) use the skill's tighter rails: −10% stop, scale 50% @ +5%,
   25% @ +10%, runner only if structure supports.
 
+## Flow watch & delivery (added 15:40 UTC)
+- Per-cycle 5-min volume deltas on held contracts: rising delta + favorable price acceleration
+  = "flow picking up" push; falling delta 2+ cycles with stalled gains = "flow slowing" push.
+- Push notifications (phone/desktop) on: fills ("OPENED"/"CLOSED @ price"), target/stop hits,
+  flow shifts on held names, gamma-flip proxy, daily halt. Quiet cycles never push.
+- Dashboard republished every cycle at the same URL (data ≤ ~5 min old on refresh):
+  https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4
+- Watchlist rows: RIVN 8/7 $19c · DIS 8/21 $110c · NVDA 7/31 $225c (sub-$0.80 adds 15:38 UTC).
+
 ## Loop mechanics
 - **5-min cron** (session-local): exit scan → watchlist refresh → GEX gate → (if live) entry check.
 - **Hourly heartbeat Routine** (durable, survives restarts): verifies the 5-min cron exists;
