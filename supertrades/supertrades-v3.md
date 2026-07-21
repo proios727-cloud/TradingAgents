@@ -57,6 +57,10 @@ guardrails are non-negotiable.
 - Margin-acct positions: alert-only versions of the same rails.
 - GEX index scalps (when armed) use the skill's tighter rails: −10% stop, scale 50% @ +5%,
   25% @ +10%, runner only if structure supports.
+- **Pullback-gate expiry rule**: pick the SHORTEST expiry (0DTE → nearest weekly) that still
+  passes conviction — 0.30–0.45 delta at/one-past the triggering level, within premium cap,
+  sane spread/OI. Shortest failing conviction → step out an expiry, never force it. Same
+  shorter-dated-if-conviction preference applies to equity watchlist swaps and auto-entries.
 
 ## Flow watch & delivery (added 15:40 UTC)
 - Per-cycle 5-min volume deltas on held contracts: rising delta + favorable price acceleration
