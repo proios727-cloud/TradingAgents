@@ -44,6 +44,14 @@ guardrails are non-negotiable.
   conviction is intact (momentum + RSI re-check). Conviction faded → remove + alert, don't swap.
 - Remove entries whose ask exceeds the cap by >10%.
 
+## Overnight policy (user rule, 7/21 — effective immediately)
+- **Swing-eligible** (may hold overnight): SPY/QQQ/IWM only, delta ≥ 0.40 and ≥ 30 DTE at entry.
+- **Everything else is day-trade-only** (all single names + XLE/USO): auto-flatten at 3:45pm ET
+  unless the breakeven ratchet engaged — then push for a keep/flatten decision, defaulting to
+  flatten at 3:55 if no reply. Entries after 3:00pm ET must be swing-eligible or skipped.
+- **0DTE index contracts only via the GEX pullback gate with user-supplied levels** — never
+  momentum auto-entry, no exceptions.
+
 ## Exit ladder (executed automatically when live)
 - Positions in Agentic acct: **target +50% → sell to close; stop −30% → sell to close**
   (limit at mark, tick-rounded). ≥30% swing between scans → alert.
