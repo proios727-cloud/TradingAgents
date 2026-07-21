@@ -6,6 +6,10 @@
   "mode": {"cadence_min": 15, "dnd": true, "set_at": "2026-07-21T17:00:00Z",
             "note": "user-set slow/DND; push only on fills or halt; revert on user request (say 'fast mode' / 'notifications on')"},
   "dashboard_url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4",
+  "index_page": {"path": "/tmp/claude-0/-home-user-TradingAgents/729ebdb4-cb4a-5e98-8f53-ec30e13bd567/scratchpad/supertrades-indexes.html",
+                  "url": "https://claude.ai/code/artifact/ed76be77-02f7-42d1-9eb5-ae50f4159249",
+                  "favicon": "📡",
+                  "rule": "republish with the loop when index structure, gate status, or the alert feed changes; alert feed accumulates all DND-muted alerts"},
   "universe": ["SPY","QQQ","IWM","NVDA","TSLA","AMD","INTC","RIVN","DIS","META","LMT","XOM","CVX","XLE","USO"],
   "ticker_classes": {
     "SPY": "index", "QQQ": "index", "IWM": "index",
