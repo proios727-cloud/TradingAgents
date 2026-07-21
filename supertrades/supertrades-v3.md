@@ -60,12 +60,18 @@ guardrails are non-negotiable.
   or daily halt triggers.
 - Known limits: ~5-min granularity (not seconds); cron fires queue while the agent is busy.
 
-## State snapshot — 2026-07-21
-- Positions: IREN 7/24 $33p @ $0.39 (margin, alert-only, deep ITM loss, Thu time-stop);
+## State snapshot — 2026-07-21 (go-live verified 15:15 UTC)
+- LIVE. User authorization: "go live" (2026-07-21). Standing authorization covers rail-based
+  exits and capped entries executed by the loop (review_option_order → place_option_order,
+  fresh ref_id per order, reported immediately); no per-order re-confirmation.
+- Verified: 5-min cron alive (8e6f17e8); hourly heartbeat Routine trig_01AuFqYEVYqWvtmJhkvSPAx3
+  (fires :09); Agentic acct 902341866 agentic_allowed + option_level_2; order tools reachable.
+- Positions: IREN 7/24 $33p @ $0.39 (margin, alert-only, deep loss, Thu time-stop);
   RIVN 8/21 $18c @ $1.41 (rails $2.12 / $0.99); NVDA 8/21 $240c @ $0.85 (rails $1.28 / $0.60).
-- Watchlist: RIVN 8/7 $19c (~$0.85, delta 0.39). Pool: NVDA 7/31 $220c, DIS 8/21 $105c,
-  SPY 8/7 $765c, TSLA 7/31 $460c (junk-flagged).
-- BP ≈ $87.66. Day cap: 1 entry, ≤ $0.88 premium.
+- Watchlist: RIVN 8/7 $19c (~$0.85, delta 0.39; entry blocked — holding RIVN). Pool: NVDA 7/31
+  $220c, DIS 8/21 $105c, SPY 8/7 $765c, TSLA 7/31 $460c (junk-flagged).
+- Account $322.62 · BP $87.62 → premium cap $0.87. Day cap: 1 entry. Auto-entries today: 0.
+- Console artifact (snapshot dashboard): https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4
 
 ## Changelog
 - **v3 (2026-07-21)**: sub-$100→BP-scaled premium cap; short-dated priority; same-ticker
