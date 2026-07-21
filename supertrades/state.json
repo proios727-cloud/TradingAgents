@@ -1,54 +1,98 @@
 {
-  "schema": "supertrades-state-v1",
-  "updated_at": "2026-07-21T16:20:00Z",
+  "schema": "supertrades-state-v2",
+  "updated_at": "2026-07-21T16:55:00Z",
   "trading_date": "2026-07-21",
+  "rule_version": "v3.1",
+  "dashboard_url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4",
+  "universe": ["SPY","QQQ","IWM","NVDA","TSLA","AMD","INTC","RIVN","DIS","META","LMT","XOM","CVX","XLE","USO"],
+  "ticker_classes": {
+    "SPY": "index", "QQQ": "index", "IWM": "index",
+    "NVDA": "single_name", "TSLA": "single_name", "AMD": "single_name",
+    "INTC": "single_name", "RIVN": "single_name", "DIS": "single_name",
+    "META": "single_name", "LMT": "single_name",
+    "XOM": "single_name", "CVX": "single_name", "XLE": "sector_etf", "USO": "sector_etf"
+  },
+  "class_defaults": {
+    "0dte_scalp": {"target_pct": 50, "stop_pct": -30, "ratchet_pct": 25, "hard_exit_et": "15:15"},
+    "day_trade":  {"target_pct": 50, "stop_pct": -30, "ratchet_pct": 25, "flatten_et": "15:45"},
+    "swing":      {"target_pct": 50, "stop_pct": -30, "ratchet_pct": 25, "time_stop": {"days_before_expiry": 14}},
+    "alert_only": {}
+  },
   "day": {
     "realized_pnl": -2.0,
     "auto_entries_used": 0,
-    "auto_entries_max": 1,
     "manual_round_trips": 3,
-    "churn_alert_threshold": 4,
-    "halt_at": -60.0,
     "halted": false
   },
   "positions": {
     "e136ddca-9e97-4b8d-9ec4-3b5b2fd03f02": {
-      "contract": "QQQ 7/21 $713C", "account": "902341866", "qty": 1, "entry": 0.11,
-      "class": "0dte_scalp", "target": 0.165, "stop": 0.08, "hwm": 0.11,
-      "be_ratchet_at": 0.14, "be_ratchet_engaged": false,
-      "hard_exit_utc": "2026-07-21T19:15:00Z", "sellout_utc": "2026-07-21T19:45:00Z",
-      "trend_break": "QQQ day% < 1.4 for 2 cycles while mark < 0.11"
+      "contract": "QQQ 7/21 $713C", "account": "902341866", "qty": 1,
+      "entry": 0.11, "hwm": 0.11, "ratchet_engaged": false,
+      "class": "0dte_scalp", "expiry": "2026-07-21",
+      "exit_rules": [
+        {"type": "target", "pct": 50},
+        {"type": "stop", "pct": -30},
+        {"type": "ratchet", "arm_pct": 25},
+        {"type": "class_session_stop"},
+        {"type": "underlying_trend_break", "day_pct_below": 1.4, "cycles": 2, "mark_below_entry": true}
+      ]
     },
     "2feb20d0-198b-4ed1-96ac-9569418cd91a": {
-      "contract": "RIVN 7/24 $19C", "account": "902341866", "qty": 1, "entry": 0.11,
-      "class": "day_trade", "target": 0.165, "stop": 0.08, "hwm": 0.11,
-      "be_ratchet_at": 0.14, "be_ratchet_engaged": false,
-      "flatten_utc": "2026-07-21T19:45:00Z"
+      "contract": "RIVN 7/24 $19C", "account": "902341866", "qty": 1,
+      "entry": 0.11, "hwm": 0.11, "ratchet_engaged": false,
+      "class": "day_trade", "expiry": "2026-07-24",
+      "exit_rules": [
+        {"type": "target", "pct": 50},
+        {"type": "stop", "pct": -30},
+        {"type": "ratchet", "arm_pct": 25},
+        {"type": "class_session_stop"}
+      ]
     },
     "9566d3c1-4834-47f2-b97f-35cf14f4f9a2": {
-      "contract": "IREN 7/24 $33P", "account": "812234458", "qty": 1, "entry": 0.39,
-      "class": "alert_only", "alerts": {"target": 0.59, "salvage_floor_bid": 0.05, "swing_pct": 30},
-      "time_stop_warn": "2026-07-23", "note": "margin acct - never trade; salvage recommended"
+      "contract": "IREN 7/24 $33P", "account": "812234458", "qty": 1,
+      "entry": 0.39, "hwm": 0.39, "ratchet_engaged": false,
+      "class": "alert_only", "expiry": "2026-07-24",
+      "exit_rules": [
+        {"type": "alert_target", "pct": 50},
+        {"type": "alert_bid_floor", "bid": 0.05},
+        {"type": "alert_swing", "pct": 30},
+        {"type": "alert_time_stop", "days_before_expiry": 1}
+      ],
+      "note": "salvage recommended to user"
     }
+  },
+  "watchlist": [
+    {"id": "fa89a40f-56b6-4de3-a2b7-145736d1a280", "contract": "RIVN 8/7 $19C"},
+    {"id": "491ad6e6-2c17-41ed-ad24-a3e1eea9b438", "contract": "DIS 8/21 $110C"},
+    {"id": "34178965-a9b6-481e-836d-11b5cf067061", "contract": "NVDA 7/31 $225C"}
+  ],
+  "pool": [
+    {"id": "f3c80034-7027-4403-96fc-90a2134333e5", "contract": "NVDA 7/31 $220C"},
+    {"id": "9e66b7db-0699-4776-beb3-f9290775ea0a", "contract": "DIS 8/21 $105C"},
+    {"id": "d68712fc-7956-4131-ae60-c1ef25d330ea", "contract": "SPY 8/7 $765C"},
+    {"id": "82178806-3eb9-4e0d-97b7-a2b062d86543", "contract": "TSLA 7/31 $460C", "requires_delta": 0.08}
+  ],
+  "settlement": {
+    "pending": [
+      {"amount": 282, "settles_on": "2026-07-22", "kind": "t1_settlement"},
+      {"amount": 250, "kind": "deposit", "expected": "2026-07-22"}
+    ]
   },
   "prior_cycle": {
     "at": "2026-07-21T16:32:00Z",
     "marks": {"e136ddca": 0.085, "2feb20d0": 0.105, "9566d3c1": 0.145},
     "contract_cum_volume": {"e136ddca": 37242, "2feb20d0": 656},
-    "note": "QQQ 713c holding 0.085 vs stop 0.08 two cycles; QQQ pinned 708.7 under 710 king node, no 710 tag yet",
-    "day_pct": {"SPY": 0.82, "QQQ": 1.83, "IWM": 1.15, "NVDA": 1.43, "TSLA": 3.23, "AMD": 6.2,
-                 "INTC": 7.41, "RIVN": 2.52, "DIS": 0.09, "META": 0.21, "LMT": -0.96,
-                 "XOM": 1.68, "CVX": 0.17, "XLE": 0.47, "USO": 2.1},
-    "crossed_2pct": ["INTC", "AMD", "TSLA", "RIVN", "USO"],
-    "vol_note": "contract_cum_volume resets daily at market open — never diff across trading_date change"
+    "day_pct": {"SPY": 0.87, "QQQ": 1.82, "IWM": 1.16, "NVDA": 0.86, "TSLA": 3.14, "AMD": 6.69,
+                 "INTC": 7.27, "RIVN": 2.47, "DIS": 0.12, "META": 0.24, "LMT": -0.5,
+                 "XOM": 1.81, "CVX": 0.17, "XLE": 0.57, "USO": 2.19},
+    "crossed_2pct": ["INTC", "AMD", "TSLA", "RIVN", "USO"]
   },
-  "account": {
-    "bp_last_read": 7.58, "bp_read_at": "2026-07-21T16:05:00Z",
-    "pending": "~$282 settling T+1 + $250 deposit",
-    "rule": "ALWAYS re-read get_portfolio before sizing; never size off this cached value"
+  "gex_map": {
+    "QQQ": {"built_at": "2026-07-21T16:20:00Z", "expiry": "2026-07-21", "king_node": 710,
+             "secondary": 705, "put_shelf": 695, "note": "spot pinned 705-710"}
   },
   "open_plan": null,
   "log": [
-    {"t": "2026-07-21", "event": "fills", "detail": "RIVN 18c +$1, NVDA 240c +$1, INTC 110c -$4 (user), QQQ 713c 0DTE + RIVN 19c opened 16:04-16:05 (user)"}
+    {"t": "2026-07-21", "event": "fills", "detail": "RIVN 18c +$1, NVDA 240c +$1, INTC 110c -$4 (user closes); QQQ 713c 0DTE + RIVN 19c opened 16:04-16:05 (user)"}
   ]
 }
