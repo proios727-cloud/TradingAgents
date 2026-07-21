@@ -32,10 +32,10 @@
     }
   },
   "prior_cycle": {
-    "at": "2026-07-21T16:28:00Z",
-    "marks": {"e136ddca": 0.085, "2feb20d0": 0.105, "9566d3c1": 0.14},
-    "contract_cum_volume": {"e136ddca": 35733, "2feb20d0": 656},
-    "note": "QQQ 713c 0.5c above stop 0.08; QQQ pinned 708.8 under 710 king node",
+    "at": "2026-07-21T16:32:00Z",
+    "marks": {"e136ddca": 0.085, "2feb20d0": 0.105, "9566d3c1": 0.145},
+    "contract_cum_volume": {"e136ddca": 37242, "2feb20d0": 656},
+    "note": "QQQ 713c holding 0.085 vs stop 0.08 two cycles; QQQ pinned 708.7 under 710 king node, no 710 tag yet",
     "day_pct": {"SPY": 0.82, "QQQ": 1.83, "IWM": 1.15, "NVDA": 1.43, "TSLA": 3.23, "AMD": 6.2,
                  "INTC": 7.41, "RIVN": 2.52, "DIS": 0.09, "META": 0.21, "LMT": -0.96,
                  "XOM": 1.68, "CVX": 0.17, "XLE": 0.47, "USO": 2.1},
