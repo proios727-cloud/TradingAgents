@@ -1,7 +1,7 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-21T20:03:00Z",
-  "trading_date": "2026-07-21",
+  "updated_at": "2026-07-22T13:15:00Z",
+  "trading_date": "2026-07-22",
   "rule_version": "v3.1",
   "mode": {
     "cadence_min": 15,
@@ -82,10 +82,10 @@
     "alert_only": {}
   },
   "day": {
-    "realized_pnl": -10.0,
+    "realized_pnl": 0.0,
     "auto_entries_used": 0,
-    "manual_round_trips": 4,
-    "churn_threshold_hit": true,
+    "manual_round_trips": 0,
+    "churn_threshold_hit": false,
     "halted": false
   },
   "positions": {
@@ -155,63 +155,72 @@
   "settlement": {
     "pending": [
       {
-        "amount": 282,
-        "settles_on": "2026-07-22",
-        "kind": "t1_settlement"
-      },
-      {
         "amount": 250,
         "settles_on": "2026-07-22",
         "kind": "deposit",
-        "confirmed": false
+        "confirmed": false,
+        "note": "NOT landed at 9:12am check - still in pending_deposits; do not count toward BP"
+      }
+    ],
+    "cleared": [
+      {
+        "amount": 282,
+        "kind": "t1_settlement",
+        "confirmed": "2026-07-22 BP 303.20"
       }
     ]
   },
   "prior_cycle": {
-    "at": "2026-07-21T20:02:00Z",
+    "at": "2026-07-22T13:12:00Z",
     "marks": {
       "9566d3c1": 0.2
     },
     "contract_cum_volume": {},
-    "day_pct": {
-      "SPY": 0.87,
-      "QQQ": 1.82,
-      "IWM": 1.16,
-      "NVDA": 0.86,
-      "TSLA": 3.14,
-      "AMD": 6.69,
-      "INTC": 7.27,
-      "RIVN": 2.47,
-      "DIS": 0.12,
-      "META": 0.24,
-      "LMT": -0.5,
-      "XOM": 1.81,
-      "CVX": 0.17,
-      "XLE": 0.57,
-      "USO": 2.19
+    "day_pct": {},
+    "crossed_2pct": [],
+    "note": "premarket baselines: QQQ gap -0.87 (GATE PRE-ARMED), USO +3.0, XOM +1.4, XLE +1.2, INTC -3.6, AMD -2.8"
+  },
+  "gex_map": {},
+  "open_plan": {
+    "built_at": "2026-07-22T13:15:00Z",
+    "settled_bp": 303.2,
+    "per_trade_cap": 121.0,
+    "deposit_landed": false,
+    "gappers": {
+      "up": {
+        "USO": 3.0,
+        "XOM": 1.4,
+        "XLE": 1.2,
+        "CVX": 1.2
+      },
+      "down": {
+        "INTC": -3.6,
+        "AMD": -2.8,
+        "QQQ": -0.87,
+        "NVDA": -0.9
+      }
     },
-    "crossed_2pct": [
-      "INTC",
-      "AMD",
-      "TSLA",
-      "RIVN",
-      "USO"
+    "gate": {
+      "status": "PRE-ARMED",
+      "reason": "QQQ gap -0.87% (>= -0.75%)",
+      "action": "user pastes GEX flip/wall levels to enable index play; maps build on gate confirmation after open"
+    },
+    "candidates": [
+      {
+        "contract": "XLE 7/24 $59C",
+        "id": "b4e1fb7e-8a8f-4d24-93c4-fc22fb397b9b",
+        "yday_mark": 0.4,
+        "delta": 0.38,
+        "oi": 3031,
+        "conditions": "entry window 9:40-11:00 only; spread <= 10% of ask at entry time (premarket spread too wide); XLE above VWAP and 15-min OR-high; rails +50/-30/BE-ratchet +25; class day_trade (flatten 3:45)"
+      },
+      {
+        "contract": "INTC 7/24 $100P",
+        "verdict": "REJECTED - $423 premium > $121 cap (earnings IV 204%)"
+      }
     ],
-    "note": "EOD: IREN put closed 0.20 (-49%); Agentic flat; loop silent until 8:55am ET"
+    "notes": "energy = the theme; semis giving back; no entries 9:30-9:40; max 1 auto-entry; IREN put (margin, alert-only) expires FRIDAY - Thursday warning tomorrow"
   },
-  "gex_map": {
-    "QQQ": {
-      "built_at": "2026-07-21T16:20:00Z",
-      "expiry": "2026-07-21",
-      "king_node": 710,
-      "secondary": 705,
-      "put_shelf": 695,
-      "note": "spot pinned 705-710",
-      "stale": true,
-      "stale_reason": "expiry 2026-07-21 passed; never plan on this map"
-    }
-  },
-  "open_plan": null,
   "log": [
     {
       "t": "2026-07-21",
@@ -232,6 +241,11 @@
       "t": "2026-07-21T20:02Z",
       "event": "eod",
       "detail": "Day close: realized -$10 (5 round-trips, ~$8-10 spread cost). Agentic flat. IREN 0.20. Pages EOD-published from repo paths (URL continuity verified). Tomorrow: rollover-first rule, premarket plan 9:05-9:30, expected settled BP ~$540, cap $216/trade, delta 0.30-0.50, entries from 9:40 with OR+VWAP."
+    },
+    {
+      "t": "2026-07-22T13:15Z",
+      "event": "premarket",
+      "detail": "Day rolled. BP 303.20 settled ($282 landed; $250 deposit NOT YET). Cap $121. QQQ gap -0.87 = gate PRE-ARMED (DND: chat+pages only, no push). Lead candidate XLE 7/24 59c conditional. INTC put priced out by earnings IV."
     }
   ]
 }
