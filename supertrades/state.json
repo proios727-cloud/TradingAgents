@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-23T13:16:00Z",
+  "updated_at": "2026-07-23T13:49:00Z",
   "trading_date": "2026-07-23",
   "rule_version": "v3.1",
   "mode": {
@@ -82,38 +82,13 @@
     "alert_only": {}
   },
   "day": {
-    "realized_pnl": 0.0,
+    "realized_pnl": -27.0,
     "auto_entries_used": 0,
     "manual_round_trips": 0,
     "churn_threshold_hit": false,
     "halted": false
   },
   "positions": {
-    "491ad6e6-2c17-41ed-ad24-a3e1eea9b438": {
-      "contract": "DIS 8/21 $110C",
-      "account": "902341866",
-      "qty": 1,
-      "entry": 0.65,
-      "hwm": 0.65,
-      "ratchet_engaged": false,
-      "class": "day_trade",
-      "expiry": "2026-08-21",
-      "exit_rules": [
-        {
-          "type": "target",
-          "pct": 50
-        },
-        {
-          "type": "stop",
-          "pct": -30
-        },
-        {
-          "type": "ratchet",
-          "arm_pct": 25
-        }
-      ],
-      "note": "user manual buy 7/22 10:37 ET @0.65 (watchlist contract); held overnight; single_name -> day_trade rails; mark 0.495 at 7/22 close (-24%)"
-    },
     "6140b886-a7c8-4a78-9edb-63b58e5655dc": {
       "contract": "QS 7/24 $7C",
       "account": "812234458",
@@ -185,6 +160,13 @@
         "kind": "deposit",
         "confirmed": false,
         "note": "still in pending_deposits at 7/23 9:11 ET premarket; not in BP"
+      },
+      {
+        "amount": 38,
+        "settles_on": "2026-07-24",
+        "kind": "t1_sale_proceeds",
+        "confirmed": false,
+        "note": "DIS 110C sale proceeds; T+1"
       }
     ],
     "cleared": [
@@ -284,6 +266,11 @@
     "notes": "DIS 110C held (agentic, day_trade rails, flatten 3:45 unless ratchet); QS 7/24 7C (margin, ALERT-ONLY) expires tomorrow - time-stop alert TODAY; no entries 9:30-9:40; max 1 auto-entry; TSLA post-earnings -8%"
   },
   "log": [
+    {
+      "t": "2026-07-23T13:49Z",
+      "event": "fill",
+      "detail": "AGENTIC STOP EXECUTED: DIS 8/21 110C stop breached -42% (mark 0.375 vs 0.65 entry, stop -30%). Sold 1 @ limit 0.35, filled 0.38 (price improvement), order 6a621bd8, placed_agent=agentic. Realized -$27. Day realized -$27. Agentic FLAT. QS 7/24 7C (margin, alert-only) bid-floor alert 0.01 - near-dead, expires tomorrow. No entries (BP 20.80, settlement-suppressed). Opus lean cycle."
+    },
     {
       "t": "2026-07-23T13:16Z",
       "event": "premarket",
