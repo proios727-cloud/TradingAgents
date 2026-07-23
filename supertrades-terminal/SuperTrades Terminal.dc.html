@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Vendored runtime (offline): loaded before support.js so the dc-runtime finds
+     window.React / window.ReactDOM / window.Babel already present and skips its
+     unpkg CDN fetch. Lets the terminal run fully self-contained. -->
+<script src="./vendor/react.production.min.js"></script>
+<script src="./vendor/react-dom.production.min.js"></script>
+<script src="./vendor/babel.min.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/supertrades-design-system-4b8c0b0c-ce52-441b-ad93-13d3a9789ab3/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/supertrades-design-system-4b8c0b0c-ce52-441b-ad93-13d3a9789ab3/tokens/colors.css">
+<link rel="stylesheet" href="_ds/supertrades-design-system-4b8c0b0c-ce52-441b-ad93-13d3a9789ab3/tokens/typography.css">
+<link rel="stylesheet" href="_ds/supertrades-design-system-4b8c0b0c-ce52-441b-ad93-13d3a9789ab3/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/supertrades-design-system-4b8c0b0c-ce52-441b-ad93-13d3a9789ab3/tokens/effects.css">
+<link rel="stylesheet" href="_ds/supertrades-design-system-4b8c0b0c-ce52-441b-ad93-13d3a9789ab3/tokens/base.css">
+<link rel="stylesheet" href="_ds/supertrades-design-system-4b8c0b0c-ce52-441b-ad93-13d3a9789ab3/styles.css">
+<script src="_ds/supertrades-design-system-4b8c0b0c-ce52-441b-ad93-13d3a9789ab3/_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--bg-1); }
+  a { color: var(--green-400); text-decoration: none; }
+  a:hover { color: var(--green-300); }
+</style>
+</helmet>
+<div style="display:flex;flex-direction:column;height:100vh;background:var(--bg-1);color:var(--text-primary);font-family:var(--font-sans);overflow:hidden" data-screen-label="Terminal">
+  <header style="height:52px;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--bg-0);border-bottom:1px solid var(--border-hairline);flex-shrink:0">
+    <span style="font:700 16px/1 var(--font-sans);letter-spacing:0.02em;color:var(--text-primary)"><span style="color:var(--green-500)">SUPER</span>TRADES</span>
+    <div style="display:flex;gap:8px;margin-left:12px;min-width:0;overflow:hidden;flex-shrink:1">
+      <sc-for list="{{ topTickers }}" as="t" hint-placeholder-count="3">
+        <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.TickerChip" dc-props="{{ t }}" size="sm" hint-size="120px,26px"></x-import>
+      </sc-for>
+    </div>
+    <div style="display:flex;gap:14px;align-items:center;padding-left:14px;border-left:1px solid var(--border-hairline);font:var(--type-data-sm);white-space:nowrap;min-width:0;overflow:hidden;flex-shrink:1">
+      <span style="display:inline-flex;gap:5px;align-items:baseline"><span style="color:var(--text-muted);font:var(--type-label);letter-spacing:var(--tracking-label)">TICK</span><span style="{{ tickStyle }}">{{ tickV }}</span></span>
+      <span style="display:inline-flex;gap:5px;align-items:baseline"><span style="color:var(--text-muted);font:var(--type-label);letter-spacing:var(--tracking-label)">ADD</span><span style="color:var(--green-500);font-variant-numeric:tabular-nums">+820</span></span>
+      <span style="display:inline-flex;gap:5px;align-items:baseline"><span style="color:var(--text-muted);font:var(--type-label);letter-spacing:var(--tracking-label)">VOLD</span><span style="color:var(--green-500);font-variant-numeric:tabular-nums">+1.4B</span></span>
+      <span style="display:inline-flex;gap:5px;align-items:baseline"><span style="color:var(--text-muted);font:var(--type-label);letter-spacing:var(--tracking-label)">0DTE</span><span style="color:var(--amber-500);font-variant-numeric:tabular-nums">61%</span></span>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+      <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Badge" tone="{{ mktTone }}" dot="{{ mktOpen }}" pulse="{{ mktOpen }}" hint-size="100px,22px">{{ mktLabel }}</x-import>
+      <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Badge" tone="neutral" hint-size="90px,22px">SIMULATED DATA</x-import>
+      <span style="font:var(--type-data-sm);color:var(--text-muted)">{{ clock }} ET</span>
+      <span style="width:28px;height:28px;border-radius:50%;background:var(--surface-raised);border:1px solid var(--border-default);display:inline-flex;align-items:center;justify-content:center;font:600 11px var(--font-mono);color:var(--green-400)">AT</span>
+    </div>
+  </header>
+  <sc-if value="{{ regimeOn }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 16px;background:var(--surface-inset);border-bottom:1px solid var(--border-hairline);flex-shrink:0">
+      <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Badge" tone="warning" dot="{{ true }}" pulse="{{ true }}" hint-size="110px,22px">−GAMMA REGIME</x-import>
+      <span style="font:var(--type-data-sm);color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ regimeText }}</span>
+      <div style="margin-left:auto;flex-shrink:0">
+        <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Button" variant="ghost" size="sm" onClick="{{ onRegimeToggle }}" hint-size="130px,28px">Standard mode</x-import>
+      </div>
+    </div>
+  </sc-if>
+  <div style="display:flex;flex:1;min-height:0">
+    <nav style="width:200px;flex-shrink:0;background:var(--bg-0);border-right:1px solid var(--border-hairline);padding:12px 8px;display:flex;flex-direction:column;gap:2px">
+      <button onClick="{{ nav.signals }}" style="{{ navS.signals }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"></path></svg>Signals</button>
+      <button onClick="{{ nav.chart }}" style="{{ navS.chart }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5v4"></path><rect x="7" y="9" width="4" height="6" rx="1"></rect><path d="M9 15v4"></path><path d="M17 3v2"></path><rect x="15" y="5" width="4" height="8" rx="1"></rect><path d="M17 13v3"></path><path d="M3 3v16a2 2 0 0 0 2 2h16"></path></svg>Chart</button>
+      <button onClick="{{ nav.scanner }}" style="{{ navS.scanner }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="2.5"></circle><line x1="22" y1="12" x2="17" y2="12"></line><line x1="7" y1="12" x2="2" y2="12"></line><line x1="12" y1="7" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="17"></line></svg>Scanner</button>
+      <button onClick="{{ nav.gex }}" style="{{ navS.gex }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>GEX</button>
+      <button onClick="{{ nav.pnl }}" style="{{ navS.pnl }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>P&amp;L</button>
+      <button onClick="{{ nav.backtest }}" style="{{ navS.backtest }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>Backtest</button>
+      <button onClick="{{ nav.alerts }}" style="{{ navS.alerts }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>Alerts &amp; Settings</button>
+      <div style="margin-top:auto;padding:10px 12px;border-top:1px solid var(--border-hairline);display:flex;flex-direction:column;gap:4px">
+        <span style="font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--text-muted)">Session P&amp;L</span>
+        <span style="{{ sessionStyle }}">{{ sessionPnl }}</span>
+      </div>
+    </nav>
+    <main style="flex:1;min-width:0;overflow:auto;padding:16px;background:var(--bg-1)">
+      <sc-if value="{{ isSignals }}" hint-placeholder-val="{{ true }}" data-screen-label="Signals">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
+          <span style="font:var(--type-title);color:var(--text-primary)">Signal feed</span>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Tabs" tabs="{{ sigTabs }}" active="{{ sigFilter }}" onChange="{{ onSigFilter }}" size="sm" hint-size="260px,32px"></x-import>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:12px;align-items:start">
+          <sc-for list="{{ signals }}" as="s" hint-placeholder-count="4">
+            <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.SignalCard" dc-props="{{ s }}" hint-size="100%,230px"></x-import>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isChart }}" hint-placeholder-val="{{ false }}" data-screen-label="Chart">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Tabs" tabs="{{ symTabs }}" active="{{ chartSym }}" onChange="{{ onSymChange }}" size="sm" hint-size="420px,32px"></x-import>
+          <a href="{{ tvHref }}" target="_blank" style="font:var(--type-data-sm);color:var(--green-400)">Open in TradingView ↗</a>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 330px;gap:12px;align-items:start">
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" padding="{{ 12 }}" hint-size="100%,420px">
+            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
+              <span style="font:600 15px var(--font-mono);color:var(--text-primary)">{{ chartSym }}</span>
+              <span style="{{ chartPxStyle }}">{{ chartPx }}</span>
+              <span style="{{ chartChgStyle }}">{{ chartChg }}</span>
+              <span style="margin-left:auto;font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">5M · LIVE</span>
+            </div>
+            <div style="height:380px">{{ chartEl }}</div>
+          </x-import>
+          <sc-if value="{{ hasSignal }}" hint-placeholder-val="{{ true }}">
+            <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" title="Trade analysis" meta="{{ aId }}" direction="{{ aDir }}" live="{{ aLive }}" hint-size="330px,420px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Badge" tone="{{ aDir }}" dot="{{ aLive }}" pulse="{{ aLive }}" hint-size="60px,22px">{{ aDirLabel }}</x-import>
+                <span style="font:var(--type-data-sm);color:var(--text-secondary)">{{ aStrategy }}</span>
+                <span style="margin-left:auto;font:var(--type-data-sm);color:var(--text-muted)">{{ aTime }}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+                <div style="display:flex;flex-direction:column;gap:3px;padding:8px;background:var(--surface-inset);border-radius:6px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">ENTRY</span><span style="font:600 15px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ aEntry }}</span></div>
+                <div style="display:flex;flex-direction:column;gap:3px;padding:8px;background:var(--surface-inset);border-radius:6px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">STOP</span><span style="font:600 15px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--red-500)">{{ aStop }}</span></div>
+                <div style="display:flex;flex-direction:column;gap:3px;padding:8px;background:var(--surface-inset);border-radius:6px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">TARGET</span><span style="font:600 15px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--green-500)">{{ aTarget }}</span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+                <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.ConfidenceMeter" value="{{ aConf }}" compact="{{ true }}" hint-size="120px,20px"></x-import>
+                <span style="font:var(--type-data-sm);color:var(--text-secondary)">R:R {{ aRR }}</span>
+              </div>
+              <p style="margin:0 0 12px;font:400 12.5px/1.55 var(--font-sans);color:var(--text-secondary);text-wrap:pretty">{{ aThesis }}</p>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                <sc-for list="{{ aFactors }}" as="f" hint-placeholder-count="4">
+                  <span style="{{ f.style }}" title="{{ f.detail }}">{{ f.mark }} {{ f.label }}</span>
+                </sc-for>
+              </div>
+            </x-import>
+          </sc-if>
+          <sc-if value="{{ noSignal }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" title="Trade analysis" hint-size="330px,120px">
+              <p style="margin:0;font:400 12.5px/1.55 var(--font-sans);color:var(--text-muted)">No signal on {{ chartSym }} right now. The scanner is watching — you'll get an alert when a setup fires.</p>
+            </x-import>
+          </sc-if>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isScanner }}" hint-placeholder-val="{{ false }}" data-screen-label="Scanner">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:12px">
+          <span style="font:var(--type-title);color:var(--text-primary)">Watchlist · Scanner</span>
+          <div style="display:flex;align-items:flex-end;gap:8px">
+            <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Input" value="{{ addSym }}" onChange="{{ onAddSym }}" placeholder="Ticker, e.g. PLTR" mono="{{ true }}" size="sm" hint-size="160px,32px"></x-import>
+            <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Button" variant="secondary" size="sm" onClick="{{ onAdd }}" hint-size="90px,28px">Add ticker</x-import>
+          </div>
+        </div>
+        <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" padding="{{ 0 }}" hint-size="100%,420px">
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.DataTable" columns="{{ scanCols }}" rows="{{ scanRows }}" onRowClick="{{ onScanRow }}" hint-size="100%,420px"></x-import>
+        </x-import>
+        <p style="margin:10px 2px 0;font:var(--type-data-sm);color:var(--text-muted)">Click a row to open the chart · CONF is the scanner's setup-quality score</p>
+      </sc-if>
+      <sc-if value="{{ isGex }}" hint-placeholder-val="{{ false }}" data-screen-label="GEX">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
+          <span style="font:var(--type-title);color:var(--text-primary)">Gamma exposure</span>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Tabs" tabs="{{ symTabs }}" active="{{ gexSym }}" onChange="{{ onGexSym }}" size="sm" hint-size="420px,32px"></x-import>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px">
+          <div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:10px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">SPOT</span><span style="font:600 15px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ gx.spot }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:10px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">GAMMA FLIP</span><span style="font:600 15px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--amber-500)">{{ gx.flip }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--surface-card);border:1px solid var(--green-line);border-radius:10px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">KING NODE</span><span style="font:600 15px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--green-400)">{{ gx.king }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:10px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">CALL WALL</span><span style="font:600 15px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--green-500)">{{ gx.call }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:10px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">PUT WALL</span><span style="font:600 15px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--red-500)">{{ gx.put }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:10px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">REGIME</span><span style="{{ gx.regimeStyle }}">{{ gx.regime }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:10px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">HVL</span><span style="font:600 15px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--cyan-500)">{{ gx.hvl }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:10px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">NET GEX</span><span style="{{ gx.netStyle }}">{{ gx.net }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:10px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">CHARM</span><span style="{{ gx.charmStyle }}">{{ gx.charm }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:10px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">VANNA</span><span style="font:600 15px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--cyan-500)">{{ gx.vanna }}</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 340px;gap:12px;align-items:start">
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" title="Gamma profile by strike" meta="{{ gx.meta }}" hint-size="100%,420px">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{ gexBars }}" as="b" hint-placeholder-count="10">
+                <div style="display:grid;grid-template-columns:56px 1fr 64px 70px;align-items:center;gap:10px;height:20px">
+                  <span style="font:500 11px var(--font-mono);color:var(--text-secondary);text-align:right">{{ b.k }}</span>
+                  <div style="position:relative;height:12px;background:var(--surface-inset);border-radius:3px">
+                    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--border-default)"></div>
+                    <div style="{{ b.barStyle }}"></div>
+                  </div>
+                  <span style="{{ b.valStyle }}">{{ b.val }}</span>
+                  <span style="{{ b.tagStyle }}">{{ b.tag }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <p style="margin:12px 0 0;font:var(--type-data-sm);color:var(--text-muted)">+GEX = dealers long gamma (pinning) · −GEX = short gamma (fuel)</p>
+          </x-import>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" title="GEX alerts" hint-size="340px,420px">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <sc-for list="{{ gexAlerts }}" as="ga" hint-placeholder-count="4">
+                <div style="display:flex;flex-direction:column;gap:5px;padding:10px;background:var(--surface-inset);border-radius:6px">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Badge" tone="{{ ga.tone }}" hint-size="70px,20px">{{ ga.label }}</x-import>
+                    <span style="font:600 12px var(--font-mono);color:var(--text-primary)">{{ ga.sym }}</span>
+                    <span style="margin-left:auto;font:var(--type-data-sm);color:var(--text-muted)">{{ ga.time }}</span>
+                  </div>
+                  <span style="font:400 12px/1.5 var(--font-sans);color:var(--text-secondary)">{{ ga.text }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </x-import>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isPnl }}" hint-placeholder-val="{{ false }}" data-screen-label="P&L">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
+          <span style="font:var(--type-title);color:var(--text-primary)">P&amp;L dashboard</span>
+          <span style="font:var(--type-data-sm);color:var(--text-muted)">Session · {{ clock }} ET</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:12px">
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Session P&amp;L" value="{{ sessionPnl }}" delta="{{ sessionDelta }}" spark="{{ eq }}" hint-size="100%,96px"></x-import>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Win rate" value="67%" delta="4 of 6 trades" deltaTone="up" hint-size="100%,96px"></x-import>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Avg R" value="+1.0R" delta="best +2.4R" deltaTone="up" hint-size="100%,96px"></x-import>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Open risk" value="{{ openRisk }}" delta="2 positions" deltaTone="down" hint-size="100%,96px"></x-import>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;margin-bottom:12px">
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" title="Open positions" meta="LIVE" hint-size="100%,200px">
+            <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.DataTable" columns="{{ posCols }}" rows="{{ posRows }}" dense="{{ true }}" hint-size="100%,140px"></x-import>
+          </x-import>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" title="Equity curve" meta="14 sessions" hint-size="100%,200px">
+            <div style="height:140px">{{ equityEl }}</div>
+          </x-import>
+        </div>
+        <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" title="Closed trades today" hint-size="100%,300px">
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.DataTable" columns="{{ tradeCols }}" rows="{{ tradeRows }}" dense="{{ true }}" hint-size="100%,260px"></x-import>
+        </x-import>
+      </sc-if>
+      <sc-if value="{{ isBacktest }}" hint-placeholder-val="{{ false }}" data-screen-label="Backtest">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <span style="font:var(--type-title);color:var(--text-primary)">90-day backtest</span>
+            <span style="font:var(--type-data-sm);color:var(--text-muted)">{{ bt.sub }}</span>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
+            <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Tabs" tabs="{{ btAcctTabs }}" active="{{ btAcct }}" onChange="{{ onBtAcct }}" size="sm" hint-size="240px,32px"></x-import>
+            <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Input" label="Starting equity" value="{{ startEq }}" onChange="{{ onStartEq }}" prefix="$" mono="{{ true }}" size="sm" hint-size="180px,54px"></x-import>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:12px">
+          <sc-if value="{{ bothMode }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Equity account" value="{{ bt.eqEnd }}" delta="{{ bt.eqRet }}" deltaTone="up" hint-size="100%,96px"></x-import>
+          </sc-if>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Options account" value="{{ bt.opEnd }}" delta="{{ bt.opRet }}" deltaTone="up" hint-size="100%,96px"></x-import>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Win rate" value="{{ bt.win }}" delta="{{ bt.tradesLabel }}" deltaTone="up" hint-size="100%,96px"></x-import>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Avg R" value="{{ bt.avgR }}" delta="{{ bt.pfLabel }}" deltaTone="up" hint-size="100%,96px"></x-import>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Max drawdown" value="{{ bt.dd }}" delta="{{ bt.ddDelta }}" deltaTone="down" hint-size="100%,96px"></x-import>
+        </div>
+        <div style="margin-bottom:12px">
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" title="{{ bt.curveTitle }}" meta="{{ bt.meta }}" hint-size="100%,380px">
+            <div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap">
+              <sc-if value="{{ bothMode }}" hint-placeholder-val="{{ false }}">
+                <span style="display:inline-flex;align-items:center;gap:6px;font:var(--type-data-sm);color:var(--text-secondary)"><span style="width:14px;height:3px;background:var(--green-500);border-radius:2px"></span>Equity · shares · 0.4% risk/trade</span>
+                <span style="display:inline-flex;align-items:center;gap:6px;font:var(--type-data-sm);color:var(--text-secondary)"><span style="width:14px;height:3px;background:var(--cyan-500);border-radius:2px"></span>Options · 0DTE premium · {{ riskPctLabel }} of balance, capped</span>
+              </sc-if>
+              <sc-if value="{{ optOnly }}" hint-placeholder-val="{{ true }}">
+                <span style="display:inline-flex;align-items:center;gap:6px;font:var(--type-data-sm);color:var(--text-secondary)"><span style="width:14px;height:3px;background:var(--green-500);border-radius:2px"></span>Options · 0DTE premium · {{ riskPctLabel }} of balance, capped</span>
+              </sc-if>
+            </div>
+            <div style="height:300px">{{ btChartEl }}</div>
+          </x-import>
+        </div>
+        <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" title="Strategy breakdown" meta="PER-STRATEGY SIZING · SWEPT FOR MAX GAIN AT DD ≤ 25%" padding="{{ 0 }}" hint-size="100%,280px">
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.DataTable" columns="{{ btCols }}" rows="{{ btRows }}" dense="{{ true }}" hint-size="100%,240px"></x-import>
+        </x-import>
+        <p style="margin:10px 2px 0;font:var(--type-data-sm);color:var(--text-muted)">{{ bt.note }}</p>
+      </sc-if>
+      <sc-if value="{{ isAlerts }}" hint-placeholder-val="{{ false }}" data-screen-label="Alerts and Settings">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
+          <span style="font:var(--type-title);color:var(--text-primary)">Alerts &amp; settings</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 360px;gap:12px;align-items:start">
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" title="Alert feed" meta="TODAY" hint-size="100%,420px">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <sc-for list="{{ alertsFeed }}" as="af" hint-placeholder-count="6">
+                <div style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:var(--surface-inset);border-radius:6px">
+                  <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Badge" tone="{{ af.tone }}" hint-size="70px,20px">{{ af.label }}</x-import>
+                  <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+                    <span style="font:600 12px var(--font-mono);color:var(--text-primary)">{{ af.sym }}</span>
+                    <span style="font:400 12px/1.5 var(--font-sans);color:var(--text-secondary)">{{ af.text }}</span>
+                  </div>
+                  <span style="margin-left:auto;font:var(--type-data-sm);color:var(--text-muted);white-space:nowrap">{{ af.time }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </x-import>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Card" title="Settings" hint-size="360px,420px">
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Switch" checked="{{ regimeOn }}" onChange="{{ onRegime }}" label="Defensive regime mode (−gamma)" hint-size="100%,24px"></x-import>
+              <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Switch" checked="{{ sEvent }}" onChange="{{ onSEvent }}" label="Event filter · block entries on earnings names" hint-size="100%,24px"></x-import>
+              <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Switch" checked="{{ sSignals }}" onChange="{{ onSSignals }}" label="Signal alerts" hint-size="100%,24px"></x-import>
+              <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Switch" checked="{{ sGex }}" onChange="{{ onSGex }}" label="GEX regime alerts" hint-size="100%,24px"></x-import>
+              <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Switch" checked="{{ sSound }}" onChange="{{ onSSound }}" label="Sound on fill" hint-size="100%,24px"></x-import>
+              <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Switch" checked="{{ sAuto }}" onChange="{{ onSAuto }}" label="Auto-scale out at +1R" hint-size="100%,24px"></x-import>
+              <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Input" label="Max risk per trade" value="{{ maxRisk }}" onChange="{{ onMaxRisk }}" prefix="$" mono="{{ true }}" size="sm" hint-size="100%,54px"></x-import>
+              <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Select" label="Default timeframe" value="{{ tf }}" onChange="{{ onTf }}" options="{{ tfOpts }}" size="sm" hint-size="100%,54px"></x-import>
+              <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Button" variant="primary" size="md" fullWidth="{{ true }}" onClick="{{ onSave }}" hint-size="100%,36px">Save settings</x-import>
+            </div>
+          </x-import>
+        </div>
+      </sc-if>
+    </main>
+  </div>
+  <sc-if value="{{ drawerOn }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeDrawer }}" style="position:fixed;inset:0;background:rgba(2,10,6,0.55);z-index:60"></div>
+    <aside data-screen-label="Signal detail" style="position:fixed;top:0;right:0;bottom:0;width:440px;max-width:92vw;z-index:61;background:var(--bg-0);border-left:1px solid var(--border-default);box-shadow:var(--shadow-raised);overflow:auto">
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--border-hairline);position:sticky;top:0;background:var(--bg-0);z-index:1">
+        <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Badge" tone="{{ dDir }}" dot="{{ dLive }}" pulse="{{ dLive }}" hint-size="60px,22px">{{ dDirLabel }}</x-import>
+        <span style="font:700 16px var(--font-mono);color:var(--text-primary)">{{ dSym }}</span>
+        <span style="font:var(--type-data-sm);color:var(--text-muted)">{{ dId }} · {{ dStatus }}</span>
+        <button onClick="{{ closeDrawer }}" style="margin-left:auto;width:28px;height:28px;border-radius:6px;border:1px solid var(--border-hairline);background:var(--surface-inset);color:var(--text-secondary);cursor:pointer;font:500 13px/1 var(--font-sans)">✕</button>
+      </div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font:var(--type-data-sm);color:var(--text-secondary)">{{ dStrategy }}</span>
+          <span style="margin-left:auto;font:var(--type-data-sm);color:var(--text-muted)">{{ dTime }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <div style="display:flex;flex-direction:column;gap:3px;padding:8px;background:var(--surface-inset);border-radius:6px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">ENTRY</span><span style="font:600 14px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ dEntry }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:8px;background:var(--surface-inset);border-radius:6px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">STOP</span><span style="font:600 14px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--red-500)">{{ dStop }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:8px;background:var(--surface-inset);border-radius:6px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">TARGET</span><span style="font:600 14px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--green-500)">{{ dTarget }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:8px;background:var(--surface-inset);border-radius:6px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">LAST</span><span style="font:600 14px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ dLast }}</span><span style="{{ dToEntryStyle }}">{{ dToEntry }}</span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.ConfidenceMeter" value="{{ dConf }}" compact="{{ true }}" hint-size="120px,20px"></x-import>
+          <span style="font:var(--type-data-sm);color:var(--text-secondary)">R:R {{ dRR }}</span>
+        </div>
+        <p style="margin:0;font:400 12.5px/1.55 var(--font-sans);color:var(--text-secondary);text-wrap:pretty">{{ dThesis }}</p>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--text-muted)">Factors</span>
+          <sc-for list="{{ dFactors }}" as="f" hint-placeholder-count="3">
+            <div style="display:flex;gap:10px;padding:8px 10px;background:var(--surface-inset);border-radius:6px;align-items:flex-start">
+              <span style="{{ f.markStyle }}">{{ f.mark }}</span>
+              <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                <span style="font:600 12px var(--font-sans);color:var(--text-primary)">{{ f.label }}</span>
+                <span style="font:400 11.5px/1.45 var(--font-sans);color:var(--text-muted)">{{ f.detail }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;padding:12px;background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:10px">
+          <span style="font:var(--type-label);letter-spacing:var(--tracking-label);text-transform:uppercase;color:var(--text-muted)">Setup backtest · 90 sessions</span>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+            <div style="display:flex;flex-direction:column;gap:2px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">TRADES</span><span style="font:600 13px var(--font-mono);color:var(--text-primary)">{{ dBt.trades }}</span></div>
+            <div style="display:flex;flex-direction:column;gap:2px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">WIN</span><span style="font:600 13px var(--font-mono);color:var(--green-500)">{{ dBt.win }}</span></div>
+            <div style="display:flex;flex-direction:column;gap:2px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">AVG R</span><span style="font:600 13px var(--font-mono);color:var(--green-500)">{{ dBt.avgR }}</span></div>
+            <div style="display:flex;flex-direction:column;gap:2px"><span style="font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">PF</span><span style="font:600 13px var(--font-mono);color:var(--text-primary)">{{ dBt.pf }}</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--border-hairline);padding-top:10px">
+            <div style="display:flex;align-items:baseline;gap:8px"><span style="width:60px;font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">EQUITY</span><span style="font:600 13px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ dBt.eqLine }}</span><span style="margin-left:auto;font:600 12px var(--font-mono);color:var(--green-500)">{{ dBt.eqPct }}</span></div>
+            <div style="display:flex;align-items:baseline;gap:8px"><span style="width:60px;font:var(--type-label);letter-spacing:var(--tracking-label);color:var(--text-muted)">OPTIONS</span><span style="font:600 13px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ dBt.opLine }}</span><span style="margin-left:auto;font:600 12px var(--font-mono);color:var(--cyan-500)">{{ dBt.opPct }}</span></div>
+            <span style="font:400 11px/1.4 var(--font-sans);color:var(--text-muted)">Scaled from your starting equity — adjust it on the Backtest tab.</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Button" variant="primary" size="md" onClick="{{ dOpenChart }}" hint-size="130px,36px">Open chart</x-import>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Button" variant="secondary" size="md" onClick="{{ dGoBacktest }}" hint-size="140px,36px">Full backtest</x-import>
+        </div>
+      </div>
+    </aside>
+  </sc-if>
+  <sc-if value="{{ toastOn }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;right:16px;bottom:16px;z-index:50;width:340px">
+      <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.Toast" tone="{{ toastTone }}" title="{{ toastTitle }}" detail="{{ toastDetail }}" time="{{ toastTime }}" onDismiss="{{ onToastDismiss }}" hint-size="340px,70px"></x-import>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;simulate&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Simulation&quot;},&quot;tickMs&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1200,&quot;min&quot;:300,&quot;max&quot;:4000,&quot;step&quot;:100,&quot;unit&quot;:&quot;ms&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Simulation&quot;},&quot;startView&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;signals&quot;,&quot;options&quot;:[&quot;signals&quot;,&quot;chart&quot;,&quot;scanner&quot;,&quot;gex&quot;,&quot;pnl&quot;,&quot;backtest&quot;,&quot;alerts&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;App&quot;},&quot;startingEquity&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:250,&quot;min&quot;:1000,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Backtest&quot;}}">
+class Component extends DCLogic {
+  state = {
+    ready: false, view: null, sigFilter: 'all', chartSym: 'NVDA', gexSym: 'NVDA', addSym: '',
+    watch: [], signals: [], positions: [], clock: '14:32:07', tickV: 412, toast: null, detail: null, startEq: null,
+    sSignals: true, sGex: true, sSound: false, sAuto: true, maxRisk: '60', tf: '5m',
+    regimeOn: true, sEvent: true,
+  };
+  componentDidMount() {
+    import('./data.js').then((D) => {
+      this.D = D;
+      this.rng = D.mulberry32(7);
+      this.candles = {};
+      const watch = D.WATCHLIST.map((w) => ({ ...w, open0: w.last / (1 + w.chg / 100) }));
+      this.setState({ ready: true, watch, signals: D.SIGNALS.map((s) => ({ ...s })), positions: D.POSITIONS.map((p) => ({ ...p })) });
+      this.clockT = setInterval(() => this.tickClock(), 1000);
+      this.loop();
+    });
+  }
+  componentWillUnmount() { clearInterval(this.clockT); clearTimeout(this.loopT); clearTimeout(this.toastT); }
+  loop() {
+    this.loopT = setTimeout(() => {
+      if ((this.props.simulate ?? true) && this.state.ready) this.tickPrices();
+      this.loop();
+    }, this.props.tickMs ?? 1200);
+  }
+  tickClock() {
+    // Real ET clock + actual NYSE hours (Mon-Fri 09:30-16:00)
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour12: false, weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date());
+    const get = (t) => (parts.find((p) => p.type === t) || {}).value || '';
+    const wd = get('weekday'), h = +get('hour') % 24, mm = get('minute'), ss = get('second');
+    const open = !['Sat', 'Sun'].includes(wd) && (h > 9 || (h === 9 && +mm >= 30)) && h < 16;
+    this.setState({ clock: `${String(h).padStart(2, '0')}:${mm}:${ss}`, mktOpen: open });
+  }
+  tickPrices() {
+    const rnd = this.rng;
+    const watch = this.state.watch.map((w) => {
+      const drift = (rnd() - 0.5 + Math.sign(w.chg) * 0.04) * 0.0009;
+      const last = w.last * (1 + drift);
+      return { ...w, last, chg: (last / w.open0 - 1) * 100 };
+    });
+    this.candleTick = (this.candleTick || 0) + 1;
+    const sym = this.state.chartSym;
+    const c = this.getCandles(sym, watch);
+    const p = watch.find((w) => w.sym === sym);
+    if (c && p) {
+      const lc = c[c.length - 1];
+      lc.close = p.last; lc.high = Math.max(lc.high, p.last); lc.low = Math.min(lc.low, p.last);
+      if (this.candleTick % 10 === 0) {
+        c.push({ open: p.last, close: p.last, high: p.last, low: p.last, vol: 0.4 + rnd() * 0.6 });
+        if (c.length > 60) c.shift();
+      }
+    }
+    this.sigTick = (this.sigTick || 0) + 1;
+    if (this.sigTick % (this.state.regimeOn ? 28 : 18) === 0) this.fireSignal(watch);
+    if (this.sigTick % 29 === 0) this.resolveSignal();
+    this.setState({ watch, tickV: Math.max(-1200, Math.min(1200, this.state.tickV + Math.round((rnd() - 0.48) * 160))) });
+  }
+  getCandles(sym, watch) {
+    if (!this.D) return null;
+    if (!this.candles[sym]) {
+      const w = (watch || this.state.watch).find((x) => x.sym === sym);
+      const seed = sym.split('').reduce((a, ch) => a + ch.charCodeAt(0), 0);
+      this.candles[sym] = this.D.genCandles(seed, 60, (w ? w.last : 100) * 0.996);
+    }
+    return this.candles[sym];
+  }
+  showToast(tone, title, detail) {
+    clearTimeout(this.toastT);
+    this.setState({ toast: { tone, title, detail, time: this.state.clock } });
+    this.toastT = setTimeout(() => this.setState({ toast: null }), 4000);
+  }
+  fmt2(n) { return n.toFixed(2); }
+  money(n) { return (n >= 0 ? '+$' : '−$') + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  openPnl() {
+    return this.state.positions.map((p) => {
+      const w = this.state.watch.find((x) => x.sym === p.sym);
+      const last = w ? w.last : p.avg;
+      const sign = p.side === 'long' ? 1 : -1;
+      return { ...p, last, pnl: (last - p.avg) * p.qty * sign };
+    });
+  }
+  candleChart(candles, levels, h) {
+    const e = React.createElement, w = 1000, padR = 56, padB = 26;
+    if (!candles || !candles.length) return null;
+    const all = candles.flatMap((c) => [c.high, c.low]).concat(levels.map((l) => l.price));
+    const min = Math.min(...all), max = Math.max(...all), range = max - min || 1;
+    const y = (p) => 8 + (1 - (p - min) / range) * (h - padB - 16);
+    const cw = (w - padR) / candles.length;
+    const kids = [];
+    for (let i = 0; i < 5; i++) {
+      const p = min + (range * i) / 4;
+      kids.push(e('line', { key: 'g' + i, x1: 0, x2: w - padR, y1: y(p), y2: y(p), stroke: 'rgba(151,176,164,0.07)', strokeWidth: 1 }));
+      kids.push(e('text', { key: 'gt' + i, x: w - padR + 8, y: y(p) + 3, fill: 'var(--text-muted)', style: { font: '500 10px var(--font-mono)' } }, p.toFixed(2)));
+    }
+    candles.forEach((c, i) => {
+      const up = c.close >= c.open, color = up ? 'var(--green-500)' : 'var(--red-500)';
+      const x = i * cw + cw / 2, bw = Math.max(2, cw * 0.55);
+      kids.push(e('line', { key: 'w' + i, x1: x, x2: x, y1: y(c.high), y2: y(c.low), stroke: color, strokeWidth: 1, opacity: 0.8 }));
+      kids.push(e('rect', { key: 'b' + i, x: x - bw / 2, y: y(Math.max(c.open, c.close)), width: bw, height: Math.max(1, Math.abs(y(c.open) - y(c.close))), fill: color, opacity: up ? 0.9 : 0.85 }));
+      kids.push(e('rect', { key: 'v' + i, x: x - bw / 2, y: h - padB + 6, width: bw, height: c.vol * (padB - 10), fill: color, opacity: 0.25 }));
+    });
+    levels.forEach((l, i) => {
+      kids.push(e('line', { key: 'l' + i, x1: 0, x2: w - padR, y1: y(l.price), y2: y(l.price), stroke: l.color, strokeWidth: 1, strokeDasharray: '6 4', opacity: 0.8 }));
+      kids.push(e('rect', { key: 'lr' + i, x: w - padR + 2, y: y(l.price) - 8, width: padR - 4, height: 16, rx: 3, fill: l.color }));
+      kids.push(e('text', { key: 'lt' + i, x: w - padR / 2, y: y(l.price) + 3.5, textAnchor: 'middle', fill: '#04120A', style: { font: '700 9.5px var(--font-mono)' } }, l.label));
+    });
+    return e('svg', { viewBox: `0 0 ${w} ${h}`, preserveAspectRatio: 'none', style: { width: '100%', height: '100%', display: 'block', background: 'var(--surface-inset)', borderRadius: 'var(--radius-sm)' } }, kids);
+  }
+  equityChart(vals, h) {
+    const e = React.createElement, w = 600;
+    if (!vals || !vals.length) return null;
+    const min = Math.min(...vals), max = Math.max(...vals), range = max - min || 1;
+    const x = (i) => (i / (vals.length - 1)) * w;
+    const y = (v) => 6 + (1 - (v - min) / range) * (h - 12);
+    const pts = vals.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+    return e('svg', { viewBox: `0 0 ${w} ${h}`, preserveAspectRatio: 'none', style: { width: '100%', height: '100%', display: 'block', background: 'var(--surface-inset)', borderRadius: 'var(--radius-sm)' } },
+      e('polygon', { points: `0,${h} ${pts} ${w},${h}`, fill: 'rgba(0,230,123,0.10)' }),
+      e('polyline', { points: pts, fill: 'none', stroke: 'var(--green-500)', strokeWidth: 2 }),
+      e('circle', { cx: x(vals.length - 1), cy: y(vals[vals.length - 1]), r: 3.5, fill: 'var(--green-400)' }));
+  }
+  genGex(sym) {
+    if (sym === 'NVDA' && this.D) return this.D.GEX;
+    const w = this.state.watch.find((x) => x.sym === sym);
+    const base = w ? w.last : 100;
+    const step = base > 400 ? 2.5 : base > 150 ? 1 : 0.5;
+    const rnd = this.D.mulberry32(sym.split('').reduce((a, c) => a + c.charCodeAt(0) * 7, 3));
+    const mid = Math.round(base / step) * step;
+    const strikes = [];
+    for (let i = -6; i <= 6; i++) {
+      const k = +(mid + i * step).toFixed(2);
+      let g = (rnd() * (i < -1 ? -1.4 : 1.9)) * (1 - Math.abs(i) / 9);
+      if (i === 2) g = Math.max(g, 1.4 + rnd() * 0.6);
+      strikes.push({ k, gex: +g.toFixed(2) });
+    }
+    const pos = strikes.filter((s) => s.gex > 0), neg = strikes.filter((s) => s.gex < 0);
+    const king = pos.length ? pos.reduce((a, b) => (b.gex > a.gex ? b : a)).k : mid;
+    return { symbol: sym, spot: base, flip: +(mid - 1.5 * step).toFixed(2), kingNode: king,
+      callWall: pos.length ? pos[pos.length - 1].k : mid + 4 * step,
+      putWall: neg.length ? neg.reduce((a, b) => (b.gex < a.gex ? b : a)).k : mid - 4 * step,
+      hvl: mid, strikes };
+  }
+  usd(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
+  seedOf(str) { return str.split('').reduce((a, c) => a + c.charCodeAt(0) * 31, 17); }
+  btFor(key, endPrice, riskF) {
+    this._btc = this._btc || {};
+    const k = key + '@' + Math.round(endPrice || 100) + ':' + (riskF || 0.05);
+    if (!this._btc[k]) this._btc[k] = this.D.genBacktest(this.seedOf(key), 90, endPrice || 100, riskF || 0.05);
+    return this._btc[k];
+  }
+  fireSignal(watch) {
+    const rnd = this.rng;
+    const regime = this.state.regimeOn;
+    const pool = watch.filter((w) => w.conf >= 40 && !this.state.signals.some((s) => s.live && s.symbol === w.sym)
+      && !(this.state.sEvent && this.D.EARNINGS.includes(w.sym)));
+    if (!pool.length) return;
+    const w = pool[Math.floor(rnd() * pool.length)];
+    // Defensive regime: short signals weighted equally \u2014 momentum continuation cuts both ways in \u2212gamma
+    const pLong = regime ? (w.chg >= 0 ? 0.55 : 0.18) : (w.chg >= 0 ? 0.72 : 0.3);
+    const dir = rnd() < pLong ? 'long' : 'short';
+    const sgn = dir === 'long' ? 1 : -1;
+    const stopW = regime ? 0.28 : 0.18; // wider stops in \u2212gamma \u2014 swings run further before resolving
+    const entry = w.last, stop = entry - sgn * w.atr * stopW, target = entry + sgn * w.atr * stopW * (2.0 + rnd() * 0.8);
+    const strat = ['Squeeze confluence · 5m', 'Gamma flip break · 1m', 'ORB + flow · 5m', 'Trend pullback · 15m'][Math.floor(rnd() * 4)];
+    this.sigId = (this.sigId || 8842) + 1;
+    const conf = Math.round(Math.min(92, 40 + w.conf * 0.45 + rnd() * 22));
+    const sig = { id: 'SG-' + this.sigId, direction: dir, symbol: w.sym, strategy: strat,
+      entry: entry.toFixed(2), stop: stop.toFixed(2), target: target.toFixed(2),
+      rr: '1 : ' + (Math.abs(target - entry) / Math.abs(entry - stop)).toFixed(1),
+      confidence: conf, time: this.state.clock, live: true,
+      thesis: dir === 'long'
+        ? `Scanner fired ${strat} — ${w.sym} reclaimed ${entry.toFixed(2)} on rising volume with the live GEX profile aligned above. Dealers positioned to chase.`
+        : `Scanner fired ${strat} — ${w.sym} failed the push at ${entry.toFixed(2)} on fading volume with thin liquidity below. Dealers positioned to press.`,
+      factors: [
+        { label: 'GEX aligned', kind: 'gex', fired: true, detail: 'Live gamma profile supports the ' + dir },
+        { label: 'RVOL ' + (1.4 + rnd() * 2.2).toFixed(1) + '×', kind: 'ta', fired: true, detail: 'Above-average participation on the move' },
+        { label: 'Index aligned', kind: 'mkt', fired: rnd() < 0.75, detail: 'TICK ' + (this.state.tickV >= 0 ? '+' : '−') + Math.abs(this.state.tickV) },
+      ] };
+    this.setState({ signals: [sig, ...this.state.signals].slice(0, 12) });
+    if (this.state.sSignals) this.showToast(dir === 'long' ? 'success' : 'warning', `${dir.toUpperCase()} ${w.sym} · conf ${conf}`, `Entry ${sig.entry} · Stop ${sig.stop} · Target ${sig.target}`);
+  }
+  resolveSignal() {
+    const live = this.state.signals.filter((s) => s.live);
+    if (live.length <= 2) return;
+    const s = live[live.length - 1];
+    const win = this.rng() < 0.56;
+    this.setState({ signals: this.state.signals.map((x) => (x.id === s.id ? { ...x, live: false, status: win ? 'Target' : 'Stopped' } : x)) });
+    if (this.state.sSignals) this.showToast(win ? 'success' : 'warning', `${s.symbol} ${win ? 'target reached' : 'stop hit'}`, `${s.id} · ${s.direction.toUpperCase()} from ${s.entry}`);
+  }
+  btChart(curve, startEq, h, optOnly) {
+    const e = React.createElement, w = 1000, padR = 70;
+    const es = curve.map((p) => p.eq * startEq), os = curve.map((p) => p.op * startEq);
+    const all = optOnly ? os : es.concat(os);
+    const min = Math.min(...all), max = Math.max(...all), range = max - min || 1;
+    const x = (i) => (i / (curve.length - 1)) * (w - padR);
+    const y = (v) => 8 + (1 - (v - min) / range) * (h - 16);
+    const kids = [];
+    for (let i = 0; i < 5; i++) {
+      const p = min + (range * i) / 4;
+      kids.push(e('line', { key: 'g' + i, x1: 0, x2: w - padR, y1: y(p), y2: y(p), stroke: 'rgba(151,176,164,0.07)', strokeWidth: 1 }));
+      kids.push(e('text', { key: 'gt' + i, x: w - padR + 8, y: y(p) + 3, fill: 'var(--text-muted)', style: { font: '500 10px var(--font-mono)' } }, p >= 1000 ? (p / 1000).toFixed(1) + 'k' : String(Math.round(p))));
+    }
+    const pts = (vals) => vals.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+    if (optOnly) {
+      kids.push(e('polygon', { key: 'oa', points: `0,${h} ${pts(os)} ${x(os.length - 1)},${h}`, fill: 'rgba(0,230,123,0.08)' }));
+      kids.push(e('polyline', { key: 'ol', points: pts(os), fill: 'none', stroke: 'var(--green-500)', strokeWidth: 2 }));
+      kids.push(e('circle', { key: 'od', cx: x(os.length - 1), cy: y(os[os.length - 1]), r: 3.5, fill: 'var(--green-400)' }));
+    } else {
+      kids.push(e('polygon', { key: 'ea', points: `0,${h} ${pts(es)} ${x(es.length - 1)},${h}`, fill: 'rgba(0,230,123,0.08)' }));
+      kids.push(e('polyline', { key: 'ol', points: pts(os), fill: 'none', stroke: 'var(--cyan-500)', strokeWidth: 1.6, opacity: 0.9 }));
+      kids.push(e('polyline', { key: 'el', points: pts(es), fill: 'none', stroke: 'var(--green-500)', strokeWidth: 2 }));
+      kids.push(e('circle', { key: 'ed', cx: x(es.length - 1), cy: y(es[es.length - 1]), r: 3.5, fill: 'var(--green-400)' }));
+      kids.push(e('circle', { key: 'od', cx: x(os.length - 1), cy: y(os[os.length - 1]), r: 3.5, fill: 'var(--cyan-500)' }));
+    }
+    return e('svg', { viewBox: `0 0 ${w} ${h}`, preserveAspectRatio: 'none', style: { width: '100%', height: '100%', display: 'block', background: 'var(--surface-inset)', borderRadius: 'var(--radius-sm)' } }, kids);
+  }
+  renderVals() {
+    const st = this.state, D = this.D, e = React.createElement;
+    const view = st.view ?? this.props.startView ?? 'signals';
+    const setView = (v) => () => this.setState({ view: v });
+    const navBase = { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'transparent', color: 'var(--text-secondary)', border: 'none', borderRadius: 6, cursor: 'pointer', font: '600 13px/1 var(--font-sans)', textAlign: 'left', width: '100%', transition: 'background 0.12s, color 0.12s' };
+    const nav = {}, navS = {};
+    ['signals', 'chart', 'scanner', 'gex', 'pnl', 'backtest', 'alerts'].forEach((v) => {
+      nav[v] = setView(v);
+      navS[v] = view === v ? { ...navBase, background: 'var(--green-dim)', color: 'var(--green-400)' } : navBase;
+    });
+    const watch = st.watch;
+    const bySym = (s) => watch.find((w) => w.sym === s);
+    const chip = (s) => { const w = bySym(s); return w ? { symbol: s, price: this.fmt2(w.last), change: +w.chg.toFixed(2) } : { symbol: s }; };
+    const open = this.openPnl();
+    const openSum = open.reduce((a, p) => a + p.pnl, 0);
+    const session = 1687 + openSum;
+    const openChart = (sym) => this.setState({ view: 'chart', chartSym: sym });
+    // signals
+    const sigTabs = [{ id: 'all', label: 'All' }, { id: 'live', label: 'Live' }, { id: 'long', label: 'Long' }, { id: 'short', label: 'Short' }];
+    const signals = st.signals
+      .filter((s) => st.sigFilter === 'all' || (st.sigFilter === 'live' ? s.live : s.direction === st.sigFilter))
+      .map((s) => ({ ...s, onClick: () => this.setState({ detail: s.id }) }));
+    // chart
+    const symTabs = watch.slice(0, 8).map((w) => w.sym);
+    const cw = bySym(st.chartSym);
+    const aSig = st.signals.find((s) => s.symbol === st.chartSym && s.live) || st.signals.find((s) => s.symbol === st.chartSym);
+    const levels = aSig ? [
+      { price: +aSig.target, label: 'TGT', color: 'var(--green-500)' },
+      { price: +aSig.entry, label: 'ENT', color: 'var(--cyan-500)' },
+      { price: +aSig.stop, label: 'STP', color: 'var(--red-500)' },
+    ] : [];
+    const factorStyle = (f) => {
+      const base = { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 4, font: '500 11px var(--font-mono)', cursor: 'default' };
+      if (f.veto && !f.fired) return { ...base, background: 'var(--red-dim)', color: 'var(--red-400)', border: '1px solid var(--red-line)' };
+      if (f.fired) return { ...base, background: 'var(--green-dim)', color: 'var(--green-400)', border: '1px solid transparent' };
+      return { ...base, background: 'var(--surface-inset)', color: 'var(--text-muted)', border: '1px solid transparent' };
+    };
+    // scanner
+    const tierColor = (v) => (v >= 70 ? 'var(--green-500)' : v >= 45 ? 'var(--amber-500)' : 'var(--red-500)');
+    const chgCell = (v) => e('span', { style: { color: v >= 0 ? 'var(--green-500)' : 'var(--red-500)' } }, `${v >= 0 ? '▲ +' : '▼ '}${(+v).toFixed(2)}%`);
+    const sideCell = (v) => e('span', { style: { color: v === 'long' ? 'var(--green-500)' : 'var(--red-500)', font: '600 11px var(--font-mono)', letterSpacing: '0.08em' } }, v.toUpperCase());
+    const scanCols = [
+      { key: 'sym', label: 'Symbol' },
+      { key: 'last', label: 'Last', align: 'right', render: (v) => (+v).toFixed(2) },
+      { key: 'chg', label: 'Chg%', align: 'right', render: chgCell },
+      { key: 'vol', label: 'Vol', align: 'right' },
+      { key: 'atr', label: 'ATR', align: 'right', render: (v) => (+v).toFixed(2) },
+      { key: 'spread', label: 'Spread', align: 'right', render: (v) => (+v).toFixed(2) },
+      { key: 'conf', label: 'Conf', align: 'right', render: (v) => e('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
+        e('span', { style: { width: 44, height: 4, background: 'var(--surface-inset)', borderRadius: 2, overflow: 'hidden', display: 'inline-block' } },
+          e('span', { style: { display: 'block', width: v + '%', height: '100%', background: tierColor(v) } })),
+        e('span', { style: { color: tierColor(v) } }, v)) },
+    ];
+    // gex
+    const gxd = D ? this.genGex(st.gexSym) : null;
+    const spotLive = bySym(st.gexSym) ? bySym(st.gexSym).last : (gxd ? gxd.spot : 0);
+    const maxAbs = gxd ? Math.max(...gxd.strikes.map((s) => Math.abs(s.gex))) : 1;
+    const gexBars = gxd ? gxd.strikes.slice().reverse().map((s) => {
+      const wPct = (Math.abs(s.gex) / maxAbs) * 48;
+      const pos = s.gex >= 0;
+      const isKing = s.k === gxd.kingNode;
+      const tags = [];
+      if (isKing) tags.push({ t: 'KING', c: 'var(--green-400)' });
+      if (s.k === gxd.callWall && !isKing) tags.push({ t: 'CALL WALL', c: 'var(--green-500)' });
+      if (s.k === gxd.putWall) tags.push({ t: 'PUT WALL', c: 'var(--red-500)' });
+      const tag = tags.length ? tags[0] : null;
+      return {
+        k: String(s.k), val: (s.gex >= 0 ? '+' : '−') + Math.abs(s.gex).toFixed(2) + 'B',
+        barStyle: { position: 'absolute', top: 2, height: 8, borderRadius: 2, left: pos ? '50%' : (50 - wPct) + '%', width: wPct + '%', background: pos ? 'var(--green-500)' : 'var(--red-500)', opacity: isKing ? 1 : 0.65, boxShadow: isKing ? '0 0 10px rgba(0,230,123,0.5)' : 'none' },
+        valStyle: { font: '500 11px var(--font-mono)', color: pos ? 'var(--green-500)' : 'var(--red-500)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' },
+        tag: tag ? tag.t : '', tagStyle: { font: '600 9.5px var(--font-mono)', letterSpacing: '0.06em', color: tag ? tag.c : 'var(--text-muted)' },
+      };
+    }) : [];
+    const negRegime = gxd ? spotLive < gxd.flip : false;
+    const netGex = gxd ? gxd.strikes.reduce((a, s) => a + s.gex, 0) : 0;
+    const rndG = D ? D.mulberry32(this.seedOf(st.gexSym) + 5) : null;
+    const charmN = rndG ? (negRegime ? -1 : 1) * (0.15 + rndG() * 0.85) : 0;
+    const vannaN = rndG ? (rndG() - 0.35) * 1.6 : 0;
+    const toneMap = { squeeze: 'long', flip: 'short', highvol: 'warning', unusual: 'info' };
+    const labelMap = { squeeze: 'SQUEEZE', flip: 'FLIP', highvol: 'HIGH VOL', unusual: 'FLOW' };
+    const gexAlerts = D ? D.GEX_ALERTS.map((a) => ({ ...a, tone: toneMap[a.kind] || 'neutral', label: labelMap[a.kind] || a.kind.toUpperCase() })) : [];
+    const alertsFeed = [
+      ...st.signals.filter((s) => s.live).map((s) => ({ time: s.time, sym: s.symbol, tone: s.direction, label: s.direction.toUpperCase(), text: `${s.strategy} — entry ${s.entry} · stop ${s.stop} · target ${s.target} · confidence ${s.confidence}` })),
+      ...gexAlerts,
+    ].sort((a, b) => (a.time < b.time ? 1 : -1));
+    // pnl tables
+    const posCols = [
+      { key: 'sym', label: 'Symbol' },
+      { key: 'side', label: 'Side', render: sideCell },
+      { key: 'qty', label: 'Qty', align: 'right' },
+      { key: 'avg', label: 'Avg', align: 'right', render: (v) => (+v).toFixed(2) },
+      { key: 'last', label: 'Last', align: 'right', render: (v) => (+v).toFixed(2) },
+      { key: 'pnl', label: 'P&L', align: 'right', render: (v) => e('span', { style: { color: v >= 0 ? 'var(--green-500)' : 'var(--red-500)' } }, this.money(v)) },
+      { key: 'r', label: 'R', align: 'right', render: (v) => e('span', { style: { color: v >= 0 ? 'var(--green-500)' : 'var(--red-500)' } }, (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + 'R') },
+    ];
+    const tradeCols = [
+      { key: 'time', label: 'Time' },
+      { key: 'sym', label: 'Symbol' },
+      { key: 'side', label: 'Side', render: sideCell },
+      { key: 'in', label: 'In', align: 'right' },
+      { key: 'out', label: 'Out', align: 'right' },
+      { key: 'r', label: 'R', align: 'right', render: (v) => e('span', { style: { color: v.startsWith('−') ? 'var(--red-500)' : 'var(--green-500)' } }, v) },
+      { key: 'pnl', label: 'P&L', align: 'right', render: (v) => e('span', { style: { color: v.startsWith('−') ? 'var(--red-500)' : 'var(--green-500)' } }, v) },
+    ];
+    const eq = D ? [...D.EQUITY.slice(1), D.EQUITY[0] + session] : [];
+    const maxRiskN = parseFloat(st.maxRisk) || 250;
+    // backtest
+    const startEqN = Math.max(500, parseFloat(st.startEq ?? '') || (this.props.startingEquity ?? 2500));
+    const startEqStr = st.startEq ?? String(this.props.startingEquity ?? 2500);
+    const pct = (v) => (v >= 0 ? '+' : '−') + Math.abs(v * 100).toFixed(1) + '%';
+    const signR = (v) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2) + 'R';
+    const spyW = bySym('SPY');
+    const optOnly = (st.btAcct ?? 'options') === 'options';
+    const riskPct = st.regimeOn ? 0.025 : 0.05;
+    const riskPctLabel = st.regimeOn ? '2.5%' : '5%';
+    const bt0 = D ? this.btFor('ALL:90D', spyW ? spyW.last : 100, riskPct) : null;
+    const bt = bt0 ? {
+      eqEnd: this.usd(startEqN * (1 + bt0.retE)), eqRet: pct(bt0.retE) + ' · shares',
+      opEnd: this.usd(startEqN * (1 + bt0.retO)), opRet: pct(bt0.retO) + ' · 0DTE · ' + riskPctLabel + ' of balance/trade',
+      win: Math.round(bt0.winRate * 100) + '%', tradesLabel: bt0.trades + ' trades · 90 sessions',
+      avgR: signR(bt0.avgR), pfLabel: 'profit factor ' + bt0.pf.toFixed(2),
+      dd: optOnly ? '−' + (bt0.ddO * 100).toFixed(1) + '%' : '−' + (bt0.ddE * 100).toFixed(1) + '%',
+      ddDelta: optOnly ? '0DTE premium' : 'options −' + (bt0.ddO * 100).toFixed(1) + '%',
+      meta: '90-SESSION BAR REPLAY · ENDS 07/17',
+      curveTitle: optOnly ? 'Options account · balance curve' : 'Equity vs options · balance curve',
+      sub: optOnly ? 'Bar-by-bar replay · 90 sessions ending 07/17 · fills checked against each day\'s O/H/L/C · 0DTE options on every signal' : 'Bar-by-bar replay · 90 sessions ending 07/17 · fills checked against each day\'s O/H/L/C · equity vs options on the same trades',
+      note: optOnly ? '0DTE premium, ' + riskPctLabel + ' of current balance risked per trade' + (st.regimeOn ? ' (defensive regime — halved from 5%)' : '') + ', capped at $' + Math.round(startEqN * 0.4).toLocaleString() + ' (0DTE fill capacity) — compounds early, fixed-size once capped. ~1.9× payoff, theta drag. Governance: daily stop at −2R, half-size after a red day, press 2× after +2R (house money only).' : 'Options amplify both sides — higher return, deeper drawdown. Returns scale from your starting equity.',
+    } : {};
+    const btAcctTabs = [{ id: 'options', label: 'Options only' }, { id: 'both', label: 'Equity vs options' }];
+    const btChartEl = bt0 ? this.btChart(bt0.curve, startEqN, 300, optOnly) : null;
+    const retCell = (v) => e('span', { style: { color: String(v).startsWith('−') ? 'var(--red-500)' : 'var(--green-500)' } }, v);
+    const btCols = [
+      { key: 'strat', label: 'Strategy' },
+      { key: 'risk', label: 'Risk/trade', align: 'right' },
+      { key: 'trades', label: 'Trades', align: 'right' },
+      { key: 'win', label: 'Win%', align: 'right' },
+      { key: 'avgR', label: 'Avg R', align: 'right', render: retCell },
+      ...(optOnly ? [] : [{ key: 'eqRet', label: 'Equity', align: 'right', render: retCell }]),
+      { key: 'opRet', label: optOnly ? 'Return' : 'Options', align: 'right', render: retCell },
+      { key: 'dd', label: 'Max DD', align: 'right', render: (v) => e('span', { style: { color: 'var(--red-500)' } }, v) },
+    ];
+    const btRows = D ? D.STRATEGIES.map((name) => {
+      const rf = ((D.STRATEGY_RISK || {})[name] || 0.05) * (st.regimeOn ? 0.5 : 1);
+      const b = this.btFor('S:' + name, 100, rf);
+      return { strat: name, risk: (rf * 100).toFixed(0) + '%', trades: b.trades, win: Math.round(b.winRate * 100) + '%', avgR: signR(b.avgR), eqRet: pct(b.retE), opRet: pct(b.retO), dd: '−' + (b.ddO * 100).toFixed(1) + '%' };
+    }) : [];
+    // drawer
+    const dSig = st.detail ? st.signals.find((s) => s.id === st.detail) : null;
+    const dW = dSig ? bySym(dSig.symbol) : null;
+    const dLastN = dW ? dW.last : 0;
+    const dToEntryN = dSig && dW ? (dLastN - +dSig.entry) * (dSig.direction === 'long' ? 1 : -1) : 0;
+    const dBt = dSig && D ? this.btFor('S:' + dSig.strategy.split(' · ')[0] + ':' + dSig.symbol, dW ? dW.last : 100) : null;
+    return {
+      mktOpen: !!st.mktOpen, mktTone: st.mktOpen ? 'long' : 'neutral',
+      mktLabel: st.mktOpen ? 'Market open' : 'Closed · 07/17 data',
+      clock: st.clock, tickV: (st.tickV >= 0 ? '+' : '−') + Math.abs(st.tickV),
+      tickStyle: { color: st.tickV >= 0 ? 'var(--green-500)' : 'var(--red-500)', fontVariantNumeric: 'tabular-nums' },
+      topTickers: ['SPY', 'QQQ', 'TSLA'].map(chip),
+      nav, navS,
+      sessionPnl: this.money(session),
+      sessionStyle: { font: 'var(--type-data-lg)', color: session >= 0 ? 'var(--green-500)' : 'var(--red-500)' },
+      sessionDelta: (openSum >= 0 ? '+$' : '−$') + Math.abs(openSum).toFixed(0),
+      isSignals: view === 'signals', isChart: view === 'chart', isScanner: view === 'scanner',
+      isGex: view === 'gex', isPnl: view === 'pnl', isAlerts: view === 'alerts', isBacktest: view === 'backtest',
+      startEq: startEqStr, onStartEq: (v) => this.setState({ startEq: v }),
+      bt, btChartEl, btCols, btRows, optOnly, bothMode: !optOnly,
+      btAcctTabs, btAcct: st.btAcct ?? 'options', onBtAcct: (id) => this.setState({ btAcct: id }),
+      drawerOn: !!dSig, closeDrawer: () => this.setState({ detail: null }),
+      dSym: dSig ? dSig.symbol : '', dId: dSig ? dSig.id : '', dDir: dSig ? dSig.direction : 'long',
+      dDirLabel: dSig ? dSig.direction.toUpperCase() : '', dLive: dSig ? !!dSig.live : false,
+      dStrategy: dSig ? dSig.strategy : '', dTime: dSig ? dSig.time : '',
+      dEntry: dSig ? dSig.entry : '', dStop: dSig ? dSig.stop : '', dTarget: dSig ? dSig.target : '',
+      dRR: dSig ? dSig.rr : '', dConf: dSig ? dSig.confidence : 0, dThesis: dSig ? dSig.thesis : '',
+      dStatus: dSig ? (dSig.live ? 'LIVE' : (dSig.status || 'CLOSED').toUpperCase()) : '',
+      dLast: dW ? this.fmt2(dLastN) : '—',
+      dToEntry: dSig && dW ? (dToEntryN >= 0 ? '+' : '−') + Math.abs(dToEntryN).toFixed(2) + ' vs entry' : '',
+      dToEntryStyle: { font: '500 10px var(--font-mono)', color: dToEntryN >= 0 ? 'var(--green-500)' : 'var(--red-500)' },
+      dFactors: dSig ? dSig.factors.map((f) => ({ label: f.label, detail: f.detail, mark: f.veto && !f.fired ? '✕' : f.fired ? '✓' : '○', markStyle: { font: '600 12px var(--font-mono)', color: f.veto && !f.fired ? 'var(--red-500)' : f.fired ? 'var(--green-500)' : 'var(--text-muted)' } })) : [],
+      dBt: dBt ? {
+        trades: String(dBt.trades), win: Math.round(dBt.winRate * 100) + '%',
+        avgR: signR(dBt.avgR), pf: dBt.pf.toFixed(2),
+        eqLine: `${this.usd(startEqN)} → ${this.usd(startEqN * (1 + dBt.retE))}`, eqPct: pct(dBt.retE),
+        opLine: `${this.usd(startEqN)} → ${this.usd(startEqN * (1 + dBt.retO))}`, opPct: pct(dBt.retO),
+      } : {},
+      dOpenChart: dSig ? () => this.setState({ view: 'chart', chartSym: dSig.symbol, detail: null }) : null,
+      dGoBacktest: () => this.setState({ view: 'backtest', detail: null }),
+      sigTabs, sigFilter: st.sigFilter, onSigFilter: (id) => this.setState({ sigFilter: id }), signals,
+      symTabs, chartSym: st.chartSym, onSymChange: (id) => this.setState({ chartSym: id }),
+      tvHref: 'https://www.tradingview.com/chart/?symbol=' + st.chartSym,
+      chartPx: cw ? this.fmt2(cw.last) : '', chartChg: cw ? `${cw.chg >= 0 ? '▲ +' : '▼ '}${cw.chg.toFixed(2)}%` : '',
+      chartPxStyle: { font: '600 15px var(--font-mono)', color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' },
+      chartChgStyle: { font: '500 12px var(--font-mono)', color: cw && cw.chg >= 0 ? 'var(--green-500)' : 'var(--red-500)' },
+      chartEl: this.candleChart(this.getCandles(st.chartSym), levels, 380),
+      hasSignal: !!aSig, noSignal: st.ready && !aSig,
+      aId: aSig ? aSig.id : '', aDir: aSig ? aSig.direction : 'long', aLive: aSig ? !!aSig.live : false,
+      aDirLabel: aSig ? aSig.direction.toUpperCase() : '', aStrategy: aSig ? aSig.strategy : '',
+      aTime: aSig ? aSig.time : '', aEntry: aSig ? aSig.entry : '', aStop: aSig ? aSig.stop : '',
+      aTarget: aSig ? aSig.target : '', aRR: aSig ? aSig.rr : '', aConf: aSig ? aSig.confidence : 0,
+      aThesis: aSig ? aSig.thesis : '',
+      aFactors: aSig ? aSig.factors.map((f) => ({ label: f.label, detail: f.detail, mark: f.veto && !f.fired ? '✕' : f.fired ? '✓' : '○', style: factorStyle(f) })) : [],
+      scanCols, scanRows: watch.map((w) => ({ ...w, conf: Math.round(w.conf) })),
+      onScanRow: (row) => openChart(row.sym),
+      addSym: st.addSym, onAddSym: (v) => this.setState({ addSym: v }), onAdd: () => this.addTicker(),
+      gexSym: st.gexSym, onGexSym: (id) => this.setState({ gexSym: id }),
+      gx: gxd ? {
+        spot: this.fmt2(spotLive), flip: this.fmt2(gxd.flip), king: String(gxd.kingNode),
+        call: String(gxd.callWall), put: String(gxd.putWall), meta: gxd.symbol + ' · 0DTE',
+        regime: negRegime ? '−GAMMA' : '+GAMMA',
+        regimeStyle: { font: '600 15px var(--font-mono)', color: negRegime ? 'var(--red-500)' : 'var(--green-500)' },
+        hvl: this.fmt2(gxd.hvl),
+        net: (netGex >= 0 ? '+' : '−') + Math.abs(netGex).toFixed(2) + 'B',
+        netStyle: { font: '600 15px var(--font-mono)', fontVariantNumeric: 'tabular-nums', color: netGex >= 0 ? 'var(--green-500)' : 'var(--red-500)' },
+        charm: (charmN >= 0 ? '+' : '−') + Math.abs(charmN).toFixed(2) + 'B/hr',
+        charmStyle: { font: '600 15px var(--font-mono)', fontVariantNumeric: 'tabular-nums', color: charmN >= 0 ? 'var(--green-500)' : 'var(--red-500)' },
+        vanna: (vannaN >= 0 ? '+' : '−') + Math.abs(vannaN).toFixed(2) + 'B/IV',
+      } : {},
+      gexBars, gexAlerts, alertsFeed,
+      openRisk: '−$' + (open.length * maxRiskN).toFixed(0),
+      eq, equityEl: this.equityChart(eq, 140),
+      posCols, posRows: open, tradeCols, tradeRows: D ? D.TRADES : [],
+      regimeOn: !!st.regimeOn, riskPctLabel,
+      regimeText: 'SPX below gamma flip · VIX 19 · risk halved to ' + riskPctLabel + '/trade · stops 1.5× wider · shorts weighted equally · earnings names ' + (st.sEvent ? 'blocked' : 'ALLOWED'),
+      onRegimeToggle: () => this.setRegime(false),
+      onRegime: (v) => this.setRegime(v),
+      sEvent: !!st.sEvent, onSEvent: (v) => this.setState({ sEvent: v }),
+      sSignals: st.sSignals, onSSignals: (v) => this.setState({ sSignals: v }),
+      sGex: st.sGex, onSGex: (v) => this.setState({ sGex: v }),
+      sSound: st.sSound, onSSound: (v) => this.setState({ sSound: v }),
+      sAuto: st.sAuto, onSAuto: (v) => this.setState({ sAuto: v }),
+      maxRisk: st.maxRisk, onMaxRisk: (v) => this.setState({ maxRisk: v }),
+      tf: st.tf, onTf: (v) => this.setState({ tf: v }), tfOpts: [{ value: '1m', label: '1m' }, { value: '5m', label: '5m' }, { value: '15m', label: '15m' }, { value: '1h', label: '1h' }],
+      onSave: () => this.showToast('success', 'Settings saved', `Max risk $${st.maxRisk} · ${st.tf} default`),
+      toastOn: !!st.toast, toastTone: st.toast ? st.toast.tone : 'success',
+      toastTitle: st.toast ? st.toast.title : '', toastDetail: st.toast ? st.toast.detail : '',
+      toastTime: st.toast ? st.toast.time : '', onToastDismiss: () => this.setState({ toast: null }),
+    };
+  }
+  setRegime(on) {
+    this.setState({ regimeOn: on, maxRisk: on ? '60' : '250' });
+    this.showToast(on ? 'warning' : 'success', on ? 'Defensive regime ON' : 'Standard mode',
+      on ? 'Risk 2.5%/trade · wider stops · shorts enabled · earnings blocked' : 'Risk 5%/trade · standard stops · long bias restored');
+  }
+  addTicker() {
+    const sym = this.state.addSym.trim().toUpperCase();
+    if (!sym || !/^[A-Z.]{1,6}$/.test(sym)) { this.showToast('warning', 'Enter a ticker', 'e.g. PLTR, HOOD, SMCI'); return; }
+    if (this.state.watch.some((w) => w.sym === sym)) { this.showToast('info', sym + ' already on the scanner', 'Click its row to open the chart'); return; }
+    const rnd = this.D.mulberry32(sym.split('').reduce((a, c) => a + c.charCodeAt(0) * 13, 11));
+    const last = +(15 + rnd() * 500).toFixed(2);
+    const chg = +((rnd() - 0.45) * 4).toFixed(2);
+    const row = { sym, last, chg, open0: last / (1 + chg / 100), vol: (3 + rnd() * 80).toFixed(1) + 'M', atr: +(last * (0.008 + rnd() * 0.02)).toFixed(2), conf: Math.round(20 + rnd() * 70), spread: +(0.01 + rnd() * 0.1).toFixed(2) };
+    this.setState({ watch: [...this.state.watch, row], addSym: '' });
+    this.showToast('success', sym + ' added to scanner', `Last ${row.last.toFixed(2)} · ATR ${row.atr} · conf ${row.conf}`);
+  }
+}
+</script>
+</body>
+</html>

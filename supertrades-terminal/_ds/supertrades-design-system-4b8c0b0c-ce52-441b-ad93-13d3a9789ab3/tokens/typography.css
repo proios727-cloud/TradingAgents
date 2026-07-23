@@ -1,0 +1,27 @@
+/* SuperTrades — typography tokens */
+:root {
+  --font-sans: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+
+  /* Display (Space Grotesk) */
+  --type-display-xl: 700 44px/1.05 var(--font-sans);   /* hero numbers, marketing */
+  --type-display: 700 32px/1.1 var(--font-sans);       /* page titles */
+  --type-title: 600 20px/1.2 var(--font-sans);         /* panel titles */
+  --type-heading: 600 16px/1.3 var(--font-sans);       /* card headings */
+
+  /* Body (Space Grotesk) */
+  --type-body: 400 14px/1.5 var(--font-sans);
+  --type-body-strong: 600 14px/1.5 var(--font-sans);
+  --type-caption: 400 12px/1.4 var(--font-sans);
+  --type-label: 600 11px/1.2 var(--font-sans);         /* + uppercase + tracking */
+
+  /* Data (JetBrains Mono) — prices, tickers, deltas, timestamps */
+  --type-data-xl: 700 28px/1.1 var(--font-mono);       /* big P&L figures */
+  --type-data-lg: 600 18px/1.2 var(--font-mono);       /* card prices */
+  --type-data: 500 13px/1.4 var(--font-mono);          /* table cells */
+  --type-data-sm: 500 11px/1.3 var(--font-mono);       /* timestamps, meta */
+  --type-ticker: 700 13px/1.2 var(--font-mono);        /* ticker symbols, uppercase */
+
+  --tracking-label: 0.08em;   /* uppercase labels */
+  --tracking-ticker: 0.04em;  /* ticker symbols */
+}

@@ -1,0 +1,27 @@
+/* SuperTrades — base element styles */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg-1);
+  color: var(--text-primary);
+  font: var(--type-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--link); text-decoration: none; transition: color var(--duration-fast) var(--ease-out); }
+a:hover { color: var(--link-hover); }
+
+::selection { background: var(--green-dim); color: var(--green-300); }
+
+/* Slim terminal scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Tabular numerals everywhere numbers align */
+.st-tabular, td, .st-data { font-variant-numeric: tabular-nums; }
+
+/* Shared keyframes for live-status pulses */
+@keyframes st-badge-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }

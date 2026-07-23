@@ -1,0 +1,63 @@
+/* SuperTrades — color tokens
+   Cyber green-on-black. Green = long/up, red = short/down. Neutral chrome. */
+:root {
+  /* ---- Base: backgrounds (green-cast blacks) ---- */
+  --bg-0: #050807;            /* app shell / deepest */
+  --bg-1: #0A0F0D;            /* page background */
+  --bg-2: #0D1512;            /* panel background */
+
+  /* ---- Surfaces ---- */
+  --surface-card: #0E1613;    /* default card */
+  --surface-raised: #121D18;  /* hovered / raised card */
+  --surface-inset: #080D0B;   /* wells, inputs, chart bg */
+  --surface-overlay: rgba(10, 15, 13, 0.85); /* modals/toasts, pair w/ blur */
+
+  /* ---- Text (green-tinted whites) ---- */
+  --text-primary: #E8F5EE;
+  --text-secondary: #93A89C;
+  --text-muted: #5C7066;
+  --text-disabled: #3A4A42;
+  --text-on-accent: #04120A;  /* dark text on green fills */
+
+  /* ---- Brand / accent: terminal green ---- */
+  --green-300: #6FFFB0;
+  --green-400: #2BF48F;
+  --green-500: #00E67B;       /* primary accent, long/up */
+  --green-600: #00B862;
+  --green-700: #0A7A47;
+  --green-dim: rgba(0, 230, 123, 0.12);   /* tinted fills */
+  --green-line: rgba(0, 230, 123, 0.35);  /* tinted borders */
+
+  /* ---- Short / down: classic red ---- */
+  --red-300: #FF8A8A;
+  --red-400: #FF5C5C;
+  --red-500: #FF3B3B;         /* short/down */
+  --red-600: #D92B2B;
+  --red-dim: rgba(255, 59, 59, 0.12);
+  --red-line: rgba(255, 59, 59, 0.35);
+
+  /* ---- Semantic: warning / info ---- */
+  --amber-500: #FFB020;       /* warnings, caution signals */
+  --amber-dim: rgba(255, 176, 32, 0.12);
+  --cyan-500: #2BD9F4;        /* informational, links in data ctx */
+  --cyan-dim: rgba(43, 217, 244, 0.12);
+
+  /* ---- Chrome: neutral hairlines & strokes ---- */
+  --border-hairline: rgba(151, 176, 164, 0.10);
+  --border-default: rgba(151, 176, 164, 0.16);
+  --border-strong: rgba(151, 176, 164, 0.28);
+  --border-focus: var(--green-500);
+
+  /* ---- Semantic aliases ---- */
+  --accent: var(--green-500);
+  --long: var(--green-500);
+  --short: var(--red-500);
+  --up: var(--green-500);
+  --down: var(--red-500);
+  --surface-long: var(--green-dim);
+  --surface-short: var(--red-dim);
+  --text-body: var(--text-primary);
+  --text-label: var(--text-secondary);
+  --link: var(--green-400);
+  --link-hover: var(--green-300);
+}
