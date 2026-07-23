@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-23T13:49:00Z",
+  "updated_at": "2026-07-23T14:00:00Z",
   "trading_date": "2026-07-23",
   "rule_version": "v3.1",
   "mode": {
@@ -132,6 +132,13 @@
     {
       "id": "34178965-a9b6-481e-836d-11b5cf067061",
       "contract": "NVDA 7/31 $225C"
+    },
+    {
+      "id": "56911a1c-17fa-41bc-a1ce-a7ed4b85aa50",
+      "contract": "XLE 7/31 $62C",
+      "thesis": "energy sector day-2 continuation (best green sector 7/23: USO +5.9, XOM +1.9, CVX +1.8, XLE +1.4); cleanest affordable-once-BP-frees expression at delta 0.25, spread ~11%, OI 817",
+      "entry_conditions": "requires BP >= $80 (settlement suppression) + >= $30 floor; enter 9:40-11:00 or 3:00-3:30 window; XLE above VWAP and holding 15-min OR-high; delta>=0.25, spread<=10% of ask at entry; rails +50/-30/BE-ratchet+25; class sector_etf -> day_trade (flatten 3:45)",
+      "added": "2026-07-23 10:00 ET (ask 0.41 = $41; unaffordable at current $20.80 BP; armed for deposit/settlement unlock)"
     }
   ],
   "pool": [
@@ -267,6 +274,11 @@
     "notes": "DIS 110C held (agentic, day_trade rails, flatten 3:45 unless ratchet); QS 7/24 7C (margin, ALERT-ONLY) expires tomorrow - time-stop alert TODAY; no entries 9:30-9:40; max 1 auto-entry; TSLA post-earnings -8%"
   },
   "log": [
+    {
+      "t": "2026-07-23T14:00Z",
+      "event": "watchlist_add",
+      "detail": "Armed XLE 7/31 62C (energy day-2 continuation, best green sector; delta 0.25, spread ~11%, OI 817). Ask 0.41=$41 unaffordable at 20.80 BP; queued for deposit/settlement unlock. Mirrored to RH watchlist ef1b61ef."
+    },
     {
       "t": "2026-07-23T13:49Z",
       "event": "fill",
