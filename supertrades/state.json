@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-23T14:01:00Z",
+  "updated_at": "2026-07-23T17:12:00Z",
   "trading_date": "2026-07-23",
   "rule_version": "v3.1",
   "mode": {
@@ -87,7 +87,10 @@
     "auto_entries_used": 0,
     "manual_round_trips": 0,
     "churn_threshold_hit": false,
-    "halted": false
+    "halted": false,
+    "open_pnl_est": -26.0,
+    "day_pnl_est": -53.0,
+    "note": "realized -27 (DIS); open ~ -26 (NVDA -12.5, QQQ -13.5); day P&L ~ -53, within $7 of -60 halt - watch"
   },
   "positions": {
     "6140b886-a7c8-4a78-9edb-63b58e5655dc": {
@@ -118,16 +121,66 @@
         }
       ],
       "note": "margin acct READ-ONLY; user buy 7/21 15:18 ET @0.13; mark 0.095 (-27%); expires Fri 7/24 - time-stop alert live TODAY"
+    },
+    "34178965-a9b6-481e-836d-11b5cf067061": {
+      "contract": "NVDA 7/31 $225C",
+      "account": "902341866",
+      "qty": 1,
+      "entry": 0.88,
+      "hwm": 0.88,
+      "ratchet_engaged": false,
+      "class": "day_trade",
+      "expiry": "2026-07-31",
+      "exit_rules": [
+        {
+          "type": "target",
+          "pct": 50
+        },
+        {
+          "type": "stop",
+          "pct": -30
+        },
+        {
+          "type": "ratchet",
+          "arm_pct": 25
+        }
+      ],
+      "note": "USER manual buy 9:36 ET @0.88 (was watchlist contract). single_name->day_trade rails; -14% at 13:10. NOTE: 8-DTE contract but day_trade class flattens 3:45 unless user declares it a swing hold."
+    },
+    "58335bfe-435e-490c-9a53-17b33fa74b86": {
+      "contract": "QQQ 7/23 $706C",
+      "account": "902341866",
+      "qty": 1,
+      "entry": 0.16,
+      "hwm": 0.16,
+      "ratchet_engaged": false,
+      "class": "0dte_scalp",
+      "expiry": "2026-07-23",
+      "exit_rules": [
+        {
+          "type": "target",
+          "pct": 50
+        },
+        {
+          "type": "stop",
+          "pct": -30
+        },
+        {
+          "type": "ratchet",
+          "arm_pct": 25
+        },
+        {
+          "type": "hard_exit_et",
+          "at": "15:15"
+        }
+      ],
+      "note": "USER manual 0DTE punt 10:08 ET @0.16. Now bid 0.02 (-84%), stop long-breached during 3h loop stall. Worth ~$2; expires worthless today. Salvage negligible - flagged, not auto-executed."
     }
   },
   "watchlist": [
     {
       "id": "fa89a40f-56b6-4de3-a2b7-145736d1a280",
       "contract": "RIVN 8/7 $19C"
-    },
-    {
-      "id": "34178965-a9b6-481e-836d-11b5cf067061",
-      "contract": "NVDA 7/31 $225C"
     },
     {
       "id": "56911a1c-17fa-41bc-a1ce-a7ed4b85aa50",
@@ -270,6 +323,11 @@
     "notes": "DIS 110C held (agentic, day_trade rails, flatten 3:45 unless ratchet); QS 7/24 7C (margin, ALERT-ONLY) expires tomorrow - time-stop alert TODAY; no entries 9:30-9:40; max 1 auto-entry; TSLA post-earnings -8%"
   },
   "log": [
+    {
+      "t": "2026-07-23T17:12Z",
+      "event": "reconcile",
+      "detail": "LOOP STALL CAUGHT: autonomous wakeup chain broke ~10:25 ET; 3h blind (heartbeats ran selftest only, no broker reconcile). Broker truth at 13:10: 2 USER-opened agentic positions untracked - NVDA 7/31 225C @0.88 (9:36, -14%, day_trade rails) + QQQ 7/23 706C 0DTE @0.16 (10:08, -84% dead). Both now in ledger w/ rails. NVDA removed from watchlist (held). BP 4.76 (deposit still pending). Day P&L ~-53 (within $7 of halt). Energy faded midday: XLE +0.9% (from +1.7%), XLE62C armed delta 0.21. Re-arming wakeup with pointer prompt (reliable cycle) instead of stalled autonomous sentinel."
+    },
     {
       "t": "2026-07-23T14:01Z",
       "event": "watchlist_prune",
