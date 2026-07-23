@@ -1,0 +1,29 @@
+/* SuperTrades — spacing, radii, layout */
+:root {
+  /* 4px scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radii — soft cards, tight controls */
+  --radius-xs: 4px;    /* chips, tags */
+  --radius-sm: 6px;    /* buttons, inputs */
+  --radius-md: 10px;   /* cards */
+  --radius-lg: 14px;   /* panels, modals */
+  --radius-full: 999px;
+
+  /* Layout */
+  --panel-gap: 12px;          /* gap between terminal panels */
+  --sidebar-width: 220px;
+  --topbar-height: 52px;
+  --control-height: 36px;     /* default button/input height */
+  --control-height-sm: 28px;
+  --control-height-lg: 44px;  /* mobile hit target */
+}
