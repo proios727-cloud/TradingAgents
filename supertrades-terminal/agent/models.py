@@ -55,6 +55,7 @@ class OptionContract:
     bid: float
     ask: float
     delta: float
+    gamma: float = 0.0                 # dΔ/dS — convexity; drives cheaper-OTM scoring
 
     @property
     def mid(self) -> float:
@@ -64,6 +65,18 @@ class OptionContract:
     def spread_pct_of_mid(self) -> float:
         m = self.mid
         return (self.ask - self.bid) / m if m > 0 else float("inf")
+
+    def est_return_on_move(self, move: float) -> float:
+        """Estimated return on premium for a favorable underlying ``move`` (in
+        price units), from the 2nd-order Taylor expansion of option value:
+        ΔP ≈ |Δ|·move + ½·Γ·move². Divided by the ask (per-share cost). This is
+        higher for cheap, high-gamma (convex) contracts on a large expected move
+        — the "best delta/gamma combo for profitability" score. Returns 0 when
+        cost or gamma data is missing, so callers fall back to delta selection."""
+        if self.ask <= 0:
+            return 0.0
+        est_pnl = abs(self.delta) * move + 0.5 * self.gamma * move * move
+        return est_pnl / self.ask
 
 
 @dataclass

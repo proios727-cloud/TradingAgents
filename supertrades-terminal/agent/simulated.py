@@ -47,16 +47,16 @@ def demo_account(account_number: str = "AGENTIC-DEMO") -> AccountState:
 
 
 def demo_chains(session: date) -> dict[str, ChainSnapshot]:
-    def c(sym, otype, strike, bid, ask, delta):
+    def c(sym, otype, strike, bid, ask, delta, gamma=0.0):
         return OptionContract(f"{sym}-{otype}-{strike}", sym, otype, strike,
-                              session, bid, ask, delta)
+                              session, bid, ask, delta, gamma)
     return {
         "NVDA": ChainSnapshot("NVDA", session, [
-            c("NVDA", "call", 202.5, 1.18, 1.24, 0.49),
-            c("NVDA", "call", 205.0, 0.61, 0.66, 0.34),
+            c("NVDA", "call", 202.5, 1.18, 1.24, 0.49, 0.055),
+            c("NVDA", "call", 205.0, 0.61, 0.66, 0.34, 0.070),
         ]),
         "TSLA": ChainSnapshot("TSLA", session, [
-            c("TSLA", "put", 402.5, 2.40, 2.55, 0.47),
-            c("TSLA", "put", 400.0, 1.30, 1.42, 0.33),
+            c("TSLA", "put", 402.5, 2.40, 2.55, 0.47, 0.030),
+            c("TSLA", "put", 400.0, 1.30, 1.42, 0.33, 0.042),
         ]),
     }

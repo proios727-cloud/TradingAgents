@@ -66,6 +66,16 @@ class Guardrails:
     reprice_after_seconds: float = 5.0   # limit at mid, reprice once after 5s
     max_reprice_misses: int = 2          # abandon after 2 misses
 
+    # --- Convexity selection (only active when RuntimeConfig.convexity_selection) ---
+    # On high-conviction signals, allow cheaper/more-convex contracts (down to
+    # conv_delta_floor) and pick the one with the best estimated return on the
+    # expected move to target (Δ·M + ½·Γ·M²), instead of the plain ~0.50-delta
+    # pick. Only engages when confidence AND RVOL clear the bars below — a hard
+    # delta floor keeps it off lottery tickets. The spread and 0DTE guards still apply.
+    conv_delta_floor: float = 0.30       # never below this |Δ|, even chasing convexity
+    conv_min_confidence: int = 70        # signal confidence required to use convexity mode
+    conv_min_rvol: float = 1.8           # RVOL required to use convexity mode
+
     # --- Cash-account settlement (T+1) ---
     # Never buy with unsettled proceeds; open premium must never exceed settled cash.
     balance_floor_alert_usd: float = 2000.0  # nearing $2,000 -> halt + alert
@@ -100,6 +110,10 @@ class RuntimeConfig:
     # instead of a hard +90% full-position target. Mirrors the terminal's
     # "Auto-scale out at +1R" switch. Default off = historical target behavior.
     scale_and_trail: bool = False
+    # When True, high-conviction signals select the best delta/gamma combo by
+    # estimated return on the expected move (convexity), allowing cheaper OTM
+    # contracts down to the delta floor. Default off = plain ~0.50-delta pick.
+    convexity_selection: bool = False
     broker: str = "robinhood"      # 'robinhood' | 'paper'
 
     def can_place_live(self) -> bool:

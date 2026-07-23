@@ -93,7 +93,7 @@ class SuperTradesAgent:
         account = self.broker.get_account()
 
         for sig in self.signals.fired_signals(now):
-            choice = contract_selector.select(sig, self.broker.get_chain(sig.symbol))
+            choice = contract_selector.select(sig, self.broker.get_chain(sig.symbol), self.cfg)
             if not choice.ok:
                 res.rejected.append((sig.symbol, choice.rejected_reason))
                 self.log.record("reject", sig.symbol, now, stage="contract",
