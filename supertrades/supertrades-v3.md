@@ -101,9 +101,18 @@
   no writes, no republish). Premarket branch runs 9:05–9:30 ET when
   state.open_plan is unbuilt: roll the day block, read settled BP, gap-scan
   (extended hours), build QQQ+SPY GEX maps, write open_plan, one push.
-- Cycle order: reconcile positions vs broker (user fills → realized P&L; new
-  positions → instantiate class rails, push) → exits → guards → entry check →
-  flow/gate watch → dashboard → state write.
+- Cycle order (orchestrated): (1) reconcile positions vs broker (user fills →
+  realized P&L; new positions → instantiate class rails, push); (2) FETCH one
+  read-only snapshot via the Robinhood MCP tools (the project's single
+  authenticated broker path — quotes, option quotes, GEX chains, account);
+  (3) run the engine — `python -m supertrades.engine.run_cycle --state
+  supertrades/state.json --snapshot <snapshot.json>` — which fans out one
+  concurrent node per ticker / GEX underlying (map+whale+gate) / position /
+  candidate, batch fan-ins, and applies EVERY guardrail exactly once in
+  `engine/reporter.py`; (4) execute the report's actions via MCP (review→place)
+  → dashboard → state write. Node count contract: len(universe) +
+  3·len(index tickers) + len(positions) + len(watchlist). Engine health check
+  after any rebuild: `python -m supertrades.engine.run_cycle --selftest`.
 - Efficiency gates: get_portfolio only when an entry is actually possible this
   cycle; quote held contracts + top-3 leaders every cycle, full universe every
   3rd cycle; GEX map refresh ~30 min or on gate arming/node cross; dashboard
@@ -132,6 +141,11 @@
   state.json write bumps updated_at.
 
 ## Changelog
+- v3.2 (2026-07-23): per-cycle loop rewritten from serial pipeline to fan-out /
+  layered fan-in (`supertrades/engine/`): independent nodes propose, a single
+  reporter gate decides. No guardrail values changed; snapshot fetch stays on
+  the existing Robinhood MCP path (no second login). Tests:
+  `python -m unittest discover -s supertrades/engine/tests`.
 - v3.1 (2026-07-21): /simplify consolidation — spec/state/cron role split,
   single-home rules (after-3pm exception, spread cap, gate trigger), class
   registry + typed exit-rule schema, derived dates, structured settlement,

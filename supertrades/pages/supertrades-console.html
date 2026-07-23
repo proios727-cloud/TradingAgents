@@ -215,7 +215,7 @@
     <p class="eyebrow">Loop &amp; guardrails</p>
     <div class="cols">
       <ul class="rules">
-        <li><span class="tick">▸</span>5-min loop <span class="mono">05f43723</span>: scalp rails → position discovery → flow watch → dashboard republish · overnight policy active</li>
+        <li><span class="tick">▸</span>Loop cycle: fan-out (one node per ticker / GEX underlying / position / candidate, concurrent) → batch fan-in → single guardrail gate in <span class="mono">engine/reporter.py</span> · overnight policy active</li>
         <li><span class="tick">▸</span>Hourly heartbeat rebuilds the loop from <span class="mono">supertrades/supertrades-v3.md</span> after session restarts</li>
         <li><span class="tick">▸</span>Push notifications: fills, target/stop hits, flow shifts on held names, gamma-flip proxy, daily halt</li>
         <li><span class="tick">▸</span>Kill switches: <span class="kill">pause trading</span> · <span class="kill">stop the loop</span></li>
