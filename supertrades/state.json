@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-23T17:12:00Z",
+  "updated_at": "2026-07-23T18:11:00Z",
   "trading_date": "2026-07-23",
   "rule_version": "v3.1",
   "mode": {
@@ -87,10 +87,10 @@
     "auto_entries_used": 0,
     "manual_round_trips": 0,
     "churn_threshold_hit": false,
-    "halted": false,
-    "open_pnl_est": -26.0,
-    "day_pnl_est": -53.0,
-    "note": "realized -27 (DIS); open ~ -26 (NVDA -12.5, QQQ -13.5); day P&L ~ -53, within $7 of -60 halt - watch"
+    "halted": true,
+    "open_pnl_est": -39.5,
+    "day_pnl_est": -66.5,
+    "note": "HALTED 14:10 ET: day P&L ~-66.5 (realized -27 DIS + open NVDA -25 + QQQ -14.5) <= -60. Entries STOP for the day (moot, BP 4.76); exits stay live. NVDA 225C -28% (mark 0.63) one tick from -30% stop 0.616; QQQ 0DTE dead (15:15 hard-exit)."
   },
   "positions": {
     "6140b886-a7c8-4a78-9edb-63b58e5655dc": {
@@ -323,6 +323,11 @@
     "notes": "DIS 110C held (agentic, day_trade rails, flatten 3:45 unless ratchet); QS 7/24 7C (margin, ALERT-ONLY) expires tomorrow - time-stop alert TODAY; no entries 9:30-9:40; max 1 auto-entry; TSLA post-earnings -8%"
   },
   "log": [
+    {
+      "t": "2026-07-23T18:11Z",
+      "event": "halt",
+      "detail": "DAILY HALT TRIGGERED: day P&L ~-66.5 <= -60 (realized -27 + open NVDA -25 + QQQ -14.5). Entries stopped for day (XLE arm now dead today); exits stay live. NVDA 225C mark 0.63 = -28%, bid 0.62, stop at 0.616 (one tick away) - next cycle executes if breached. QQQ 706C 0DTE dead (~$1). BP 4.76. Reported in chat (user live); mobile push withheld given active engagement."
+    },
     {
       "t": "2026-07-23T17:12Z",
       "event": "reconcile",
