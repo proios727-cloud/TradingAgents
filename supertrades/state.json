@@ -1,7 +1,7 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-23T12:50:00Z",
-  "trading_date": "2026-07-22",
+  "updated_at": "2026-07-23T13:16:00Z",
+  "trading_date": "2026-07-23",
   "rule_version": "v3.1",
   "mode": {
     "cadence_min": 15,
@@ -89,12 +89,37 @@
     "halted": false
   },
   "positions": {
-    "9566d3c1-4834-47f2-b97f-35cf14f4f9a2": {
-      "contract": "IREN 7/24 $33P",
+    "491ad6e6-2c17-41ed-ad24-a3e1eea9b438": {
+      "contract": "DIS 8/21 $110C",
+      "account": "902341866",
+      "qty": 1,
+      "entry": 0.65,
+      "hwm": 0.65,
+      "ratchet_engaged": false,
+      "class": "day_trade",
+      "expiry": "2026-08-21",
+      "exit_rules": [
+        {
+          "type": "target",
+          "pct": 50
+        },
+        {
+          "type": "stop",
+          "pct": -30
+        },
+        {
+          "type": "ratchet",
+          "arm_pct": 25
+        }
+      ],
+      "note": "user manual buy 7/22 10:37 ET @0.65 (watchlist contract); held overnight; single_name -> day_trade rails; mark 0.495 at 7/22 close (-24%)"
+    },
+    "6140b886-a7c8-4a78-9edb-63b58e5655dc": {
+      "contract": "QS 7/24 $7C",
       "account": "812234458",
       "qty": 1,
-      "entry": 0.39,
-      "hwm": 0.39,
+      "entry": 0.13,
+      "hwm": 0.13,
       "ratchet_engaged": false,
       "class": "alert_only",
       "expiry": "2026-07-24",
@@ -105,7 +130,7 @@
         },
         {
           "type": "alert_bid_floor",
-          "bid": 0.05
+          "bid": 0.03
         },
         {
           "type": "alert_swing",
@@ -116,7 +141,7 @@
           "days_before_expiry": 1
         }
       ],
-      "note": "salvage recommended to user"
+      "note": "margin acct READ-ONLY; user buy 7/21 15:18 ET @0.13; mark 0.095 (-27%); expires Fri 7/24 - time-stop alert live TODAY"
     }
   },
   "watchlist": [
@@ -159,7 +184,7 @@
         "settles_on": "2026-07-22",
         "kind": "deposit",
         "confirmed": false,
-        "note": "NOT landed at 9:12am check - still in pending_deposits; do not count toward BP"
+        "note": "still in pending_deposits at 7/23 9:11 ET premarket; not in BP"
       }
     ],
     "cleared": [
@@ -171,57 +196,99 @@
     ]
   },
   "prior_cycle": {
-    "at": "2026-07-22T13:12:00Z",
-    "marks": {
-      "9566d3c1": 0.2
-    },
+    "at": "2026-07-23T13:15:00Z",
+    "marks": {},
     "contract_cum_volume": {},
     "day_pct": {},
     "crossed_2pct": [],
-    "note": "premarket baselines: QQQ gap -0.87 (GATE PRE-ARMED), USO +3.0, XOM +1.4, XLE +1.2, INTC -3.6, AMD -2.8"
+    "note": "premarket baselines 9:15 ET: QQQ -1.48 GATE ARMED, SPY -1.03, USO +5.6, LMT +5.1, XLE +1.8, TSLA -8.2 (earnings), META -2.5, NVDA -1.5"
   },
-  "gex_map": {},
+  "gex_map": {
+    "QQQ": {
+      "built_at": "2026-07-23T13:15Z",
+      "expiry": "2026-07-23",
+      "spot": 694.93,
+      "net_by_strike": {
+        "680": -34.4,
+        "685": -21.6,
+        "690": -72.7,
+        "695": -105.3,
+        "700": -334.8,
+        "705": -220.1,
+        "710": 212.7
+      },
+      "king_node": 700,
+      "put_shelf": 690,
+      "call_wall": 710,
+      "flip_zone": "705-710",
+      "regime": "NEGATIVE gamma below flip (spot 695) - momentum/volatile; dip-buy zone 690; 0DTE OI-based approx"
+    },
+    "SPY": {
+      "built_at": "2026-07-23T13:15Z",
+      "expiry": "2026-07-23",
+      "spot": 739.75,
+      "net_by_strike": {
+        "725": -3.3,
+        "730": -67.6,
+        "735": -72.4,
+        "740": -396.6,
+        "745": -791.1,
+        "750": 502.4,
+        "755": 304.3
+      },
+      "king_node": 745,
+      "put_shelf": 735,
+      "call_wall": 750,
+      "flip_zone": "745-750",
+      "regime": "NEGATIVE gamma below flip (spot 739.8) - momentum/volatile; dip-buy zone 735; 750P/755P gamma proxied from calls"
+    }
+  },
   "open_plan": {
-    "built_at": "2026-07-22T13:15:00Z",
-    "settled_bp": 303.2,
-    "per_trade_cap": 121.0,
+    "built_at": "2026-07-23T13:15:00Z",
+    "settled_bp": 317.96,
+    "per_trade_cap": 127.18,
     "deposit_landed": false,
     "gappers": {
       "up": {
-        "USO": 3.0,
-        "XOM": 1.4,
-        "XLE": 1.2,
-        "CVX": 1.2
+        "USO": 5.63,
+        "LMT": 5.07,
+        "XOM": 1.85,
+        "XLE": 1.81,
+        "CVX": 1.8
       },
       "down": {
-        "INTC": -3.6,
-        "AMD": -2.8,
-        "QQQ": -0.87,
-        "NVDA": -0.9
+        "TSLA": -8.2,
+        "META": -2.5,
+        "AMD": -1.65,
+        "NVDA": -1.54,
+        "QQQ": -1.48,
+        "IWM": -1.1,
+        "SPY": -1.03
       }
     },
     "gate": {
-      "status": "PRE-ARMED",
-      "reason": "QQQ gap -0.87% (>= -0.75%)",
-      "action": "user pastes GEX flip/wall levels to enable index play; maps build on gate confirmation after open"
+      "status": "ARMED",
+      "reason": "QQQ -1.48% premarket (>= -0.75%)",
+      "action": "maps built (approx, 0DTE OI): QQQ neg-gamma below 705-710 flip, dip zone 690, wall 710; SPY neg-gamma below 745-750 flip, dip zone 735, wall 750. Index 0DTE plays only via GEX gate; user may paste sharper levels to override."
     },
     "candidates": [
       {
-        "contract": "XLE 7/24 $59C",
-        "id": "b4e1fb7e-8a8f-4d24-93c4-fc22fb397b9b",
-        "yday_mark": 0.4,
-        "delta": 0.38,
-        "oi": 3031,
-        "conditions": "entry window 9:40-11:00 only; spread <= 10% of ask at entry time (premarket spread too wide); XLE above VWAP and 15-min OR-high; rails +50/-30/BE-ratchet +25; class day_trade (flatten 3:45)"
+        "contract": "XLE candidates re-evaluate at open",
+        "note": "energy theme day 2 (USO +5.6, XLE +1.8) but yesterday's XLE 7/24 59c is 1DTE now; prefer longer expiry if conviction confirms 9:40-11:00; per-trade cap $127.18"
       },
       {
-        "contract": "INTC 7/24 $100P",
-        "verdict": "REJECTED - $423 premium > $121 cap (earnings IV 204%)"
+        "contract": "TSLA/META/NVDA dip watch",
+        "note": "semis/megacap red; no knife-catching - entries need above-VWAP + OR-high per rules"
       }
     ],
-    "notes": "energy = the theme; semis giving back; no entries 9:30-9:40; max 1 auto-entry; IREN put (margin, alert-only) expires FRIDAY - Thursday warning tomorrow"
+    "notes": "DIS 110C held (agentic, day_trade rails, flatten 3:45 unless ratchet); QS 7/24 7C (margin, ALERT-ONLY) expires tomorrow - time-stop alert TODAY; no entries 9:30-9:40; max 1 auto-entry; TSLA post-earnings -8%"
   },
   "log": [
+    {
+      "t": "2026-07-23T13:16Z",
+      "event": "premarket",
+      "detail": "Day rolled to 7/23. Reconcile: DIS 8/21 110C NEW agentic position (user buy 7/22 @0.65, day_trade rails); IREN put CLOSED by user (removed); QS 7/24 7C NEW margin position @0.13 (alert-only, expires Fri). BP 317.96, deposit $250 still pending, cap $127.18. QQQ -1.48 premkt = GEX gate ARMED; QQQ+SPY 0DTE maps built (both negative-gamma below flip). Energy theme continues (USO +5.6). Orchestrated engine cycle #1."
+    },
     {
       "t": "2026-07-23T12:50Z",
       "event": "resume",
