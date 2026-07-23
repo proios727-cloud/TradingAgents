@@ -1,0 +1,43 @@
+{
+  "$comment": "SuperTrades execution guardrails. Read/analysis Robinhood tools are auto-approved; ORDER-PLACING tools (place_option_order, cancel_option_order) are never allow-listed — they route through the PreToolUse gate and require the operator's explicit arm. Do not add place_option_order to 'allow': an allow rule silently skips the human approval callback. Stage/kill live under supertrades-terminal/.supertrades (python -m agent.go_live status).",
+  "permissions": {
+    "allow": [
+      "mcp__Robinhood_Trading__get_accounts",
+      "mcp__Robinhood_Trading__get_option_chains",
+      "mcp__Robinhood_Trading__get_option_quotes",
+      "mcp__Robinhood_Trading__get_option_instruments",
+      "mcp__Robinhood_Trading__get_option_positions",
+      "mcp__Robinhood_Trading__get_option_orders",
+      "mcp__Robinhood_Trading__get_option_level_upgrade_info",
+      "mcp__Robinhood_Trading__review_option_order"
+    ],
+    "ask": [
+      "mcp__Robinhood_Trading__place_option_order",
+      "mcp__Robinhood_Trading__cancel_option_order"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__Robinhood_Trading__(place|cancel)_option_order",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/pretrade_gate.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__Robinhood_Trading__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/audit_log.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
