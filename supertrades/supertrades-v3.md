@@ -83,6 +83,10 @@
   under the cap; same-ticker swaps only after a conviction re-check; remove
   rows > cap+10% (suspended while settlement-suppressed, resume at BP > $80);
   no auto-entry into a ticker already held.
+- RH mirror: the Robinhood options watchlist mirrors state.json watchlist+pool.
+  On any add/swap/remove, apply the same change via the watchlist MCP tools in
+  the same cycle (add_option_to_watchlist / remove_option_from_watchlist);
+  state.json remains the source of truth on any conflict.
 
 ## 7. Exits (schema-driven; the loop executes ONLY what state.json declares)
 - Every position carries `exit_rules` (typed, parameterized) instantiated from
