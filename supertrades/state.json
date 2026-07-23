@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-23T18:11:00Z",
+  "updated_at": "2026-07-23T19:11:00Z",
   "trading_date": "2026-07-23",
   "rule_version": "v3.1",
   "mode": {
@@ -83,14 +83,14 @@
     "alert_only": {}
   },
   "day": {
-    "realized_pnl": -27.0,
+    "realized_pnl": -69.0,
     "auto_entries_used": 0,
     "manual_round_trips": 0,
     "churn_threshold_hit": false,
     "halted": true,
-    "open_pnl_est": -39.5,
-    "day_pnl_est": -66.5,
-    "note": "HALTED 14:10 ET: day P&L ~-66.5 (realized -27 DIS + open NVDA -25 + QQQ -14.5) <= -60. Entries STOP for the day (moot, BP 4.76); exits stay live. NVDA 225C -28% (mark 0.63) one tick from -30% stop 0.616; QQQ 0DTE dead (15:15 hard-exit)."
+    "open_pnl_est": 0.0,
+    "day_pnl_est": -69.0,
+    "note": "Agentic FLAT + HALTED. Realized -69 today: DIS -27, NVDA -27 (user sold 0.61 @14:15), QQQ -15 (user sold 0.01 @14:14). Below -60 halt; no more entries today. Only QS (margin, alert-only) open, expires tomorrow."
   },
   "positions": {
     "6140b886-a7c8-4a78-9edb-63b58e5655dc": {
@@ -121,60 +121,6 @@
         }
       ],
       "note": "margin acct READ-ONLY; user buy 7/21 15:18 ET @0.13; mark 0.095 (-27%); expires Fri 7/24 - time-stop alert live TODAY"
-    },
-    "34178965-a9b6-481e-836d-11b5cf067061": {
-      "contract": "NVDA 7/31 $225C",
-      "account": "902341866",
-      "qty": 1,
-      "entry": 0.88,
-      "hwm": 0.88,
-      "ratchet_engaged": false,
-      "class": "day_trade",
-      "expiry": "2026-07-31",
-      "exit_rules": [
-        {
-          "type": "target",
-          "pct": 50
-        },
-        {
-          "type": "stop",
-          "pct": -30
-        },
-        {
-          "type": "ratchet",
-          "arm_pct": 25
-        }
-      ],
-      "note": "USER manual buy 9:36 ET @0.88 (was watchlist contract). single_name->day_trade rails; -14% at 13:10. NOTE: 8-DTE contract but day_trade class flattens 3:45 unless user declares it a swing hold."
-    },
-    "58335bfe-435e-490c-9a53-17b33fa74b86": {
-      "contract": "QQQ 7/23 $706C",
-      "account": "902341866",
-      "qty": 1,
-      "entry": 0.16,
-      "hwm": 0.16,
-      "ratchet_engaged": false,
-      "class": "0dte_scalp",
-      "expiry": "2026-07-23",
-      "exit_rules": [
-        {
-          "type": "target",
-          "pct": 50
-        },
-        {
-          "type": "stop",
-          "pct": -30
-        },
-        {
-          "type": "ratchet",
-          "arm_pct": 25
-        },
-        {
-          "type": "hard_exit_et",
-          "at": "15:15"
-        }
-      ],
-      "note": "USER manual 0DTE punt 10:08 ET @0.16. Now bid 0.02 (-84%), stop long-breached during 3h loop stall. Worth ~$2; expires worthless today. Salvage negligible - flagged, not auto-executed."
     }
   },
   "watchlist": [
@@ -224,6 +170,13 @@
         "kind": "t1_sale_proceeds",
         "confirmed": false,
         "note": "DIS 110C sale proceeds; T+1"
+      },
+      {
+        "amount": 62,
+        "settles_on": "2026-07-24",
+        "kind": "t1_sale_proceeds",
+        "confirmed": false,
+        "note": "NVDA 0.61 + QQQ 0.01 sale proceeds; T+1"
       }
     ],
     "cleared": [
@@ -323,6 +276,11 @@
     "notes": "DIS 110C held (agentic, day_trade rails, flatten 3:45 unless ratchet); QS 7/24 7C (margin, ALERT-ONLY) expires tomorrow - time-stop alert TODAY; no entries 9:30-9:40; max 1 auto-entry; TSLA post-earnings -8%"
   },
   "log": [
+    {
+      "t": "2026-07-23T19:11Z",
+      "event": "reconcile",
+      "detail": "USER closed both agentic positions 14:14-14:15 ET: NVDA 225C sold 0.61 (-27), QQQ 706C sold 0.01 (-15). Agentic FLAT. Day realized -69 (DIS -27 + NVDA -27 + QQQ -15). Halt stands. Note: ScheduleWakeup chain stalled 2x today - heartbeat (hourly) is the reliable driver; each heartbeat now does a full broker reconcile when state is stale."
+    },
     {
       "t": "2026-07-23T18:11Z",
       "event": "halt",
