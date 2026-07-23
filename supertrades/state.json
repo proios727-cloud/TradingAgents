@@ -7,7 +7,8 @@
     "cadence_min": 15,
     "dnd": true,
     "set_at": "2026-07-21T17:00:00Z",
-    "note": "user-set slow/DND; push only on fills or halt; revert on user request (say 'fast mode' / 'notifications on')"
+    "note": "user-set slow/DND; push only on fills or halt; revert on user request (say 'fast mode' / 'notifications on')",
+    "surface_new_setups": "user (7/23 9:50 ET) wants NEW opportunities surfaced in chat each cycle, not only position management: fresh GEX-gate plays, gapper/theme setups, watchlist candidates crossing into conviction, notable universe moves. Report them even under DND (chat is live); DND still governs mobile PUSH (fills/halt/system-failure only)."
   },
   "dashboard_url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4",
   "pages": {
