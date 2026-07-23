@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-23T14:00:00Z",
+  "updated_at": "2026-07-23T14:01:00Z",
   "trading_date": "2026-07-23",
   "rule_version": "v3.1",
   "mode": {
@@ -124,10 +124,6 @@
     {
       "id": "fa89a40f-56b6-4de3-a2b7-145736d1a280",
       "contract": "RIVN 8/7 $19C"
-    },
-    {
-      "id": "491ad6e6-2c17-41ed-ad24-a3e1eea9b438",
-      "contract": "DIS 8/21 $110C"
     },
     {
       "id": "34178965-a9b6-481e-836d-11b5cf067061",
@@ -274,6 +270,11 @@
     "notes": "DIS 110C held (agentic, day_trade rails, flatten 3:45 unless ratchet); QS 7/24 7C (margin, ALERT-ONLY) expires tomorrow - time-stop alert TODAY; no entries 9:30-9:40; max 1 auto-entry; TSLA post-earnings -8%"
   },
   "log": [
+    {
+      "t": "2026-07-23T14:01Z",
+      "event": "watchlist_prune",
+      "detail": "Standing rule added (rulebook \u00a76): loop+prune watchlist every cycle. Removed DIS 8/21 110C (stopped out same-day, deep OTM delta 0.086, DIS red) from state + RH watchlist ef1b61ef. Remaining: RIVN 8/7 19C (delta 0.34), NVDA 7/31 225C (delta 0.17, on-watch), XLE 7/31 62C (energy theme, armed)."
+    },
     {
       "t": "2026-07-23T14:00Z",
       "event": "watchlist_add",

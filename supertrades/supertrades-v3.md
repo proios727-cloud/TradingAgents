@@ -83,6 +83,13 @@
   under the cap; same-ticker swaps only after a conviction re-check; remove
   rows > cap+10% (suspended while settlement-suppressed, resume at BP > $80);
   no auto-entry into a ticker already held.
+- Relevance prune (EVERY cycle): loop the watchlist and remove any row that no
+  longer represents a plausible next entry — (a) that contract was exited/stopped
+  same-day (no immediate re-arm into a fresh stop-out), (b) delta < 0.08 watchlist
+  floor, (c) the underlying is decisively counter to the row's thesis with no
+  setup forming, or (d) row > cap+10% (suspended while settlement-suppressed).
+  Mirror every removal to the RH watchlist. Keep rows that still have a live thesis
+  even if temporarily unaffordable.
 - RH mirror: the Robinhood options watchlist mirrors state.json watchlist+pool.
   On any add/swap/remove, apply the same change via the watchlist MCP tools in
   the same cycle (add_option_to_watchlist / remove_option_from_watchlist);
