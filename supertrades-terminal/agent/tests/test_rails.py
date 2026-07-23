@@ -144,10 +144,15 @@ class ContractSelectorRails(unittest.TestCase):
         self.assertFalse(contract_selector.select(good_signal(), wide).ok)
 
 
+TRAIL_CFG = RuntimeConfig(account_number="A1", dry_run=True, armed=False,
+                          scale_and_trail=True)
+
+
 class ExitManagerRails(unittest.TestCase):
-    def _pos(self, entry=1.20, mark=1.20, qty=4, thesis=True, scaled=False):
+    def _pos(self, entry=1.20, mark=1.20, qty=4, thesis=True, scaled=False, peak=0.0):
         return Position("NVDA", "oid", "call", 202.5, SESSION, qty, entry, mark,
-                        201.75, 202.90, thesis_intact=thesis, scaled=scaled)
+                        201.75, 202.90, thesis_intact=thesis, scaled=scaled,
+                        peak_premium=peak)
 
     def test_flatten_at_1545(self):
         outs = exit_manager.evaluate(self._pos(), et(15, 45))
@@ -175,6 +180,41 @@ class ExitManagerRails(unittest.TestCase):
     def test_scale_before_target(self):
         # mark = +100% (>=1R) but target is +90% -> target wins by design order.
         p = self._pos(entry=1.00, mark=2.00, qty=4)
+        self.assertEqual(exit_manager.evaluate(p, et(14, 0))[0].kind, "target")
+
+    # --- Trailing-stop mode (scale_and_trail=True) ----------------------------
+
+    def test_trail_mode_no_hard_target_at_90(self):
+        # +90% no longer full-closes in trail mode; it scales at +1R instead.
+        p = self._pos(entry=1.00, mark=1.90, qty=4)   # +90%, below +100% scale
+        self.assertEqual(exit_manager.evaluate(p, et(14, 0), TRAIL_CFG), [])
+
+    def test_trail_mode_scales_at_1R(self):
+        p = self._pos(entry=1.00, mark=2.00, qty=4)   # +100%
+        outs = exit_manager.evaluate(p, et(14, 0), TRAIL_CFG)
+        self.assertEqual(outs[0].kind, "scale")
+        self.assertEqual(outs[0].quantity, 2)
+
+    def test_trail_fires_on_giveback(self):
+        # Ran to peak $4.00 (+300%), now $2.60 -> gave back 35% >= 30% -> exit.
+        p = self._pos(entry=1.00, mark=2.60, qty=2, scaled=True, peak=4.00)
+        outs = exit_manager.evaluate(p, et(14, 0), TRAIL_CFG)
+        self.assertEqual(outs[0].kind, "trail")
+        self.assertTrue(outs[0].marketable)
+
+    def test_trail_holds_within_giveback(self):
+        # Peak $4.00, now $3.20 -> gave back only 20% < 30% -> keep running.
+        p = self._pos(entry=1.00, mark=3.20, qty=2, scaled=True, peak=4.00)
+        self.assertEqual(exit_manager.evaluate(p, et(14, 0), TRAIL_CFG), [])
+
+    def test_trail_stop_floor_still_hard(self):
+        # -50% premium stop is the floor even in trail mode.
+        p = self._pos(entry=1.00, mark=0.40, qty=2, scaled=True, peak=2.00)
+        self.assertEqual(exit_manager.evaluate(p, et(14, 0), TRAIL_CFG)[0].kind, "stop")
+
+    def test_default_mode_never_trails(self):
+        # Same retraced runner in DEFAULT mode: the +90% target governs, not a trail.
+        p = self._pos(entry=1.00, mark=2.60, qty=2, scaled=True, peak=4.00)
         self.assertEqual(exit_manager.evaluate(p, et(14, 0))[0].kind, "target")
 
 

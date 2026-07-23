@@ -40,6 +40,13 @@ class Guardrails:
     scale_half_at_r: float = 1.0       # scale half off at +1R, trail the rest
     force_flatten_et: time = time(15, 45)  # close ALL by 15:45 ET
 
+    # --- Trailing stop on the runner (only active when RuntimeConfig.scale_and_trail) ---
+    # After scaling half at +1R, protect the remainder with a peak-give-back trail
+    # instead of a hard full-position target. The trail only ratchets up — it can
+    # never widen the fixed -50% premium stop above, which always remains the floor.
+    trail_activate_gain: float = 1.0   # arm the trail once the mark is >= +100% (i.e. +1R on the option)
+    trail_give_back_pct: float = 0.30  # exit the runner if the mark gives back >= 30% from its peak
+
     # --- Daily rules ---
     daily_halt_r: float = -2.0         # down 2R on the day -> entries stop (exits stay live)
     press_min_booked_r: float = 2.0    # up >=+2R -> later trades may size up 2x...
@@ -89,6 +96,10 @@ class RuntimeConfig:
     # armed — blocking a stop-loss on manual approval would defeat risk control.
     require_exit_approval: bool = False
     week1_half_size: bool = False  # week-1 caps at half size ($500 / half %)
+    # When True, exits scale half at +1R and TRAIL the runner (peak give-back)
+    # instead of a hard +90% full-position target. Mirrors the terminal's
+    # "Auto-scale out at +1R" switch. Default off = historical target behavior.
+    scale_and_trail: bool = False
     broker: str = "robinhood"      # 'robinhood' | 'paper'
 
     def can_place_live(self) -> bool:

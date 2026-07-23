@@ -135,12 +135,22 @@ class Position:
     underlying_target: float
     thesis_intact: bool = True
     scaled: bool = False               # half already taken off at +1R
+    peak_premium: float = 0.0          # high-water mark of the mark; the position
+                                       # tracker ratchets it up each cycle. Drives the
+                                       # trailing stop. 0.0 => not yet tracked.
 
     @property
     def premium_change_pct(self) -> float:
         if self.entry_premium <= 0:
             return 0.0
         return (self.current_premium - self.entry_premium) / self.entry_premium
+
+    @property
+    def effective_peak(self) -> float:
+        """Highest mark seen, floored at the current mark so a not-yet-tracked
+        position (peak_premium == 0.0) never reports a peak below where it is —
+        which keeps the trailing stop from firing spuriously."""
+        return max(self.peak_premium, self.current_premium)
 
 
 @dataclass
@@ -169,7 +179,7 @@ class ExitIntent:
     """A protective exit for an open position."""
 
     position: Position
-    kind: Literal["target", "stop", "flatten", "scale", "thesis_break"]
+    kind: Literal["target", "stop", "flatten", "scale", "trail", "thesis_break"]
     quantity: int
     reason: str
     marketable: bool = False           # True => cross the spread (stop/flatten)
