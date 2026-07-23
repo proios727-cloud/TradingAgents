@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-23T19:11:00Z",
+  "updated_at": "2026-07-23T20:11:00Z",
   "trading_date": "2026-07-23",
   "rule_version": "v3.1",
   "mode": {
@@ -213,7 +213,8 @@
       "put_shelf": 690,
       "call_wall": 710,
       "flip_zone": "705-710",
-      "regime": "NEGATIVE gamma below flip (spot 695) - momentum/volatile; dip-buy zone 690; 0DTE OI-based approx"
+      "regime": "NEGATIVE gamma below flip (spot 695) - momentum/volatile; dip-buy zone 690; 0DTE OI-based approx",
+      "stale": true
     },
     "SPY": {
       "built_at": "2026-07-23T13:15Z",
@@ -232,7 +233,8 @@
       "put_shelf": 735,
       "call_wall": 750,
       "flip_zone": "745-750",
-      "regime": "NEGATIVE gamma below flip (spot 739.8) - momentum/volatile; dip-buy zone 735; 750P/755P gamma proxied from calls"
+      "regime": "NEGATIVE gamma below flip (spot 739.8) - momentum/volatile; dip-buy zone 735; 750P/755P gamma proxied from calls",
+      "stale": true
     }
   },
   "open_plan": {
@@ -276,6 +278,11 @@
     "notes": "DIS 110C held (agentic, day_trade rails, flatten 3:45 unless ratchet); QS 7/24 7C (margin, ALERT-ONLY) expires tomorrow - time-stop alert TODAY; no entries 9:30-9:40; max 1 auto-entry; TSLA post-earnings -8%"
   },
   "log": [
+    {
+      "t": "2026-07-23T20:11Z",
+      "event": "eod",
+      "detail": "CLOSE 7/23. Agentic FLAT + halted. Day realized -69 (worst of 3 days: -10, +65, -69). Cash 437.40; BP 4.76 (proceeds T+1: DIS 38 + NVDA/QQQ 62 settle 7/24; $250 deposit still pending). GEX maps marked stale (7/23 expired). Open: QS 7/24 7C (margin, alert-only) expires TOMORROW - time-stop alert active 7/24. Watchlist: RIVN 19C, XLE 62C (energy arm, re-eval at tomorrow's open). Tomorrow: day rollover resets halt+counters; premarket plan 9:05-9:30; expected BP ~$350+ once deposit+proceeds land. Loop idles to hourly heartbeat overnight; premarket cycle rebuilds tomorrow."
+    },
     {
       "t": "2026-07-23T19:11Z",
       "event": "reconcile",
