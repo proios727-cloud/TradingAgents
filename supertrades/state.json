@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-24T18:12:00Z",
+  "updated_at": "2026-07-24T18:18:00Z",
   "trading_date": "2026-07-24",
   "rule_version": "v3.1",
   "mode": {
@@ -134,18 +134,31 @@
       "exit_rules": [
         {
           "type": "target",
-          "pct": 50
+          "pct": 50,
+          "price": 1.545,
+          "mech": "sell_limit_at_mark"
         },
         {
           "type": "stop",
-          "pct": -30
+          "pct": -30,
+          "price": 0.721,
+          "mech": "sell_limit_at_bid"
         },
         {
           "type": "ratchet",
-          "arm_pct": 25
+          "arm_pct": 25,
+          "arm_price": 1.288,
+          "be_stop_price": 1.03,
+          "mech": "breakeven_stop_after_arm"
+        },
+        {
+          "type": "flatten_et",
+          "at": "15:45",
+          "mech": "sell_limit_at_bid_unless_ratchet"
         }
       ],
-      "note": "USER manual buy 12:43 ET @1.03 (was pool contract). NVDA +0.46%. day_trade rails; -10% at 13:10. flatten 3:45 unless ratchet."
+      "note": "USER manual buy 12:43 ET @1.03 (was pool contract). NVDA +0.46%. day_trade rails; -10% at 13:10. flatten 3:45 unless ratchet.",
+      "last_mark": 0.88
     },
     "9e66b7db-0699-4776-beb3-f9290775ea0a": {
       "contract": "DIS 8/21 $105C",
@@ -159,18 +172,31 @@
       "exit_rules": [
         {
           "type": "target",
-          "pct": 50
+          "pct": 50,
+          "price": 1.455,
+          "mech": "sell_limit_at_mark"
         },
         {
           "type": "stop",
-          "pct": -30
+          "pct": -30,
+          "price": 0.679,
+          "mech": "sell_limit_at_bid"
         },
         {
           "type": "ratchet",
-          "arm_pct": 25
+          "arm_pct": 25,
+          "arm_price": 1.212,
+          "be_stop_price": 0.97,
+          "mech": "breakeven_stop_after_arm"
+        },
+        {
+          "type": "flatten_et",
+          "at": "15:45",
+          "mech": "sell_limit_at_bid_unless_ratchet"
         }
       ],
-      "note": "USER manual buy 12:58 ET @0.97 (was pool contract). day_trade rails; -2% at 13:10. flatten 3:45 unless ratchet."
+      "note": "USER manual buy 12:58 ET @0.97 (was pool contract). day_trade rails; -2% at 13:10. flatten 3:45 unless ratchet.",
+      "last_mark": 0.935
     },
     "40913cb1-b6a2-44a8-a1e7-651d81a53fe2": {
       "contract": "QQQ 7/24 $694C",
@@ -184,22 +210,31 @@
       "exit_rules": [
         {
           "type": "target",
-          "pct": 50
+          "pct": 50,
+          "price": 0.06,
+          "mech": "sell_limit_at_mark"
         },
         {
           "type": "stop",
-          "pct": -30
+          "pct": -30,
+          "price": 0.028,
+          "mech": "sell_limit_at_bid"
         },
         {
           "type": "ratchet",
-          "arm_pct": 25
+          "arm_pct": 25,
+          "arm_price": 0.05,
+          "be_stop_price": 0.04,
+          "mech": "breakeven_stop_after_arm"
         },
         {
           "type": "hard_exit_et",
-          "at": "15:15"
+          "at": "15:15",
+          "mech": "sell_limit_at_bid"
         }
       ],
-      "note": "USER 0DTE 2:04 ET @0.04. Bullish QQQ (694C, QQQ 688) - deep OTM lotto, mark 0.035 ~dead. non-gated. hard-exit 3:15."
+      "note": "USER 0DTE 2:04 @0.04. Stop 0.028 BREACHED (mark 0.025) but $2 dead penny - letting 3:15 hard-exit/expiry take it, not churning a $2 order. hwm=entry, ratchet not armed.",
+      "last_mark": 0.025
     }
   },
   "watchlist": [],
@@ -284,6 +319,11 @@
     "notes": "Discipline focus after -69 day: ONE high-conviction setup, quality delta, not multiple low-delta punts. QS margin expires today (alert-only). Watchlist now: RIVN 19C only (thin) - add only on conviction."
   },
   "log": [
+    {
+      "t": "2026-07-24T18:18Z",
+      "event": "rails",
+      "detail": "Rails verified+made explicit (entries from broker fills): NVDA 220C entry 1.03 -> tgt 1.545/stop 0.721/ratchet-arm 1.2875; DIS 105C entry 0.97 -> tgt 1.455/stop 0.679/arm 1.2125; QQQ 694C entry 0.04 -> tgt 0.06/stop 0.028/hard-exit 3:15. HWM=entry on all (no ratchet armed). QQQ 0DTE stop breached (0.025<0.028) but $2 dead - deferred to hard-exit/expiry. NVDA/DIS both above stops, holding to 3:45 flatten."
+    },
     {
       "t": "2026-07-24T18:12Z",
       "event": "halt",
