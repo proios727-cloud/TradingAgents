@@ -84,7 +84,11 @@ def compute_gex(rows: list[StrikeGex], spot: float,
     call_wall = max(per, key=lambda x: x[1])[0]           # most positive
     put_wall = min(per, key=lambda x: x[1])[0]            # most negative
     king_node = max(per, key=lambda x: abs(x[1]))[0]      # biggest magnet
-    regime = "positive" if spot >= flip else "negative"
+    # Regime is the sign of AGGREGATE net GEX — a market-wide property,
+    # independent of where spot sits vs the flip. (Deriving it from spot>=flip
+    # coupled regime to the gate's own side-test and made the -gamma branch
+    # unreachable.) net<0 => dealers short gamma => chase => trend/vol expansion.
+    regime = "negative" if net < 0 else "positive"
 
     unusual = []
     for r in rows:
@@ -107,34 +111,46 @@ def flow_skew(profile: GexProfile) -> float:
 
 
 def gex_confirms(profile: GexProfile, direction: str,
-                 skew: float | None = None) -> tuple[bool, str]:
+                 skew: float | None = None,
+                 flip_band_pct: float = 0.0015) -> tuple[bool, str]:
     """Does the GEX structure support a ``direction`` ('long'|'short') entry?
 
-    The flip is the pivot: a long must be ON/ABOVE it, a short ON/BELOW it —
-    fighting the flip is not confirmed until price reclaims/loses it. In a
-    NEGATIVE-gamma regime dealers chase, so being on the right side of the flip
-    is a strong continuation signal — unless order flow is heavily skewed the
-    other way (put stacks under a long, call stacks over a short), which vetoes
-    it. In POSITIVE gamma dealers fade, so it's a weaker grind toward the wall.
+    For a LONG-PREMIUM 0DTE buyer the only regime that pays is NEGATIVE-gamma
+    continuation (dealers chase -> vol expands). Positive gamma is a pinning /
+    mean-reverting regime — death for a premium buyer (theta + IV crush while
+    price sticks) — so it is NOT confirmed here. Within a band of the flip it is
+    a coin-flip line (stale-OI flip uncertainty exceeds the distance), so that
+    is an explicit no-trade. On a decisive break, a long needs spot strictly
+    ABOVE the flip, a short strictly BELOW, and heavily opposing flow vetoes.
     Gates entries; does not size them.
+
+    (flip is a GEX *balance strike* proxy from stale prior-day OI, not a
+    re-priced zero-gamma level — treat it as approximate, hence the band.)
     """
     p = profile
     if direction not in ("long", "short"):
         return False, f"unknown direction {direction!r}"
     sk = flow_skew(p) if skew is None else skew
 
-    on_side = p.spot >= p.flip if direction == "long" else p.spot <= p.flip
+    # No-trade band around the flip — equality never double-confirms.
+    if abs(p.spot - p.flip) < flip_band_pct * p.spot:
+        return False, (f"at the flip ({p.flip:g}, +/-{flip_band_pct:.2%}) — "
+                       f"coin-flip line, wait for a decisive break")
+
+    on_side = p.spot > p.flip if direction == "long" else p.spot < p.flip
     if not on_side:
         verb = "reclaim" if direction == "long" else "lose"
         return False, (f"{direction} fights the flip: spot {p.spot:g} vs flip "
                        f"{p.flip:g} — {verb} it first")
 
-    if p.negative_gamma:
-        if direction == "long" and sk < -0.4:
-            return False, f"-gamma up but flow is put-heavy (skew {sk:+.2f}) — not confirmed"
-        if direction == "short" and sk > 0.4:
-            return False, f"-gamma down but flow is call-heavy (skew {sk:+.2f}) — not confirmed"
-        return True, (f"-gamma, {direction} side of flip {p.flip:g}, dealers chase "
-                      f"(flow skew {sk:+.2f})")
-    wall = p.call_wall if direction == "long" else p.put_wall
-    return True, f"+gamma, past flip {p.flip:g} — grind toward wall {wall:g}"
+    # Long premium only works in -gamma continuation; +gamma pins -> reject.
+    if not p.negative_gamma:
+        return False, (f"+gamma (pinning regime, net GEX {p.net_gex/1e9:+.2f}B) — "
+                       f"poor for buying 0DTE premium; edge is -gamma trends only")
+
+    if direction == "long" and sk < -0.4:
+        return False, f"-gamma up but flow is put-heavy (skew {sk:+.2f}) — not confirmed"
+    if direction == "short" and sk > 0.4:
+        return False, f"-gamma down but flow is call-heavy (skew {sk:+.2f}) — not confirmed"
+    return True, (f"-gamma continuation, {direction} side of flip {p.flip:g}, "
+                  f"dealers chase (skew {sk:+.2f})")
