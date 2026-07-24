@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import unittest
 
-from agent.gex import StrikeGex, compute_gex, gex_confirms
+from agent.gex import GexProfile, StrikeGex, compute_gex, gex_confirms
 
 
 def chain():
@@ -49,21 +49,43 @@ class GexMath(unittest.TestCase):
             compute_gex([], spot=100.0)
 
 
+def prof(spot, flip, regime, unusual=()):
+    return GexProfile(spot=spot, net_gex=-1.0, flip=flip, call_wall=flip + 2,
+                      put_wall=flip - 2, king_node=flip, regime=regime,
+                      unusual=list(unusual))
+
+
 class GexGate(unittest.TestCase):
-    def test_long_confirmed_in_neg_gamma_below_call_wall(self):
-        p = compute_gex(chain(), spot=100.0)   # negative regime, spot < call wall
-        ok, _ = gex_confirms(p, "long")
+    def test_long_below_flip_must_reclaim_first(self):
+        # the real SPY case: spot just below flip -> long NOT confirmed
+        ok, why = gex_confirms(prof(739.6, 740, "negative"), "long")
+        self.assertFalse(ok)
+        self.assertIn("reclaim", why)
+
+    def test_short_below_flip_neg_gamma_confirmed(self):
+        # below flip + -gamma + put-heavy flow -> short IS the supported side
+        ok, _ = gex_confirms(prof(739.6, 740, "negative",
+                                  [(733, "put", 12.0), (732, "put", 4.4)]), "short")
         self.assertTrue(ok)
 
-    def test_short_confirmed_in_neg_gamma_above_put_wall(self):
-        p = compute_gex(chain(), spot=100.0)
-        ok, _ = gex_confirms(p, "short")
+    def test_long_above_flip_neg_gamma_confirmed(self):
+        ok, _ = gex_confirms(prof(741, 740, "negative"), "long")
         self.assertTrue(ok)
+
+    def test_long_vetoed_by_put_heavy_flow(self):
+        # on the long side of the flip, but flow is put-heavy -> vetoed
+        ok, why = gex_confirms(prof(741, 740, "negative",
+                                    [(735, "put", 8.0)]), "long")
+        self.assertFalse(ok)
+        self.assertIn("put-heavy", why)
+
+    def test_pos_gamma_grind_toward_wall(self):
+        ok, why = gex_confirms(prof(742, 740, "positive"), "long")
+        self.assertTrue(ok)
+        self.assertIn("wall", why)
 
     def test_unknown_direction_rejected(self):
-        p = compute_gex(chain(), spot=100.0)
-        ok, _ = gex_confirms(p, "sideways")
-        self.assertFalse(ok)
+        self.assertFalse(gex_confirms(prof(100, 100, "negative"), "sideways")[0])
 
 
 if __name__ == "__main__":

@@ -98,25 +98,43 @@ def compute_gex(rows: list[StrikeGex], spot: float,
                       per_strike=per, unusual=unusual)
 
 
-def gex_confirms(profile: GexProfile, direction: str) -> tuple[bool, str]:
+def flow_skew(profile: GexProfile) -> float:
+    """Bias from unusual-activity: +1 all call-heavy, -1 all put-heavy, 0 balanced.
+    A proxy for order-flow direction until a real sweep feed is wired."""
+    call = sum(r for _, side, r in profile.unusual if side == "call")
+    put = sum(r for _, side, r in profile.unusual if side == "put")
+    return (call - put) / (call + put) if (call + put) else 0.0
+
+
+def gex_confirms(profile: GexProfile, direction: str,
+                 skew: float | None = None) -> tuple[bool, str]:
     """Does the GEX structure support a ``direction`` ('long'|'short') entry?
 
-    The SuperTrades read: in a NEGATIVE-gamma regime dealers chase, so momentum
-    continuation is favored toward the king node / into the wall. In POSITIVE
-    gamma dealers fade, so breakouts stall — only take continuation when spot is
-    clear of the flip. This gates entries; it does not size them.
+    The flip is the pivot: a long must be ON/ABOVE it, a short ON/BELOW it —
+    fighting the flip is not confirmed until price reclaims/loses it. In a
+    NEGATIVE-gamma regime dealers chase, so being on the right side of the flip
+    is a strong continuation signal — unless order flow is heavily skewed the
+    other way (put stacks under a long, call stacks over a short), which vetoes
+    it. In POSITIVE gamma dealers fade, so it's a weaker grind toward the wall.
+    Gates entries; does not size them.
     """
     p = profile
-    if direction == "long":
-        if p.negative_gamma and p.spot <= p.call_wall:
-            return True, f"-gamma, room to call wall {p.call_wall:g} (dealers chase up)"
-        if not p.negative_gamma and p.spot > p.flip:
-            return True, f"+gamma but above flip {p.flip:g} — trend intact"
-        return False, f"long not supported (regime {p.regime}, spot {p.spot:g} vs flip {p.flip:g})"
-    if direction == "short":
-        if p.negative_gamma and p.spot >= p.put_wall:
-            return True, f"-gamma, room to put wall {p.put_wall:g} (dealers chase down)"
-        if not p.negative_gamma and p.spot < p.flip:
-            return True, f"+gamma but below flip {p.flip:g} — trend intact"
-        return False, f"short not supported (regime {p.regime}, spot {p.spot:g} vs flip {p.flip:g})"
-    return False, f"unknown direction {direction!r}"
+    if direction not in ("long", "short"):
+        return False, f"unknown direction {direction!r}"
+    sk = flow_skew(p) if skew is None else skew
+
+    on_side = p.spot >= p.flip if direction == "long" else p.spot <= p.flip
+    if not on_side:
+        verb = "reclaim" if direction == "long" else "lose"
+        return False, (f"{direction} fights the flip: spot {p.spot:g} vs flip "
+                       f"{p.flip:g} — {verb} it first")
+
+    if p.negative_gamma:
+        if direction == "long" and sk < -0.4:
+            return False, f"-gamma up but flow is put-heavy (skew {sk:+.2f}) — not confirmed"
+        if direction == "short" and sk > 0.4:
+            return False, f"-gamma down but flow is call-heavy (skew {sk:+.2f}) — not confirmed"
+        return True, (f"-gamma, {direction} side of flip {p.flip:g}, dealers chase "
+                      f"(flow skew {sk:+.2f})")
+    wall = p.call_wall if direction == "long" else p.put_wall
+    return True, f"+gamma, past flip {p.flip:g} — grind toward wall {wall:g}"
