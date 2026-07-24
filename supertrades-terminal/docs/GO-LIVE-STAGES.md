@@ -80,3 +80,8 @@ appended by the PostToolUse hook). No stage file → **preview** (fail-safe).
 - **The audit log is best-effort.** A full/unwritable disk drops audit lines
   without halting trading. Periodically confirm `.supertrades/audit.jsonl` is
   actually growing.
+- **Set `RuntimeConfig.account_number` before `tiny_live`.** With it unset, the
+  account read auto-picks the first agentic-allowed account, but positions and
+  cancels use the configured number — pin it explicitly so all three target the
+  same account. `preflight()` (`agent/mcp_dispatch.py`) confirms the account is
+  agentic-allowed, Level 2, and funded before you arm.

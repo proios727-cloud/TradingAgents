@@ -300,10 +300,12 @@ class PlacementGateRails(unittest.TestCase):
         def mcp(tool, params):
             calls.append(tool)
             if tool == "get_accounts":
-                return {"results": [{"account_number": "A1",
-                                     "agentic_allowed": False,
-                                     "option_level": "option_level_0",
-                                     "settled_cash": 5000}]}
+                return {"data": {"accounts": [{"account_number": "A1",
+                                               "agentic_allowed": False,
+                                               "option_level": "option_level_0"}]}}
+            if tool == "get_portfolio":
+                return {"data": {"total_value": "5000",
+                                 "buying_power": {"buying_power": "5000"}}}
             return {"id": "SHOULD-NOT-HAPPEN"}
 
         broker = RobinhoodMcpBroker(
@@ -318,11 +320,13 @@ class PlacementGateRails(unittest.TestCase):
         def mcp(tool, params):
             calls.append(tool)
             if tool == "get_accounts":
-                return {"results": [{"account_number": "A1",
-                                     "agentic_allowed": True,
-                                     "option_level": "option_level_2",
-                                     "settled_cash": 5000}]}
-            return {"id": "ORDER-1"}
+                return {"data": {"accounts": [{"account_number": "A1",
+                                               "agentic_allowed": True,
+                                               "option_level": "option_level_2"}]}}
+            if tool == "get_portfolio":
+                return {"data": {"total_value": "5000",
+                                 "buying_power": {"buying_power": "5000"}}}
+            return {"data": {"id": "ORDER-1"}}
 
         broker = RobinhoodMcpBroker(
             RuntimeConfig(account_number="A1", dry_run=False, armed=True), mcp_call=mcp)
