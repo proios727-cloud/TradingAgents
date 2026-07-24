@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-24T15:11:00Z",
+  "updated_at": "2026-07-24T17:12:00Z",
   "trading_date": "2026-07-24",
   "rule_version": "v3.1",
   "mode": {
@@ -87,7 +87,9 @@
     "auto_entries_used": 0,
     "manual_round_trips": 0,
     "churn_threshold_hit": false,
-    "halted": false
+    "halted": false,
+    "open_pnl_est": -12.0,
+    "note": "3 USER positions opened midday (NVDA 220C, DIS 105C, SPY 738P x2). Open ~-12, realized 0, day P&L ~-12 (clear of halt). BP ~170 left. No exit triggers."
   },
   "positions": {
     "6140b886-a7c8-4a78-9edb-63b58e5655dc": {
@@ -118,18 +120,89 @@
         }
       ],
       "note": "margin acct READ-ONLY; expires TODAY 7/24 - alert_time_stop ACTIVE. Dead penny (~0.01). Alert-only, no execution."
+    },
+    "35caabce-fd88-49dd-8fc8-766f50bdc45c": {
+      "contract": "SPY 7/24 $738P",
+      "account": "902341866",
+      "qty": 2,
+      "entry": 0.335,
+      "hwm": 0.335,
+      "ratchet_engaged": false,
+      "class": "0dte_scalp",
+      "expiry": "2026-07-24",
+      "exit_rules": [
+        {
+          "type": "target",
+          "pct": 50
+        },
+        {
+          "type": "stop",
+          "pct": -30
+        },
+        {
+          "type": "ratchet",
+          "arm_pct": 25
+        },
+        {
+          "type": "hard_exit_et",
+          "at": "15:15"
+        }
+      ],
+      "note": "USER manual 12:?/1:08 ET @0.335 x2. Bearish SPY fade 0DTE (non-gated - GEX gate never armed today; user's call). SPY 740.5, breakeven 737.66. Rails: 0dte_scalp, hard-exit 3:15."
+    },
+    "f3c80034-7027-4403-96fc-90a2134333e5": {
+      "contract": "NVDA 7/31 $220C",
+      "account": "902341866",
+      "qty": 1,
+      "entry": 1.03,
+      "hwm": 1.03,
+      "ratchet_engaged": false,
+      "class": "day_trade",
+      "expiry": "2026-07-31",
+      "exit_rules": [
+        {
+          "type": "target",
+          "pct": 50
+        },
+        {
+          "type": "stop",
+          "pct": -30
+        },
+        {
+          "type": "ratchet",
+          "arm_pct": 25
+        }
+      ],
+      "note": "USER manual buy 12:43 ET @1.03 (was pool contract). NVDA +0.46%. day_trade rails; -10% at 13:10. flatten 3:45 unless ratchet."
+    },
+    "9e66b7db-0699-4776-beb3-f9290775ea0a": {
+      "contract": "DIS 8/21 $105C",
+      "account": "902341866",
+      "qty": 1,
+      "entry": 0.97,
+      "hwm": 0.97,
+      "ratchet_engaged": false,
+      "class": "day_trade",
+      "expiry": "2026-08-21",
+      "exit_rules": [
+        {
+          "type": "target",
+          "pct": 50
+        },
+        {
+          "type": "stop",
+          "pct": -30
+        },
+        {
+          "type": "ratchet",
+          "arm_pct": 25
+        }
+      ],
+      "note": "USER manual buy 12:58 ET @0.97 (was pool contract). day_trade rails; -2% at 13:10. flatten 3:45 unless ratchet."
     }
   },
   "watchlist": [],
   "pool": [
-    {
-      "id": "f3c80034-7027-4403-96fc-90a2134333e5",
-      "contract": "NVDA 7/31 $220C"
-    },
-    {
-      "id": "9e66b7db-0699-4776-beb3-f9290775ea0a",
-      "contract": "DIS 8/21 $105C"
-    },
     {
       "id": "d68712fc-7956-4131-ae60-c1ef25d330ea",
       "contract": "SPY 8/7 $765C"
@@ -210,6 +283,11 @@
     "notes": "Discipline focus after -69 day: ONE high-conviction setup, quality delta, not multiple low-delta punts. QS margin expires today (alert-only). Watchlist now: RIVN 19C only (thin) - add only on conviction."
   },
   "log": [
+    {
+      "t": "2026-07-24T17:12Z",
+      "event": "reconcile",
+      "detail": "1pm check caught 3 USER midday adds (agentic): NVDA 7/31 220C @1.03 (12:43), DIS 8/21 105C @0.97 (12:58), SPY 7/24 738P x2 @0.335 (1:08). Reconciled w/ rails (NVDA/DIS day_trade, SPY 0dte_scalp hard-exit 3:15). NVDA/DIS removed from pool. All above stops, no exit triggers. Open ~-12, day P&L ~-12. ~$170 BP left. SPY 738P is non-gated index 0DTE (bearish fade) - user's call, managing rails. Tighter afternoon watch for the 0DTE + 3:45 flatten."
+    },
     {
       "t": "2026-07-24T15:11Z",
       "event": "cycle",
