@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-24T18:18:00Z",
+  "updated_at": "2026-07-24T19:11:00Z",
   "trading_date": "2026-07-24",
   "rule_version": "v3.1",
   "mode": {
@@ -83,14 +83,14 @@
     "alert_only": {}
   },
   "day": {
-    "realized_pnl": -45.0,
+    "realized_pnl": -98.0,
     "auto_entries_used": 0,
     "manual_round_trips": 8,
     "churn_threshold_hit": true,
     "halted": true,
-    "open_pnl_est": -17.0,
-    "note": "HALTED 14:10 ET (2nd day running). Account 437.40->375.48 = -61.92 day P&L <= -60. ~-45 realized from SPY 0DTE spread-churn (~8 round-trips on 743C/738P/744C), -17 open (NVDA -12, DIS -4.5, QQQ 694C dead). CHURN GUARD hit (8 rt vs 4 threshold). BP 0.96 tapped. Entries stop; exits live; 0DTE hard-exit 3:15, day_trade flatten 3:45.",
-    "day_pnl_est": -62.0
+    "open_pnl_est": -9.0,
+    "note": "HALTED. Day -107 (account 437.40->330.42). Realized ~-98 (SPY 0DTE churn ~-42 + NVDA 220C stop -56 @0.47). NVDA stopped at 3:11 (breached -55% vs -30%). Remaining: DIS 105C -6% (holds to 3:45 flatten), QQQ 694C dead (expires worthless). BP 0.96.",
+    "day_pnl_est": -107.0
   },
   "positions": {
     "6140b886-a7c8-4a78-9edb-63b58e5655dc": {
@@ -121,44 +121,6 @@
         }
       ],
       "note": "margin acct READ-ONLY; expires TODAY 7/24 - alert_time_stop ACTIVE. Dead penny (~0.01). Alert-only, no execution."
-    },
-    "f3c80034-7027-4403-96fc-90a2134333e5": {
-      "contract": "NVDA 7/31 $220C",
-      "account": "902341866",
-      "qty": 1,
-      "entry": 1.03,
-      "hwm": 1.03,
-      "ratchet_engaged": false,
-      "class": "day_trade",
-      "expiry": "2026-07-31",
-      "exit_rules": [
-        {
-          "type": "target",
-          "pct": 50,
-          "price": 1.545,
-          "mech": "sell_limit_at_mark"
-        },
-        {
-          "type": "stop",
-          "pct": -30,
-          "price": 0.721,
-          "mech": "sell_limit_at_bid"
-        },
-        {
-          "type": "ratchet",
-          "arm_pct": 25,
-          "arm_price": 1.288,
-          "be_stop_price": 1.03,
-          "mech": "breakeven_stop_after_arm"
-        },
-        {
-          "type": "flatten_et",
-          "at": "15:45",
-          "mech": "sell_limit_at_bid_unless_ratchet"
-        }
-      ],
-      "note": "USER manual buy 12:43 ET @1.03 (was pool contract). NVDA +0.46%. day_trade rails; -10% at 13:10. flatten 3:45 unless ratchet.",
-      "last_mark": 0.88
     },
     "9e66b7db-0699-4776-beb3-f9290775ea0a": {
       "contract": "DIS 8/21 $105C",
@@ -250,7 +212,15 @@
     }
   ],
   "settlement": {
-    "pending": [],
+    "pending": [
+      {
+        "amount": 47,
+        "settles_on": "2026-07-27",
+        "kind": "t1_sale_proceeds",
+        "confirmed": false,
+        "note": "NVDA 220C stop 0.47"
+      }
+    ],
     "cleared": [
       {
         "amount": 437.4,
@@ -319,6 +289,11 @@
     "notes": "Discipline focus after -69 day: ONE high-conviction setup, quality delta, not multiple low-delta punts. QS margin expires today (alert-only). Watchlist now: RIVN 19C only (thin) - add only on conviction."
   },
   "log": [
+    {
+      "t": "2026-07-24T19:11Z",
+      "event": "fill",
+      "detail": "AGENTIC STOP EXECUTED: NVDA 7/31 220C breached -55% (mark 0.465 vs 1.03 entry, stop 0.721). Sold 1 @ limit 0.46, FILLED 0.47 (price improvement), order 6a63b8ba, placed_agent=agentic. Realized -56. Day P&L -107 (account 330.42). No new purchases this cycle. DIS 105C holds to 3:45 flatten (stop 0.679 intact). QQQ 694C dead (bid 0, expires worthless)."
+    },
     {
       "t": "2026-07-24T18:18Z",
       "event": "rails",
