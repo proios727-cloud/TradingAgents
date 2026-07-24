@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-24T13:11:00Z",
+  "updated_at": "2026-07-24T14:11:00Z",
   "trading_date": "2026-07-24",
   "rule_version": "v3.1",
   "mode": {
@@ -156,12 +156,22 @@
     ]
   },
   "prior_cycle": {
-    "at": "2026-07-24T13:11:00Z",
+    "at": "2026-07-24T14:11:00Z",
     "marks": {},
     "contract_cum_volume": {},
-    "day_pct": {},
+    "day_pct": {
+      "INTC": -3.16,
+      "AMD": -2.09,
+      "TSLA": -1.23,
+      "QQQ": -0.62,
+      "SPY": 0.17,
+      "RIVN": -1.03,
+      "USO": -2.06,
+      "XLE": 1.07,
+      "NVDA": -0.46
+    },
     "crossed_2pct": [],
-    "note": "premarket 9:10 ET: energy REVERSING (USO -1.9, XOM -0.8, CVX -0.6, XLE -0.4); semis bouncing (INTC +2.3, AMD +1.4, TSLA +0.6); indices flat (QQQ -0.06, SPY +0.1). Gate NOT armed."
+    "note": "10:11 ET: premarket semis bounce FAILED (INTC +2.3->-3.2, AMD +1.4->-2.1) - correctly not chased. Tech risk-off (QQQ -0.62 nearing -0.75 gate), value/defensive green (SPY +0.17, XLE +1.1). No clean long. Watching QQQ gate."
   },
   "gex_map": {},
   "open_plan": {
@@ -206,6 +216,11 @@
     "notes": "Discipline focus after -69 day: ONE high-conviction setup, quality delta, not multiple low-delta punts. QS margin expires today (alert-only). Watchlist now: RIVN 19C only (thin) - add only on conviction."
   },
   "log": [
+    {
+      "t": "2026-07-24T14:11Z",
+      "event": "cycle",
+      "detail": "No entry (correct). Semis bounce failed premkt->AM (INTC +2.3->-3.2, AMD +1.4->-2.1). Tech risk-off, SPY/XLE green divergence. QQQ -0.62 approaching -0.75 GEX gate - watching. Agentic flat, BP 437. QS margin expires today (alert-only)."
+    },
     {
       "t": "2026-07-24T13:11Z",
       "event": "premarket",
