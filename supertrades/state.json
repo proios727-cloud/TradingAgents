@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-24T17:12:00Z",
+  "updated_at": "2026-07-24T18:12:00Z",
   "trading_date": "2026-07-24",
   "rule_version": "v3.1",
   "mode": {
@@ -83,13 +83,14 @@
     "alert_only": {}
   },
   "day": {
-    "realized_pnl": 0.0,
+    "realized_pnl": -45.0,
     "auto_entries_used": 0,
-    "manual_round_trips": 0,
-    "churn_threshold_hit": false,
-    "halted": false,
-    "open_pnl_est": -12.0,
-    "note": "3 USER positions opened midday (NVDA 220C, DIS 105C, SPY 738P x2). Open ~-12, realized 0, day P&L ~-12 (clear of halt). BP ~170 left. No exit triggers."
+    "manual_round_trips": 8,
+    "churn_threshold_hit": true,
+    "halted": true,
+    "open_pnl_est": -17.0,
+    "note": "HALTED 14:10 ET (2nd day running). Account 437.40->375.48 = -61.92 day P&L <= -60. ~-45 realized from SPY 0DTE spread-churn (~8 round-trips on 743C/738P/744C), -17 open (NVDA -12, DIS -4.5, QQQ 694C dead). CHURN GUARD hit (8 rt vs 4 threshold). BP 0.96 tapped. Entries stop; exits live; 0DTE hard-exit 3:15, day_trade flatten 3:45.",
+    "day_pnl_est": -62.0
   },
   "positions": {
     "6140b886-a7c8-4a78-9edb-63b58e5655dc": {
@@ -120,35 +121,6 @@
         }
       ],
       "note": "margin acct READ-ONLY; expires TODAY 7/24 - alert_time_stop ACTIVE. Dead penny (~0.01). Alert-only, no execution."
-    },
-    "35caabce-fd88-49dd-8fc8-766f50bdc45c": {
-      "contract": "SPY 7/24 $738P",
-      "account": "902341866",
-      "qty": 2,
-      "entry": 0.335,
-      "hwm": 0.335,
-      "ratchet_engaged": false,
-      "class": "0dte_scalp",
-      "expiry": "2026-07-24",
-      "exit_rules": [
-        {
-          "type": "target",
-          "pct": 50
-        },
-        {
-          "type": "stop",
-          "pct": -30
-        },
-        {
-          "type": "ratchet",
-          "arm_pct": 25
-        },
-        {
-          "type": "hard_exit_et",
-          "at": "15:15"
-        }
-      ],
-      "note": "USER manual 12:?/1:08 ET @0.335 x2. Bearish SPY fade 0DTE (non-gated - GEX gate never armed today; user's call). SPY 740.5, breakeven 737.66. Rails: 0dte_scalp, hard-exit 3:15."
     },
     "f3c80034-7027-4403-96fc-90a2134333e5": {
       "contract": "NVDA 7/31 $220C",
@@ -199,6 +171,35 @@
         }
       ],
       "note": "USER manual buy 12:58 ET @0.97 (was pool contract). day_trade rails; -2% at 13:10. flatten 3:45 unless ratchet."
+    },
+    "40913cb1-b6a2-44a8-a1e7-651d81a53fe2": {
+      "contract": "QQQ 7/24 $694C",
+      "account": "902341866",
+      "qty": 1,
+      "entry": 0.04,
+      "hwm": 0.04,
+      "ratchet_engaged": false,
+      "class": "0dte_scalp",
+      "expiry": "2026-07-24",
+      "exit_rules": [
+        {
+          "type": "target",
+          "pct": 50
+        },
+        {
+          "type": "stop",
+          "pct": -30
+        },
+        {
+          "type": "ratchet",
+          "arm_pct": 25
+        },
+        {
+          "type": "hard_exit_et",
+          "at": "15:15"
+        }
+      ],
+      "note": "USER 0DTE 2:04 ET @0.04. Bullish QQQ (694C, QQQ 688) - deep OTM lotto, mark 0.035 ~dead. non-gated. hard-exit 3:15."
     }
   },
   "watchlist": [],
@@ -283,6 +284,11 @@
     "notes": "Discipline focus after -69 day: ONE high-conviction setup, quality delta, not multiple low-delta punts. QS margin expires today (alert-only). Watchlist now: RIVN 19C only (thin) - add only on conviction."
   },
   "log": [
+    {
+      "t": "2026-07-24T18:12Z",
+      "event": "halt",
+      "detail": "2ND HALT: account 437.40->375.48 (-61.92) <= -60. Cause: SPY 0DTE spread-churn ~8 round-trips 12:56-2:04 (743C x5, 738P, 744C flip) ~-45 realized + open -17. CHURN GUARD hit. SPY 738P closed (churned). Now holding QQQ 694C 0DTE (dead lotto), DIS 105C -5%, NVDA 220C -12%. BP 0.96. Entries off; exits live (0DTE hard-exit 3:15, 3:45 flatten). User live in chat - halt surfaced there."
+    },
     {
       "t": "2026-07-24T17:12Z",
       "event": "reconcile",
