@@ -234,6 +234,7 @@
           <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Options account" value="{{ bt.opEnd }}" delta="{{ bt.opRet }}" deltaTone="up" hint-size="100%,96px"></x-import>
           <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Win rate" value="{{ bt.win }}" delta="{{ bt.tradesLabel }}" deltaTone="up" hint-size="100%,96px"></x-import>
           <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Avg R" value="{{ bt.avgR }}" delta="{{ bt.pfLabel }}" deltaTone="up" hint-size="100%,96px"></x-import>
+          <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Sharpe · 0DTE" value="{{ bt.sharpe }}" delta="{{ bt.sharpeDelta }}" deltaTone="up" hint-size="100%,96px"></x-import>
           <x-import component-from-global-scope="SuperTradesDesignSystem_4b8c0b.StatCard" label="Max drawdown" value="{{ bt.dd }}" delta="{{ bt.ddDelta }}" deltaTone="down" hint-size="100%,96px"></x-import>
         </div>
         <div style="margin-bottom:12px">
@@ -693,6 +694,7 @@ class Component extends DCLogic {
       opEnd: this.usd(startEqN * (1 + bt0.retO)), opRet: pct(bt0.retO) + ' · 0DTE · ' + riskPctLabel + ' of balance/trade',
       win: Math.round(bt0.winRate * 100) + '%', tradesLabel: bt0.trades + ' trades · 90 sessions',
       avgR: signR(bt0.avgR), pfLabel: 'profit factor ' + bt0.pf.toFixed(2),
+      sharpe: bt0.sharpe.toFixed(2), sharpeDelta: 'recovery ' + bt0.recovery.toFixed(1) + '× · max ' + bt0.maxLossStreak + ' losses in a row',
       dd: optOnly ? '−' + (bt0.ddO * 100).toFixed(1) + '%' : '−' + (bt0.ddE * 100).toFixed(1) + '%',
       ddDelta: optOnly ? '0DTE premium' : 'options −' + (bt0.ddO * 100).toFixed(1) + '%',
       meta: '90-SESSION BAR REPLAY · ENDS 07/17',

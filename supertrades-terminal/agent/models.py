@@ -55,6 +55,7 @@ class OptionContract:
     bid: float
     ask: float
     delta: float
+    gamma: float = 0.0                 # dΔ/dS — convexity; drives cheaper-OTM scoring
 
     @property
     def mid(self) -> float:
@@ -64,6 +65,18 @@ class OptionContract:
     def spread_pct_of_mid(self) -> float:
         m = self.mid
         return (self.ask - self.bid) / m if m > 0 else float("inf")
+
+    def est_return_on_move(self, move: float) -> float:
+        """Estimated return on premium for a favorable underlying ``move`` (in
+        price units), from the 2nd-order Taylor expansion of option value:
+        ΔP ≈ |Δ|·move + ½·Γ·move². Divided by the ask (per-share cost). This is
+        higher for cheap, high-gamma (convex) contracts on a large expected move
+        — the "best delta/gamma combo for profitability" score. Returns 0 when
+        cost or gamma data is missing, so callers fall back to delta selection."""
+        if self.ask <= 0:
+            return 0.0
+        est_pnl = abs(self.delta) * move + 0.5 * self.gamma * move * move
+        return est_pnl / self.ask
 
 
 @dataclass
@@ -135,12 +148,22 @@ class Position:
     underlying_target: float
     thesis_intact: bool = True
     scaled: bool = False               # half already taken off at +1R
+    peak_premium: float = 0.0          # high-water mark of the mark; the position
+                                       # tracker ratchets it up each cycle. Drives the
+                                       # trailing stop. 0.0 => not yet tracked.
 
     @property
     def premium_change_pct(self) -> float:
         if self.entry_premium <= 0:
             return 0.0
         return (self.current_premium - self.entry_premium) / self.entry_premium
+
+    @property
+    def effective_peak(self) -> float:
+        """Highest mark seen, floored at the current mark so a not-yet-tracked
+        position (peak_premium == 0.0) never reports a peak below where it is —
+        which keeps the trailing stop from firing spuriously."""
+        return max(self.peak_premium, self.current_premium)
 
 
 @dataclass
@@ -169,7 +192,7 @@ class ExitIntent:
     """A protective exit for an open position."""
 
     position: Position
-    kind: Literal["target", "stop", "flatten", "scale", "thesis_break"]
+    kind: Literal["target", "stop", "flatten", "scale", "trail", "thesis_break"]
     quantity: int
     reason: str
     marketable: bool = False           # True => cross the spread (stop/flatten)

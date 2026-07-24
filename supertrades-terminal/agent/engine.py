@@ -61,6 +61,10 @@ class SuperTradesAgent:
         self.log = log or DecisionLog()
         self.day = DayState()
         self.kill = KillState()
+        # High-water mark of each open position's mark, keyed by option_id.
+        # Positions are rebuilt from broker state each cycle, so the peak that
+        # drives the trailing stop must persist here, across cycles.
+        self._peaks: dict[str, float] = {}
 
     # -- one cycle --------------------------------------------------------
     def run_cycle(self, now: datetime) -> CycleResult:
@@ -89,7 +93,7 @@ class SuperTradesAgent:
         account = self.broker.get_account()
 
         for sig in self.signals.fired_signals(now):
-            choice = contract_selector.select(sig, self.broker.get_chain(sig.symbol))
+            choice = contract_selector.select(sig, self.broker.get_chain(sig.symbol), self.cfg)
             if not choice.ok:
                 res.rejected.append((sig.symbol, choice.rejected_reason))
                 self.log.record("reject", sig.symbol, now, stage="contract",
@@ -131,8 +135,17 @@ class SuperTradesAgent:
     # -- helpers ----------------------------------------------------------
     def _manage_exits(self, now: datetime) -> list[ExitIntent]:
         out: list[ExitIntent] = []
+        live_ids: set[str] = set()
         for pos in self.broker.get_positions():
-            for ex in exit_manager.evaluate(pos, now):
+            # Ratchet the per-position high-water mark before evaluating exits so
+            # the trailing stop measures give-back from the true peak, not just
+            # this cycle's mark. Only ever rises; never lowers an existing peak.
+            live_ids.add(pos.option_id)
+            peak = max(self._peaks.get(pos.option_id, pos.current_premium),
+                       pos.current_premium)
+            self._peaks[pos.option_id] = peak
+            pos.peak_premium = peak
+            for ex in exit_manager.evaluate(pos, now, self.cfg):
                 out.append(ex)
                 intent = self._exit_intent(ex)
                 # Protective exits submit automatically when armed (config);
@@ -145,6 +158,9 @@ class SuperTradesAgent:
                 self.log.record("exit", ex.position.symbol, now, kind=ex.kind,
                                 qty=ex.quantity, reason=ex.reason,
                                 placed=result.placed, dry_run=result.dry_run)
+        # Drop peaks for positions no longer open so the map can't leak or
+        # resurrect a stale high-water mark on a re-entered symbol.
+        self._peaks = {oid: pk for oid, pk in self._peaks.items() if oid in live_ids}
         return out
 
     def _flatten_all(self, now: datetime, reason: str) -> list[ExitIntent]:

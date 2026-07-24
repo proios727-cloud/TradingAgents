@@ -118,6 +118,8 @@ export function genBacktest(seed, days = 90, endPrice = 100, riskF = 0.05) {
   let p = endPrice / rets.reduce((a, r) => a * (1 + r), 1);
   const curve = [{ eq: 1, op: 1 }];
   let eq = 1, op = 1, wins = 0, trades = 0, scr = 0, sumR = 0, gw = 0, gl = 0, pe = 1, po = 1, ddE = 0, ddO = 0, halfSize = false;
+  const dailyOpRet = [];            // per-session options return (for Sharpe)
+  let lossStreak = 0, maxLossStreak = 0;  // consecutive losing trades (0DTE risk-of-ruin read)
   for (let d = 0; d < days; d++) {
     const o = p, c = p * (1 + rets[d]);
     const h = Math.max(o, c) * (1 + rnd() * 0.007), l = Math.min(o, c) * (1 - rnd() * 0.007);
@@ -149,7 +151,8 @@ export function genBacktest(seed, days = 90, endPrice = 100, riskF = 0.05) {
       }
       trades++; sumR += R;
       if (R === 0) scr++;
-      else if (R > 0) { wins++; gw += R; } else gl -= R;
+      else if (R > 0) { wins++; gw += R; lossStreak = 0; }
+      else { gl -= R; lossStreak++; if (lossStreak > maxLossStreak) maxLossStreak = lossStreak; }
       dE += R * 0.004;
       let riskU = Math.min(op * riskF, 0.4); // riskF of current balance, capped at 40% of start ($1k) — capacity
       if (dayR >= 2 && dO > 0) riskU = Math.min(riskU * 2, riskU + dO * 0.5); // press winners with house money
@@ -158,10 +161,19 @@ export function genBacktest(seed, days = 90, endPrice = 100, riskF = 0.05) {
       if (dayR <= -2) halted = true; // daily loss limit: stop at −2R on the day
     }
     halfSize = dayR < 0; // half-size after a red day, restore after a green one
+    dailyOpRet.push(op > 0 ? dO / op : 0); // return on the running options balance
     eq *= 1 + dE; op += dO; // options: fixed-$ risk, additive
     pe = Math.max(pe, eq); po = Math.max(po, op);
     ddE = Math.max(ddE, 1 - eq / pe); ddO = Math.max(ddO, 1 - op / po);
     curve.push({ eq, op });
   }
-  return { curve, trades, scratches: scr, winRate: wins / ((trades - scr) || 1), avgR: sumR / trades, pf: gw / (gl || 1), retE: eq - 1, retO: op - 1, ddE, ddO };
+  // Risk-adjusted read on the 0DTE curve: annualized Sharpe (√252) from the daily
+  // return series, and recovery factor (total return ÷ max drawdown). These are the
+  // honest quality gauges of the sim — win rate alone hides drawdown and volatility.
+  const mean = dailyOpRet.reduce((a, r) => a + r, 0) / (dailyOpRet.length || 1);
+  const variance = dailyOpRet.reduce((a, r) => a + (r - mean) ** 2, 0) / (dailyOpRet.length || 1);
+  const sd = Math.sqrt(variance);
+  const sharpe = sd > 0 ? (mean / sd) * Math.sqrt(252) : 0;
+  const recovery = ddO > 0 ? (op - 1) / ddO : 0;
+  return { curve, trades, scratches: scr, winRate: wins / ((trades - scr) || 1), avgR: sumR / trades, pf: gw / (gl || 1), retE: eq - 1, retO: op - 1, ddE, ddO, sharpe, recovery, maxLossStreak };
 }

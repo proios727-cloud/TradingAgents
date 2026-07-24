@@ -40,6 +40,13 @@ class Guardrails:
     scale_half_at_r: float = 1.0       # scale half off at +1R, trail the rest
     force_flatten_et: time = time(15, 45)  # close ALL by 15:45 ET
 
+    # --- Trailing stop on the runner (only active when RuntimeConfig.scale_and_trail) ---
+    # After scaling half at +1R, protect the remainder with a peak-give-back trail
+    # instead of a hard full-position target. The trail only ratchets up — it can
+    # never widen the fixed -50% premium stop above, which always remains the floor.
+    trail_activate_gain: float = 1.0   # arm the trail once the mark is >= +100% (i.e. +1R on the option)
+    trail_give_back_pct: float = 0.30  # exit the runner if the mark gives back >= 30% from its peak
+
     # --- Daily rules ---
     daily_halt_r: float = -2.0         # down 2R on the day -> entries stop (exits stay live)
     press_min_booked_r: float = 2.0    # up >=+2R -> later trades may size up 2x...
@@ -58,6 +65,16 @@ class Guardrails:
     max_spread_pct_of_mid: float = 0.10  # reject if bid/ask spread > 10% of mid
     reprice_after_seconds: float = 5.0   # limit at mid, reprice once after 5s
     max_reprice_misses: int = 2          # abandon after 2 misses
+
+    # --- Convexity selection (only active when RuntimeConfig.convexity_selection) ---
+    # On high-conviction signals, allow cheaper/more-convex contracts (down to
+    # conv_delta_floor) and pick the one with the best estimated return on the
+    # expected move to target (Δ·M + ½·Γ·M²), instead of the plain ~0.50-delta
+    # pick. Only engages when confidence AND RVOL clear the bars below — a hard
+    # delta floor keeps it off lottery tickets. The spread and 0DTE guards still apply.
+    conv_delta_floor: float = 0.30       # never below this |Δ|, even chasing convexity
+    conv_min_confidence: int = 70        # signal confidence required to use convexity mode
+    conv_min_rvol: float = 1.8           # RVOL required to use convexity mode
 
     # --- Cash-account settlement (T+1) ---
     # Never buy with unsettled proceeds; open premium must never exceed settled cash.
@@ -89,6 +106,14 @@ class RuntimeConfig:
     # armed — blocking a stop-loss on manual approval would defeat risk control.
     require_exit_approval: bool = False
     week1_half_size: bool = False  # week-1 caps at half size ($500 / half %)
+    # When True, exits scale half at +1R and TRAIL the runner (peak give-back)
+    # instead of a hard +90% full-position target. Mirrors the terminal's
+    # "Auto-scale out at +1R" switch. Default off = historical target behavior.
+    scale_and_trail: bool = False
+    # When True, high-conviction signals select the best delta/gamma combo by
+    # estimated return on the expected move (convexity), allowing cheaper OTM
+    # contracts down to the delta floor. Default off = plain ~0.50-delta pick.
+    convexity_selection: bool = False
     broker: str = "robinhood"      # 'robinhood' | 'paper'
 
     def can_place_live(self) -> bool:

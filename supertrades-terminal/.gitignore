@@ -3,3 +3,6 @@ decisions.jsonl
 *.jsonl
 __pycache__/
 *.pyc
+
+# Live-stage runtime state (per-machine; never commit)
+.supertrades/
