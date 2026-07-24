@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-24T19:11:00Z",
+  "updated_at": "2026-07-24T20:11:00Z",
   "trading_date": "2026-07-24",
   "rule_version": "v3.1",
   "mode": {
@@ -83,45 +83,16 @@
     "alert_only": {}
   },
   "day": {
-    "realized_pnl": -98.0,
+    "realized_pnl": -102.0,
     "auto_entries_used": 0,
     "manual_round_trips": 8,
     "churn_threshold_hit": true,
     "halted": true,
-    "open_pnl_est": -9.0,
-    "note": "HALTED. Day -107 (account 437.40->330.42). Realized ~-98 (SPY 0DTE churn ~-42 + NVDA 220C stop -56 @0.47). NVDA stopped at 3:11 (breached -55% vs -30%). Remaining: DIS 105C -6% (holds to 3:45 flatten), QQQ 694C dead (expires worthless). BP 0.96.",
-    "day_pnl_est": -107.0
+    "open_pnl_est": -13.0,
+    "note": "EOD CLOSE 7/24. Account 437.40->322.42 = -115 (worst day). Realized -102 (SPY 0DTE churn ~-42, NVDA stop -56, QQQ expired -4). Open -13 = DIS 105C which CARRIED THE WEEKEND - 3:45 flatten MISSED (wakeup stalled, caught post-close). QS margin expired worthless. HALTED. Monday: rollover resets halt; DIS flatten-vs-swing decision at open.",
+    "day_pnl_est": -115.0
   },
   "positions": {
-    "6140b886-a7c8-4a78-9edb-63b58e5655dc": {
-      "contract": "QS 7/24 $7C",
-      "account": "812234458",
-      "qty": 1,
-      "entry": 0.13,
-      "hwm": 0.13,
-      "ratchet_engaged": false,
-      "class": "alert_only",
-      "expiry": "2026-07-24",
-      "exit_rules": [
-        {
-          "type": "alert_target",
-          "pct": 50
-        },
-        {
-          "type": "alert_bid_floor",
-          "bid": 0.03
-        },
-        {
-          "type": "alert_swing",
-          "pct": 30
-        },
-        {
-          "type": "alert_time_stop",
-          "days_before_expiry": 1
-        }
-      ],
-      "note": "margin acct READ-ONLY; expires TODAY 7/24 - alert_time_stop ACTIVE. Dead penny (~0.01). Alert-only, no execution."
-    },
     "9e66b7db-0699-4776-beb3-f9290775ea0a": {
       "contract": "DIS 8/21 $105C",
       "account": "902341866",
@@ -157,46 +128,8 @@
           "mech": "sell_limit_at_bid_unless_ratchet"
         }
       ],
-      "note": "USER manual buy 12:58 ET @0.97 (was pool contract). day_trade rails; -2% at 13:10. flatten 3:45 unless ratchet.",
-      "last_mark": 0.935
-    },
-    "40913cb1-b6a2-44a8-a1e7-651d81a53fe2": {
-      "contract": "QQQ 7/24 $694C",
-      "account": "902341866",
-      "qty": 1,
-      "entry": 0.04,
-      "hwm": 0.04,
-      "ratchet_engaged": false,
-      "class": "0dte_scalp",
-      "expiry": "2026-07-24",
-      "exit_rules": [
-        {
-          "type": "target",
-          "pct": 50,
-          "price": 0.06,
-          "mech": "sell_limit_at_mark"
-        },
-        {
-          "type": "stop",
-          "pct": -30,
-          "price": 0.028,
-          "mech": "sell_limit_at_bid"
-        },
-        {
-          "type": "ratchet",
-          "arm_pct": 25,
-          "arm_price": 0.05,
-          "be_stop_price": 0.04,
-          "mech": "breakeven_stop_after_arm"
-        },
-        {
-          "type": "hard_exit_et",
-          "at": "15:15",
-          "mech": "sell_limit_at_bid"
-        }
-      ],
-      "note": "USER 0DTE 2:04 @0.04. Stop 0.028 BREACHED (mark 0.025) but $2 dead penny - letting 3:15 hard-exit/expiry take it, not churning a $2 order. hwm=entry, ratchet not armed.",
-      "last_mark": 0.025
+      "note": "USER buy 7/24 @0.97. DAY-TRADE FLATTEN MISSED (3:45 wakeup stalled; caught 4:10 post-close). Carries weekend as accidental swing hold. mark 0.84 (-13%), above stop 0.679. MONDAY OPEN: decide flatten-per-belated-rule vs keep-as-swing. 8/21 expiry.",
+      "last_mark": 0.84
     }
   },
   "watchlist": [],
@@ -289,6 +222,11 @@
     "notes": "Discipline focus after -69 day: ONE high-conviction setup, quality delta, not multiple low-delta punts. QS margin expires today (alert-only). Watchlist now: RIVN 19C only (thin) - add only on conviction."
   },
   "log": [
+    {
+      "t": "2026-07-24T20:11Z",
+      "event": "eod",
+      "detail": "CLOSE 7/24: account 322.42, day -115 (WORST day: SPY churn -42, NVDA stop -56, QQQ exp -4, DIS -13 open). PROCESS MISS: DIS 105C day-trade 3:45 FLATTEN DID NOT FIRE (ScheduleWakeup stalled through 3:45; heartbeat caught it 4:10 post-close) - DIS now carries weekend. QQQ 694C + QS 7/24 both expired worthless. Only DIS open. 4-day P&L: -10/+65/-69/-115. Monday: rollover resets halt; handle DIS at open (flatten belatedly or keep swing). SYSTEMIC: ScheduleWakeup unreliable all day - hourly heartbeat too coarse for 3:45-precision exits; needs concentrated-cron reshape (pending user OK) or accept coarse intraday timing."
+    },
     {
       "t": "2026-07-24T19:11Z",
       "event": "fill",
