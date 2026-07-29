@@ -81,7 +81,8 @@ def cmd_arm(args) -> int:
     # funding, verify a live mcp_call is wired, run the rail suite green, then
     # set armed=True, dry_run=False. None of those preconditions are met here.
     print("Refusing to arm: preconditions unmet in this environment —")
-    print("  - no live mcp_call dispatcher wired (ships intentionally without one)")
+    print("  - live dispatcher (broker/mcp_dispatch.py) has no OAuth token wired"
+          " (ROBINHOOD_MCP_TOKEN unset -> transport refuses to construct)")
     print("  - Agentic account options Level 2 + funding must be verified live")
     print("  - rail suite must pass green (python -m unittest)")
     print("See agent/README.md → 'Going live'.")

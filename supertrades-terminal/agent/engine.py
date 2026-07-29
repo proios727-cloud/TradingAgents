@@ -53,6 +53,7 @@ class SuperTradesAgent:
         *,
         approval: ApprovalGate | None = None,
         log: DecisionLog | None = None,
+        kill: KillState | None = None,
     ):
         self.cfg = cfg
         self.broker = broker
@@ -60,7 +61,9 @@ class SuperTradesAgent:
         self.approval = approval or ApprovalGate(required=cfg.require_entry_approval)
         self.log = log or DecisionLog()
         self.day = DayState()
-        self.kill = KillState()
+        # Share ONE KillState with the broker/dispatcher (pass the same object
+        # here) so an MCP dispatch failure halts the very next cycle.
+        self.kill = kill or KillState()
         # High-water mark of each open position's mark, keyed by option_id.
         # Positions are rebuilt from broker state each cycle, so the peak that
         # drives the trailing stop must persist here, across cycles.

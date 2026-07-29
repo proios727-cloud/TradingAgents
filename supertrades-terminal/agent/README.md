@@ -5,10 +5,12 @@ The decision/risk brain for the SuperTrades 0DTE options system, wired to the
 previewed order intents and manages exits — with every guardrail from the design
 handoff's `GO-LIVE.md` enforced in exactly one place.
 
-> **Safety first.** This ships **inert**: `dry_run=True`, `armed=False`, no live
-> order dispatcher. It cannot place a real trade until *you* fund/approve the
-> account, wire a dispatcher, and arm it. Even armed, **every entry is previewed
-> for your approval** before it's sent.
+> **Safety first.** This ships **inert**: `dry_run=True`, `armed=False`, and the
+> live dispatcher (`broker/mcp_dispatch.py`) refuses to construct without your
+> OAuth token — and refuses to dispatch anything mutating while dry-run/disarmed.
+> It cannot place a real trade until *you* fund/approve the account, connect the
+> MCP, and arm it. Even armed, **every entry is previewed for your approval**
+> before it's sent.
 
 ## Design
 
@@ -29,7 +31,7 @@ signals ─▶ contract_selector ─▶ risk_governor ─▶ approval ─▶ bro
 | `contract_selector.py` | Pick the 0DTE contract: today's expiry, strike nearest entry, Δ 0.45–0.55, spread ≤ 10% of mid. |
 | `exit_manager.py` | Exits (stay live even when halted): −50% stop, +90% target, thesis break, scale ½ at +1R, 15:45 flatten. |
 | `kill_switch.py` | STOP / MCP error / data stale >10s / 3 straight losses → cancel all, flatten, halt. |
-| `broker/` | `BrokerAdapter` interface; `RobinhoodMcpBroker` (builds exact MCP calls, gated placement) and `PaperBroker` (in-memory, tests/dry-run). |
+| `broker/` | `BrokerAdapter` interface; `RobinhoodMcpBroker` (builds exact MCP calls, gated placement); `mcp_dispatch.py` (the real `mcp_call` dispatcher onto the `mcp__Robinhood_Trading__*` tools — fail-closed, kill-switch-tripping, inert without an OAuth token); `PaperBroker` (in-memory, tests/dry-run). |
 | `approval.py` | Preview-every-order gate. Default approver **denies**. |
 | `engine.py` | One scan cycle: kill-check → exits → (if not halted) discover → gate → select → preview → place. |
 | `decision_log.py` | Append-only JSONL audit trail (feeds the terminal P&L / journal). |
@@ -72,7 +74,7 @@ TSLA gamma-flip → **rejected by the earnings filter** (hyperscaler week).
 
 1. In the Robinhood app: apply for **options Level 2** on the Agentic account; **fund** it (~$2,500 — funding is your hard loss cap).
 2. Connect the MCP: `claude mcp add robinhood-trading --transport http https://agent.robinhood.com/mcp/trading`; complete OAuth. Reads always-allow; order placement ask-every-time.
-3. Wire a real `mcp_call(tool, params)` dispatcher into `RobinhoodMcpBroker` (this repo ships without one).
+3. Wire the dispatcher: `RobinhoodMcpBroker.live(cfg, kill_state=ks)` builds the real `mcp_call` from `broker/mcp_dispatch.py` — it refuses to construct until `ROBINHOOD_MCP_TOKEN` holds your OAuth bearer token, and refuses to dispatch any placing/cancelling tool while `dry_run=True` or `armed=False`. Pass the same `kill_state` to `SuperTradesAgent(..., kill=ks)` so any MCP failure halts the next cycle.
 4. `python3 -m unittest` green + a dry run with zero errors.
 5. Only then set `armed=True, dry_run=False`. First possible entry 9:45 ET; keep `require_entry_approval=True` for week 1.
 
