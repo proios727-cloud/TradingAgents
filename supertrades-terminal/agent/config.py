@@ -31,6 +31,9 @@ MARKET_TZ = ZoneInfo("America/New_York")
 #                of the rotation, which SPY/QQQ do not express
 #   NVDA/AMD/    high-ATR tech movers — still the highest-RVOL names on the
 #   TSLA/META    tape in both directions during the de-rating
+#   MSFT/AMZN    the megacap dispersion engines this reporting cycle; deepest
+#                chains on the board, and the names actually carrying the tape
+#                on print days (MSFT ran ~4.6x RVOL the session after its Q4)
 #   XOM/XLE      energy leadership, crude-driven
 #   XLF/XLV      financials + healthcare — the two sectors absorbing the
 #                rotation bid most consistently
@@ -41,7 +44,7 @@ MARKET_TZ = ZoneInfo("America/New_York")
 # COIN (crypto beta is not part of the current leadership theme).
 WATCHLIST: tuple[str, ...] = (
     "SPY", "QQQ", "IWM",
-    "NVDA", "AMD", "TSLA", "META",
+    "NVDA", "AMD", "TSLA", "META", "MSFT", "AMZN",
     "XOM", "XLE", "XLF", "XLV", "GLD",
 )
 
