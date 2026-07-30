@@ -115,6 +115,15 @@ class SuperTradesAgent:
 
             intent = self._entry_intent(sig, choice.contract, verdict.max_contracts)
             review = self.broker.review_order(intent)
+            if not review.ok:
+                # Fail CLOSED on entries: a failed broker preview must never
+                # reach the human approval prompt dressed as a reviewable
+                # order. Block the entry, log it, surface it as a rejection.
+                reason = f"broker review failed: {review.error or 'unknown error'}"
+                res.rejected.append((sig.symbol, reason))
+                self.log.record("reject", sig.symbol, now, stage="review",
+                                reason=reason, intent=intent.mcp_params)
+                continue
             preview = Preview(intent, review)
             self.log.record("preview", sig.symbol, now, intent=intent.mcp_params,
                             alerts=review.alerts)
@@ -155,10 +164,19 @@ class SuperTradesAgent:
                 # entries are the ones that require per-order approval.
                 if self.cfg.require_exit_approval:
                     review = self.broker.review_order(intent)
+                    # Fail OPEN on exits (asymmetric to entries by design): a
+                    # broker preview failure must never trap the agent in a
+                    # position. The exit still goes to the approver, and the
+                    # Preview renders the failed review unmistakably.
+                    if not review.ok:
+                        self.log.record("exit_review_failed", ex.position.symbol,
+                                        now, exit_kind=ex.kind, error=review.error)
                     if not self.approval.request(Preview(intent, review)):
                         continue
                 result = self.broker.place_order(intent)
-                self.log.record("exit", ex.position.symbol, now, kind=ex.kind,
+                # NB: detail key must not be "kind" — that's record()'s first
+                # positional arg (was a latent TypeError on every real exit).
+                self.log.record("exit", ex.position.symbol, now, exit_kind=ex.kind,
                                 qty=ex.quantity, reason=ex.reason,
                                 placed=result.placed, dry_run=result.dry_run)
         # Drop peaks for positions no longer open so the map can't leak or

@@ -28,6 +28,10 @@ class Preview:
             f"({i.position_effect})",
             f"  reason: {i.reason}",
         ]
+        if not self.review.ok:
+            lines.append("  !!! BROKER REVIEW FAILED — this order was NOT "
+                         "validated by the broker preview !!!")
+            lines.append(f"  !!! error: {self.review.error or 'unknown review error'}")
         if self.review.alerts:
             lines.append("  alerts:")
             lines += [f"    - {a}" for a in self.review.alerts]
