@@ -16,8 +16,33 @@ from zoneinfo import ZoneInfo
 MARKET_TZ = ZoneInfo("America/New_York")
 
 # Watchlist — scanned every 5 min, 09:30–16:00 ET.
+#
+# This is a scan universe, not a directional view: the agent trades 0DTE long
+# calls AND puts, so a name earns its slot by being liquid and by actually
+# moving, whichever way. Reviewed 2026-07-30 against the leadership rotation
+# out of mega-cap tech and into cyclicals/defensives (industrials, healthcare,
+# financials, energy, small caps) with crude near $100 on geopolitical risk.
+#
+# Note the 0DTE guardrail below: only SPY/QQQ/IWM list daily expiries, so the
+# single names and sector ETFs here are tradeable on Fridays (and their own
+# weekly expiries) and are skipped on other sessions.
+#
+#   SPY/QQQ/IWM  index core — daily chains; IWM added for the small-cap leg
+#                of the rotation, which SPY/QQQ do not express
+#   NVDA/AMD/    high-ATR tech movers — still the highest-RVOL names on the
+#   TSLA/META    tape in both directions during the de-rating
+#   XOM/XLE      energy leadership, crude-driven
+#   XLF/XLV      financials + healthcare — the two sectors absorbing the
+#                rotation bid most consistently
+#   GLD          geopolitical/rate hedge; bid on the same headlines that hit
+#                the index, so it gives the scanner a non-correlated leg
+#
+# Dropped 2026-07-30: CVX (redundant with XOM + XLE, thinner chain),
+# COIN (crypto beta is not part of the current leadership theme).
 WATCHLIST: tuple[str, ...] = (
-    "SPY", "QQQ", "NVDA", "TSLA", "AMD", "META", "COIN", "XOM", "CVX", "XLE",
+    "SPY", "QQQ", "IWM",
+    "NVDA", "AMD", "TSLA", "META",
+    "XOM", "XLE", "XLF", "XLV", "GLD",
 )
 
 
