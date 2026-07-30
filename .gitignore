@@ -221,3 +221,8 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Personal financial tracking data (financial-evolution skill) — never commit:
+# this fork is public and these files contain account balances and trade history
+/financial-evolution/
+/agent/memory/
