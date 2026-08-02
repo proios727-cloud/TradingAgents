@@ -4,6 +4,10 @@ Before any ENTRY is placed, the agent renders a preview and asks a human
 approver to confirm. The default approver DENIES — nothing is ever placed
 without a human explicitly wiring an approve callback and saying yes. This is
 the operator's per-order control, on top of the arm/dry-run gates.
+
+For EXITS the same gate is consulted only as an ADVISORY (see engine): the
+operator sees the ticket and their answer is journaled, but a protective exit
+places regardless — a decline can veto an entry, never an exit.
 """
 
 from __future__ import annotations

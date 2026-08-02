@@ -32,7 +32,7 @@ signals ─▶ contract_selector ─▶ risk_governor ─▶ approval ─▶ bro
 | `exit_manager.py` | Exits (stay live even when halted): −50% stop, +90% target, thesis break, scale ½ at +1R, 15:45 flatten. |
 | `kill_switch.py` | STOP / MCP error / data stale >10s / 3 straight losses → cancel all, flatten, halt. |
 | `broker/` | `BrokerAdapter` interface; `RobinhoodMcpBroker` (builds exact MCP calls, gated placement); `mcp_dispatch.py` (the real `mcp_call` dispatcher onto the `mcp__Robinhood_Trading__*` tools — fail-closed, kill-switch-tripping, inert without an OAuth token); `PaperBroker` (in-memory, tests/dry-run). |
-| `approval.py` | Preview-every-order gate. Default approver **denies**. |
+| `approval.py` | Preview-every-order gate. Default approver **denies**. Approval is **asymmetric**: a decline is a hard veto for entries only. With `require_exit_approval=True`, exit tickets are still previewed and the operator's answer journaled (`exit_approval_advisory`), but it is **advisory only** — protective exits (stop, thesis break, 15:45 flatten) always place, regardless of a decline, an approver error, or no approver being wired. |
 | `engine.py` | One scan cycle: kill-check → exits → (if not halted) discover → gate → select → preview → place. |
 | `decision_log.py` | Append-only JSONL audit trail (feeds the terminal P&L / journal). |
 | `simulated.py` | Signal source + paper account mirroring the terminal's `data.js` for dry runs. |

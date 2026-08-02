@@ -7,6 +7,12 @@ Flow per cycle (09:30–16:00 ET, every 5 min):
      signal run the SINGLE risk gate -> select contract -> preview -> approval
      -> place (all placement gated by dry-run/arm in the broker).
 
+Approval is asymmetric: ENTRY approval is a hard veto (a declined entry is
+never placed), while EXIT approval — when require_exit_approval is on — is
+advisory only: the ticket is previewed and the operator's answer journaled,
+but protective exits (stop, thesis break, 15:45 force-flatten, ...) always
+place regardless of the answer.
+
 The engine never re-checks guardrails itself; risk_governor is the one gate.
 Signals come from an injected SignalSource so the same engine runs on the
 paper/simulated source (dry run) or a live signal engine.
@@ -160,19 +166,35 @@ class SuperTradesAgent:
             for ex in exit_manager.evaluate(pos, now, self.cfg):
                 out.append(ex)
                 intent = self._exit_intent(ex)
-                # Protective exits submit automatically when armed (config);
-                # entries are the ones that require per-order approval.
+                # APPROVAL IS ASYMMETRIC BY DESIGN:
+                #   * ENTRIES are vetoable — the operator's decline blocks them.
+                #   * EXITS are NOT — they are protective. With
+                #     require_exit_approval=True the ticket is still previewed
+                #     to the approver and their answer journaled, but the
+                #     answer is ADVISORY ONLY: the exit places regardless of a
+                #     decline, an approver exception, or no approver being
+                #     wired at all (the default approver denies everything —
+                #     it must never be able to veto a stop or the 15:45
+                #     force-flatten and hold 0DTE into the bell).
                 if self.cfg.require_exit_approval:
                     review = self.broker.review_order(intent)
-                    # Fail OPEN on exits (asymmetric to entries by design): a
-                    # broker preview failure must never trap the agent in a
-                    # position. The exit still goes to the approver, and the
-                    # Preview renders the failed review unmistakably.
+                    # Fail OPEN on exits: a broker preview failure must never
+                    # trap the agent in a position. The exit still goes to the
+                    # approver, and the Preview renders the failed review
+                    # unmistakably.
                     if not review.ok:
                         self.log.record("exit_review_failed", ex.position.symbol,
                                         now, exit_kind=ex.kind, error=review.error)
-                    if not self.approval.request(Preview(intent, review)):
-                        continue
+                    try:
+                        approved = bool(self.approval.request(Preview(intent, review)))
+                    except Exception as e:  # noqa: BLE001 — advisory; never blocks
+                        approved = False
+                        self.log.record("exit_approver_error", ex.position.symbol,
+                                        now, exit_kind=ex.kind, error=repr(e))
+                    self.log.record("exit_approval_advisory", ex.position.symbol,
+                                    now, exit_kind=ex.kind, approved=approved,
+                                    note="advisory only — protective exit placed "
+                                         "regardless of operator response")
                 result = self.broker.place_order(intent)
                 # NB: detail key must not be "kind" — that's record()'s first
                 # positional arg (was a latent TypeError on every real exit).
