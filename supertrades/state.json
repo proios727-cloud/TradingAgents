@@ -1,6 +1,13 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T19:24:00Z",
+  "updated_at": "2026-08-04T20:45:00Z",
+  "eod_wrap": {
+    "date": "2026-08-04",
+    "status": "CLOSED - market closed 16:00 ET; account FLAT, no overnight positions, no pending management triggers",
+    "day_result": "+$93 realized, 3/3 GREEN (SPY 771C +48, QQQ 724C +36, INTC 102C +9)",
+    "note": "INTC +9 was clipped early by a competing session's 0DTE hard-exit (would've been ~+35 as a runner) - fixed by deleting competing triggers + single-executor discipline. Built v4.4->v4.6 today (green_lock, VWAP trail, barbell + auto-materializer + multi-lot sizing, execution-layer engine bridge). Next session: populate watchlist, run engine-driven cycle at the open.",
+    "settlement": "cash acct - SPY/QQQ/INTC proceeds settle T+1 (8/5); BP frees on settle."
+  },
   "execution_layer": {
     "mode": "engine_driven (v4.6)",
     "loop": "FETCH (get_portfolio/get_equity_quotes/get_option_quotes/get_equity_technical_indicators vwap) -> live.assemble_snapshot -> run_one_cycle -> execute actions (exits first, then review_option_order+place_option_order for actions.entry, materialize exit_rules to state) -> commit. Entries are ENGINE-DECIDED from the watchlist candidate pool, gated by the single reporter guardrail. See supertrades-v3.md section 7.",
