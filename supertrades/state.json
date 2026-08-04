@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T18:29:00Z",
+  "updated_at": "2026-08-04T18:31:00Z",
   "trading_date": "2026-08-04",
   "rule_version": "v4.3",
   "mode": {
@@ -203,8 +203,9 @@
         "delegation": "User 8/4: 'if not sold before close I trust your judgment.' Agent makes the final overnight call at 15:35-15:44 using this gate; with no catalyst tonight the default is LEAN FLATTEN. USER-REQUESTED PING: push the HOLD/FLATTEN decision at the gate regardless of fill."
       },
       "note": "AGENTIC entry 8/4 13:24 ET @1.99 (user 'tiny live', top rvol-screen affordable mover; DTE broken to 1). 1-DTE, IV ~122%, theta -1.19. DEFAULT = same-day scalp flatten 15:44, BUT user authorized OVERNIGHT SWING IF overnight_swing_gate passes at 15:35-15:44 (strong close required). If held, exit 8/5 by 10:30 ET or -20%, never to expiry. ~49% BP. INTC +10.4% $100 breakout. OVERRIDES daily-2/midday/min_dte per user.",
-      "last_mark": 2.135,
-      "hwm_note": "mark 2.135 / bid 2.09 at 14:26 ET (+7%). NEVER-RED floor active at bid 2.05 (ratchets up). Runner above; give-back trail arms at +50%. Overnight: with never_red + no catalyst -> lean FLATTEN to lock green."
+      "last_mark": 2.125,
+      "floor_bid": 2.03,
+      "hwm_note": "14:30 ET check: option mark 2.125 / bid 2.06 (+6.8%), hwm 2.135. INTC equity 100.57 (+10.5%), VWAP 98.85 -> ABOVE VWAP, breakout holding = growth score HIGH. HOLD runner. Never-red floor 2.03 intact (bid 2.06, 3c above). No milestone (bid < 2.49). Cadence 8min (score high). Live chain = trig_01F6xJf7 (fires 14:43). No push (no fill)."
     }
   },
   "watchlist": [],
