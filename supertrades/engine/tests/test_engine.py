@@ -22,6 +22,7 @@ from supertrades.engine.reporter import (AGENTIC_ACCT, GUARDRAILS, MARGIN_ACCT,
                                          materialize_exit_rules, short_dte_override_max_usd,
                                          size_order, summarizer)
 from supertrades.engine.run_cycle import run_one_cycle, synthetic_snapshot
+from supertrades.engine import live
 
 ENGINE_DIR = Path(__file__).resolve().parents[1]
 STATE_PATH = ENGINE_DIR.parents[0] / "state.json"
@@ -639,6 +640,63 @@ class TestSizingAndMaterializeV45(unittest.TestCase):
         self.assertIsNotNone(entry)
         self.assertGreaterEqual(entry["qty"], 2)
         self.assertTrue(any(r.get("scale_out_frac") for r in entry["exit_rules"]))
+
+
+class TestLiveExecutionBridgeV46(unittest.TestCase):
+    """v4.6: shape live Robinhood MCP outputs into the engine snapshot."""
+
+    def test_equity_quotes_computes_day_pct(self):
+        results = [{"quote": {"symbol": "INTC", "last_trade_price": "100.57",
+                              "adjusted_previous_close": "91.00", "previous_close": "91.00"}}]
+        q = live.equity_quotes(results)
+        self.assertEqual(q["INTC"]["last"], 100.57)
+        self.assertAlmostEqual(q["INTC"]["day_pct"], 10.52, places=1)
+
+    def test_option_quotes_computes_spread_and_parses_greeks(self):
+        results = [{"quote": {"instrument_id": "abc", "bid_price": "2.20", "ask_price": "2.32",
+                              "adjusted_mark_price": "2.26", "mark_price": "2.26",
+                              "delta": "0.46", "gamma": "0.058", "open_interest": "3266",
+                              "volume": "5000", "implied_volatility": "1.25"}}]
+        oq = live.option_quotes(results)["abc"]
+        self.assertEqual(oq["bid"], 2.20)
+        self.assertAlmostEqual(oq["spread_pct"], round((2.32 - 2.20) / 2.32 * 100, 1))
+        self.assertEqual(oq["delta"], 0.46)
+        self.assertEqual(oq["iv"], 1.25)
+        self.assertEqual(oq["oi"], 3266)
+
+    def test_bad_fields_do_not_crash(self):
+        results = [{"quote": {"instrument_id": "z", "bid_price": None, "ask_price": "",
+                              "delta": "n/a"}}]
+        oq = live.option_quotes(results)["z"]
+        self.assertEqual(oq["bid"], 0.0)
+        self.assertIsNone(oq["spread_pct"])   # ask 0 -> no spread
+        self.assertIsNone(oq["delta"])
+
+    def test_assemble_pulls_account_from_state_day(self):
+        state = load_state()
+        state["day"] = {"realized_pnl": 93.0, "auto_entries_used": 1,
+                        "manual_entries_today": 2, "manual_round_trips": 3, "halted": False}
+        snap = live.assemble_snapshot(state, et_time="10:15", weekday=True, bp=500.0,
+                                      equity_results=[], option_results=[])
+        self.assertEqual(snap["account"]["bp"], 500.0)
+        self.assertEqual(snap["account"]["day_realized"], 93.0)
+        self.assertEqual(snap["account"]["auto_entries_used"], 1)
+        for k in ("quotes", "option_quotes", "positions", "candidates", "gex", "vwap", "prior"):
+            self.assertIn(k, snap)
+
+    def test_assembled_snapshot_drives_a_full_cycle(self):
+        # end-to-end: live-shaped data -> assemble -> run_one_cycle produces a valid report
+        state = load_state()
+        eq = [{"quote": {"symbol": s, "last_trade_price": "100.0",
+                         "adjusted_previous_close": "99.0"}}
+              for s in state.get("universe", [])]
+        vwap = {s: 99.5 for s in state.get("universe", [])}
+        snap = live.assemble_snapshot(state, et_time="10:15", weekday=True, bp=500.0,
+                                      equity_results=eq, option_results=[], vwap=vwap)
+        report = asyncio.run(run_one_cycle(state, snap))
+        self.assertEqual(report["meta"]["node_count"], expected_node_count(state))
+        self.assertIn("kpis", report["console"])
+        self.assertEqual(report["console"]["kpis"]["buying_power"], 500.0)
 
 
 class TestReliableOpsV4(unittest.TestCase):

@@ -233,7 +233,44 @@ expectancy = win_rate·avg_win − loss_rate·avg_loss**, raised on all three te
 - **Visibility:** `state.performance` tracks win_rate / avg_win / avg_loss / expectancy so the
   system sees its own edge and can adapt (auto-updater on close is the next wire-up).
 
+## 7. Execution layer — engine-driven entries (v4.6)
+The rails were tested but entries were still hand-driven. This wires **Robinhood MCP → engine
+→ live order** so the entry decision is the deterministic engine output, not ad-hoc judgment.
+One agentic session (this one) runs the loop; `engine/live.py` holds the pure shaping helpers.
+
+**Per-cycle loop (one session):**
+1. **Fetch (MCP):** `get_portfolio` → BP; `get_equity_quotes` for the universe + candidate
+   symbols; `get_option_quotes` for open positions + watchlist candidate ids;
+   `get_equity_technical_indicators type=vwap interval=5minute` per symbol. (Index scalps also
+   need a GEX map — user-supplied levels per §5, no auto-entry without it.)
+2. **Assemble:** `snap = live.assemble_snapshot(state, et_time, weekday, bp, equity_results,
+   option_results, vwap=...)`. Account discipline counts (realized, entries used, halted) come
+   from `state.day`, so the governor sees live numbers.
+3. **Decide:** `report = run_one_cycle(state, snap)` — the single gate applies every guardrail
+   and returns `actions` (+ a `guardrail_audit` explaining any block).
+4. **Execute, exits first:** for each `report.actions.exits` → single-leg sell-to-close,
+   marketable through bid, verify fill. Apply `state_updates` (ratchet/hwm/floor).
+5. **Then entry (if any):** `report.actions.entry` already carries `qty` (multi-lot sizing) and
+   materialized `exit_rules` (barbell if ≥2 lots). **`review_option_order` → confirm no blocking
+   `order_checks` → `place_option_order`** → write the new position into `state.positions` with
+   that `qty` + `exit_rules`, increment the entry counter. Commit.
+6. **Push** on fills only (+ any user-requested pings). Re-arm the next cycle in-session.
+
+**Discipline preserved:** the engine still refuses to over-trade — the entry is `None` whenever
+the daily cap, halt, midday window, quality floors, IV/concentration ceilings, or already-held
+checks fire, and `guardrail_audit.per_candidate` says why. Nodes never place orders; the loop
+(agent) is the only MCP caller; **one session is the only executor** (see §Execution discipline).
+
+**Execution discipline (the 8/4 lesson):** exactly one session creates trading triggers; audit
+`list_triggers` at session start and delete any competing account-trader. A rival session's
+0DTE hard-exit flattened the INTC runner early on 8/4 — a coordination failure, not a rules one.
+
 ## Changelog
+- v4.6 (2026-08-04): EXECUTION LAYER — engine-driven entries. `engine/live.py` shapes live
+  Robinhood MCP outputs into the engine snapshot (`equity_quotes`/`option_quotes`/
+  `assemble_snapshot`, computing day% + spread%); documented fetch→assemble→decide→execute loop
+  so entries come from `run_one_cycle` (deterministic) rather than hand judgment. +5 tests;
+  suite 72/72.
 - v4.5 (2026-08-04): MULTI-LOT SIZING + BARBELL AUTO-MATERIALIZER. `reporter.size_order()`
   fills the per-trade cap with up to 3 lots (same risk envelope; enables scale-out).
   `reporter.materialize_exit_rules()` stamps exit_rules at entry — ≥2 lots → leg-A scale-out

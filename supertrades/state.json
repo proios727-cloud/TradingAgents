@@ -1,6 +1,12 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T19:19:00Z",
+  "updated_at": "2026-08-04T19:24:00Z",
+  "execution_layer": {
+    "mode": "engine_driven (v4.6)",
+    "loop": "FETCH (get_portfolio/get_equity_quotes/get_option_quotes/get_equity_technical_indicators vwap) -> live.assemble_snapshot -> run_one_cycle -> execute actions (exits first, then review_option_order+place_option_order for actions.entry, materialize exit_rules to state) -> commit. Entries are ENGINE-DECIDED from the watchlist candidate pool, gated by the single reporter guardrail. See supertrades-v3.md section 7.",
+    "single_executor": "THIS session only creates trading triggers. Audit list_triggers at session start; delete competing account-traders (8/4 lesson: a rival session's 0DTE hard-exit flattened the INTC runner early).",
+    "next": "populate watchlist candidates for tomorrow; run the engine-driven cycle live on the next session (paper-verify the first entry via review before enabling autonomous place)."
+  },
   "risk_posture": {
     "priority": "LOW_DRAWDOWN",
     "set_by": "user 8/4 'keep DD low'",
@@ -24,7 +30,7 @@
     "engine": "BUILT v4.5: reporter.size_order() fills the per-trade cap with up to 3 lots (same risk envelope, enables scale-out); reporter.materialize_exit_rules() auto-stamps leg-A scale-out + leg-B strict giveback (0.20) on any >=2-lot entry (single lot -> never-red runner), index scalps get the VWAP trail. Wired into the entry action (qty + exit_rules). Small live BP (~$200) usually resolves to 1 lot until cheaper contracts / more BP."
   },
   "trading_date": "2026-08-04",
-  "rule_version": "v4.5",
+  "rule_version": "v4.6",
   "mode": {
     "cadence_min": 30,
     "dnd": true,
@@ -260,6 +266,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T19:24Z",
+      "event": "build",
+      "detail": "v4.6 EXECUTION LAYER - engine-driven entries (user 'focus on execution layer, engine-driven entries'). Built engine/live.py: pure helpers shaping live Robinhood MCP outputs into the engine snapshot (equity_quotes/option_quotes with day% + spread% computed, assemble_snapshot pulling discipline counts from state.day). Documented the fetch->assemble->run_one_cycle->execute loop (spec section 7): exits first, then review+place for actions.entry with materialized qty/exit_rules, commit. Entry decision now DETERMINISTIC from run_one_cycle (not hand judgment); single reporter gate still refuses over-trading. +5 tests, 72/72, single-executor discipline documented. v4.5->v4.6. NEXT: populate watchlist + run live cycle next session (review-gate the first autonomous entry)."
+    },
     {
       "t": "2026-08-04T19:18Z",
       "event": "fill",
