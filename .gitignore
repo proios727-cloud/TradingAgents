@@ -221,3 +221,7 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# SuperTrades agent decision journal (regenerated per run; may contain real trade data)
+decisions.jsonl
+**/decisions.jsonl
