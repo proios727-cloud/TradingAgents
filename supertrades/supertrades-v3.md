@@ -234,6 +234,12 @@ expectancy = win_rate·avg_win − loss_rate·avg_loss**, raised on all three te
   system sees its own edge and can adapt (auto-updater on close is the next wire-up).
 
 ## Changelog
+- v4.5 (2026-08-04): MULTI-LOT SIZING + BARBELL AUTO-MATERIALIZER. `reporter.size_order()`
+  fills the per-trade cap with up to 3 lots (same risk envelope; enables scale-out).
+  `reporter.materialize_exit_rules()` stamps exit_rules at entry — ≥2 lots → leg-A scale-out
+  (bank half at target, lock the day) + leg-B strict give-back trail (0.20, moonshot); 1 lot →
+  never-red runner; index scalps → + VWAP trend-trail. Entry action carries qty + exit_rules.
+  +7 tests; suite 67/67.
 - v4.4 (2026-08-04): WIN-RATE / EXPECTANCY layer. `green_lock` exit_rule (arm a small-green
   floor once peak clears ~+20% → brief winners can't round-trip to losses); per-class green_lock
   profiles; `state.performance` tracker (win_rate/expectancy); `underlying_vwap_stop` trend-trail

@@ -19,7 +19,8 @@ from supertrades.engine.discovery import build_nodes, expected_node_count, gex_u
 from supertrades.engine.orchestrator import Node, Orchestrator
 from supertrades.engine.reporter import (AGENTIC_ACCT, GUARDRAILS, MARGIN_ACCT,
                                          high_iv_steer, make_final_reporter,
-                                         short_dte_override_max_usd, summarizer)
+                                         materialize_exit_rules, short_dte_override_max_usd,
+                                         size_order, summarizer)
 from supertrades.engine.run_cycle import run_one_cycle, synthetic_snapshot
 
 ENGINE_DIR = Path(__file__).resolve().parents[1]
@@ -583,6 +584,61 @@ class TestAmIndexVwapTrailV44(unittest.TestCase):
         cd = load_state()["class_defaults"]["0dte_scalp"]
         self.assertEqual(cd["am_index_trail"]["materialize_rule"]["type"],
                          "underlying_vwap_stop")
+
+
+class TestSizingAndMaterializeV45(unittest.TestCase):
+    """v4.5: multi-lot sizing (enable scale-out) + barbell auto-materializer."""
+
+    def test_cheap_contract_sizes_to_max_lots(self):
+        # $0.40 contract, $1000 BP: cap 0.22*1000=$220 -> 5 lots capped to max_lots 3
+        self.assertEqual(size_order(40.0, 1000.0), 3)
+
+    def test_expensive_contract_sizes_to_one(self):
+        # $199 contract on ~$900 BP: cap $198 -> fits 0 within cap? floor gives 0 -> min 1
+        self.assertEqual(size_order(199.0, 900.0), 1)
+        # a mid contract where 2 fit within the cap
+        self.assertEqual(size_order(100.0, 1000.0), 2)   # cap $220 -> 2 lots ($200)
+
+    def test_size_min_one_and_never_breaches_floor(self):
+        # small BP: cap 0.22*200=$44 < one $60 lot -> floors to 1, still leaves > bp_floor
+        self.assertEqual(size_order(60.0, 200.0), 1)
+        self.assertGreaterEqual(200.0 - 60.0, GUARDRAILS["bp_floor_usd"])
+
+    def test_materialize_single_lot_is_runner(self):
+        cd = load_state()["class_defaults"]
+        rules = materialize_exit_rules("day_trade", 1, cd)
+        types = {r["type"] for r in rules}
+        self.assertEqual(types, {"stop", "green_lock", "target", "giveback"})
+        target = next(r for r in rules if r["type"] == "target")
+        self.assertTrue(target.get("runner"))
+        self.assertNotIn("scale_out_frac", target)
+
+    def test_materialize_multilot_is_barbell(self):
+        cd = load_state()["class_defaults"]
+        rules = materialize_exit_rules("day_trade", 3, cd)
+        target = next(r for r in rules if r["type"] == "target")
+        self.assertEqual(target["scale_out_frac"], 0.5)          # leg A: bank half
+        gb = next(r for r in rules if r["type"] == "giveback")
+        self.assertEqual(gb["peak_frac"], 0.20)                  # leg B: strict moonshot trail
+
+    def test_materialize_index_scalp_adds_vwap_trail(self):
+        cd = load_state()["class_defaults"]
+        rules = materialize_exit_rules("0dte_scalp", 2, cd, is_index=True)
+        self.assertTrue(any(r["type"] == "underlying_vwap_stop" for r in rules))
+
+    def test_entry_carries_sizing_and_rules(self):
+        state = entry_ready_state(load_state())
+        # cheap contract + ample BP -> multi-lot entry with materialized barbell rules
+        snap = synthetic_snapshot(
+            state, et_time="10:15", bp=1000.0,
+            option_overrides={"cand-nvda": {"ask": 0.40, "delta": 0.42,
+                                            "spread_pct": 6.0, "oi": 5000, "iv": 0.5}},
+            quote_overrides={"NVDA": {"day_pct": 1.8}})
+        snap["quotes"]["NVDA"]["last"] = snap["vwap"]["NVDA"] + 1.0
+        entry = run(state, snap)["actions"]["entry"]
+        self.assertIsNotNone(entry)
+        self.assertGreaterEqual(entry["qty"], 2)
+        self.assertTrue(any(r.get("scale_out_frac") for r in entry["exit_rules"]))
 
 
 class TestReliableOpsV4(unittest.TestCase):

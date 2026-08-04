@@ -20,7 +20,9 @@ GUARDRAILS = {
     "daily_halt_usd": -60.0,            # day P&L (realized + open) at/below -> halt
     "max_auto_entries_per_day": 1,      # engine-initiated auto entries
     "max_entries_per_day_total": 2,     # v4 governor: auto + manual combined; alert on the 3rd
-    "max_contracts_per_order": 1,
+    "max_contracts_per_order": 1,      # legacy default (single-lot floor)
+    "max_lots_per_order": 3,            # v4.5: size up to N lots WITHIN the per-trade cap
+    "barbell_min_lots": 2,             #   >= this -> stamp the barbell (scale-out + moonshot)
     "bp_floor_usd": 30.0,               # never leave less than this after entry
     "per_trade_bp_frac": 0.22,          # v4.1: contract cost <= 22% of settled BP (was 25/40).
                                         #   On the live ~$541 acct: max ~$119 capital/trade;
@@ -103,6 +105,60 @@ def high_iv_steer(iv: float | None, iv_rank: float | None = None) -> bool:
     if iv_rank is not None and iv_rank > g["iv_rank_soft_cap"]:
         return True
     return False
+
+
+def size_order(cost_per_contract_usd: float, bp: float) -> int:
+    """Lots to buy: fill the per-trade cost cap with up to max_lots_per_order, >= 1.
+
+    v4.5 — same risk envelope as before (total cost still bounded by per_trade_bp_frac
+    of BP and the bp floor), but a cheap-enough contract is bought in 2-3 lots so the
+    barbell can scale out. An expensive contract still resolves to a single lot.
+    """
+    g = GUARDRAILS
+    if cost_per_contract_usd <= 0:
+        return 1
+    cap_usd = g["per_trade_bp_frac"] * bp
+    n = int(cap_usd // cost_per_contract_usd)
+    while n >= 1 and bp - n * cost_per_contract_usd < g["bp_floor_usd"]:
+        n -= 1
+    return max(1, min(g["max_lots_per_order"], n))
+
+
+def materialize_exit_rules(class_name: str, qty: int, class_defaults: dict,
+                           is_index: bool = False) -> list[dict]:
+    """Stamp exit_rules onto a new position from its class profile (v4.5 auto-materializer).
+
+    Single lot -> never-red + loose give-back runner. >= barbell_min_lots -> the barbell:
+    leg A scale-out (bank half at target, locks the day) + leg B strict moonshot trail
+    (give back only 20% of peak) so a runner is realized continuously and protected.
+    Index scalps additionally get the VWAP trend-trail.
+    """
+    cd = class_defaults.get(class_name, {})
+    pm = cd.get("profit_max", {})
+    gl = cd.get("green_lock", {"arm_pct": 20, "floor_pct": 5})
+    rules: list[dict] = [
+        {"type": "stop", "pct": cd.get("stop_pct", -30), "mech": "sell_limit_at_bid"},
+        {"type": "green_lock", "arm_pct": gl["arm_pct"], "floor_pct": gl["floor_pct"]},
+    ]
+    barbell = qty >= GUARDRAILS["barbell_min_lots"]
+    if barbell:
+        # leg A: bank half at target (day lock). leg B: strict moonshot trail on the rest.
+        rules.append({"type": "target", "pct": cd.get("target_pct", 50),
+                      "scale_out_frac": 0.5, "mech": "scale_out_lock_day"})
+        rules.append({"type": "giveback", "arm_gain_pct": 100, "peak_frac": 0.20,
+                      "mech": "strict_moonshot_trail"})
+    else:
+        # single lot: runner that doesn't cap, loose give-back + never-red underneath
+        rules.append({"type": "target", "pct": cd.get("target_pct", 50),
+                      "runner": True, "mech": "hold_runner_trail_no_cap"})
+        gb = pm.get("giveback", {"arm_gain_pct": 50, "peak_frac": 0.40})
+        rules.append({"type": "giveback", "arm_gain_pct": gb["arm_gain_pct"],
+                      "peak_frac": gb["peak_frac"], "mech": "sell_marketable_through_bid"})
+    if is_index and class_name == "0dte_scalp":
+        trail = cd.get("am_index_trail", {}).get("materialize_rule",
+                                                 {"type": "underlying_vwap_stop", "buffer_pct": 0.1})
+        rules.append(dict(trail))
+    return rules
 
 
 def make_final_reporter(state: dict):
@@ -295,11 +351,21 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
             not_high_iv = "high_iv_prefer_debit_spread" not in a.get("warnings", [])
             return (not_high_iv, by_id[a["id"]].get("delta") or 0.0)
         pick = max(eligible, key=_rank)
+        cand = by_id[pick["id"]]
+        cost_per = (cand.get("ask") or 0.0) * 100
+        qty = size_order(cost_per, bp)                       # v4.5 multi-lot sizing
+        sym = pick.get("symbol") or cand.get("symbol")
+        is_index = state.get("ticker_classes", {}).get(sym) == "index"
+        entry_class = "day_trade"                            # auto momentum entries are day-trades
+        exit_rules = materialize_exit_rules(entry_class, qty, class_defaults, is_index)
         actions["entry"] = {"id": pick["id"], "contract": pick["contract"],
-                            "qty": g["max_contracts_per_order"],
+                            "qty": qty,
                             "order": "review_then_place_buy_limit",
                             "account": AGENTIC_ACCT,
-                            "warnings": pick.get("warnings", [])}
+                            "warnings": pick.get("warnings", []),
+                            "class": entry_class, "exit_rules": exit_rules,
+                            "sizing": f"{qty} lot(s) @ ~${cost_per:.0f}; "
+                                      f"barbell={qty >= g['barbell_min_lots']}"}
 
     # ---- churn guard --------------------------------------------------------
     if (acct.get("manual_round_trips", 0) >= g["churn_round_trips"]
