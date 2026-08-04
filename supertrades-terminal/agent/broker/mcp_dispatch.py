@@ -27,6 +27,24 @@ Safety design — read carefully:
   * **Inert without credentials.** The HTTP transport refuses to construct
     without an OAuth bearer token (``ROBINHOOD_MCP_TOKEN``). No token, no
     connection, no live anything.
+  * **Endpoint is pinned, not configurable to anywhere.** The transport
+    refuses to construct unless the resolved URL is ``https://`` and its host
+    is the Robinhood MCP host (or a subdomain of it) — an env var or config
+    typo can never silently downgrade to plaintext or repoint at an attacker
+    host. The only override is an explicit, non-default ``allow_insecure_url``
+    constructor kwarg meant for tests, never for production wiring.
+  * **A timed-out mutation is UNKNOWN, never "failed".** If
+    ``place_option_order``/``cancel_option_order`` fails at the transport
+    level (timeout, socket error, unreadable body) Robinhood may already have
+    accepted it. Before raising, the transport makes exactly ONE read-only
+    reconciliation call (``get_option_orders``) looking for the order's
+    ``ref_id``. The resulting error always says the state is UNKNOWN/may have
+    been placed (or unverifiable, if reconciliation itself fails) — it never
+    claims the order failed. Reconciliation cannot place, cancel, or retry.
+  * **Bounded in time and size.** Every request has an overall wall-clock
+    deadline (beyond the per-socket-read timeout) and a maximum response body
+    size; exceeding either fails the call the same way any other transport
+    failure does.
 """
 
 from __future__ import annotations
@@ -35,9 +53,11 @@ import itertools
 import json
 import os
 import socket
+import time
 import urllib.error
 import urllib.request
 from typing import Callable, NoReturn, Optional
+from urllib.parse import urlparse
 
 from ..config import RuntimeConfig
 from ..kill_switch import KillState
@@ -47,6 +67,19 @@ MCP_TOOL_PREFIX = "mcp__Robinhood_Trading__"
 DEFAULT_MCP_URL = "https://agent.robinhood.com/mcp/trading"
 URL_ENV = "ROBINHOOD_MCP_URL"
 TOKEN_ENV = "ROBINHOOD_MCP_TOKEN"
+
+# The only host (or subdomain of it) the live transport will ever talk to,
+# derived from DEFAULT_MCP_URL rather than duplicated as a literal. Nothing —
+# not ROBINHOOD_MCP_URL, not a constructor arg — can point this at another
+# host without the explicit, test-only ``allow_insecure_url`` escape hatch.
+_EXPECTED_MCP_HOST = (urlparse(DEFAULT_MCP_URL).hostname or "").lower()
+
+# Defaults for the overall request deadline / response body cap (defect C).
+# The deadline sits modestly above the default per-socket-read timeout so a
+# slow-but-honest connection still completes; the cap comfortably covers a
+# full option chain response while refusing to buffer an unbounded body.
+_DEFAULT_DEADLINE_MARGIN_SECONDS = 5.0
+_DEFAULT_MAX_RESPONSE_BYTES = 5 * 1024 * 1024  # 5 MiB
 
 # Read-only tools (plus the non-mutating order preview): dispatch direct.
 READ_TOOLS = frozenset({
@@ -150,12 +183,45 @@ class McpDispatcher:
         return raw
 
 
+def _resolve_and_validate_url(url: Optional[str], allow_insecure_url: bool) -> str:
+    """Resolve the MCP endpoint and pin it to the real Robinhood host.
+
+    ``allow_insecure_url`` is a narrow, explicit, test-only escape hatch — it
+    must be passed by keyword by the caller (never an env var, never
+    defaulted True) and localhost is NOT special-cased into the allowed set.
+    """
+    resolved = url or os.environ.get(URL_ENV) or DEFAULT_MCP_URL
+    if allow_insecure_url:
+        return resolved
+    parsed = urlparse(resolved)
+    if parsed.scheme != "https":
+        raise McpDispatchError(
+            f"refusing to use MCP endpoint {resolved!r}: scheme must be "
+            f"https (got {parsed.scheme!r}) — an OAuth bearer token and "
+            f"every order would otherwise go out in plaintext. Pass "
+            f"allow_insecure_url=True explicitly if this is a test.")
+    host = (parsed.hostname or "").lower()
+    if host != _EXPECTED_MCP_HOST and not host.endswith("." + _EXPECTED_MCP_HOST):
+        raise McpDispatchError(
+            f"refusing to use MCP endpoint {resolved!r}: host {host!r} is "
+            f"not {_EXPECTED_MCP_HOST!r} or a subdomain of it — refusing to "
+            f"send the OAuth bearer token and live orders to an untrusted "
+            f"host. Pass allow_insecure_url=True explicitly if this is a "
+            f"test.")
+    return resolved
+
+
 class RobinhoodMcpHttpTransport:
     """JSON-RPC ``tools/call`` over the MCP streamable-HTTP endpoint.
 
-    Refuses to construct without an OAuth bearer token. Every HTTP/socket
-    failure, timeout, or undecodable body raises ``McpDispatchError`` — the
-    dispatcher above turns that into a kill.
+    Refuses to construct without an OAuth bearer token, and refuses to
+    construct against anything but an ``https://`` Robinhood-hosted endpoint
+    (see ``_resolve_and_validate_url``). Every HTTP/socket failure, timeout,
+    undecodable body, deadline overrun, or oversized body raises
+    ``McpDispatchError`` — the dispatcher above turns that into a kill. For a
+    mutating call specifically, such a failure first triggers exactly one
+    read-only reconciliation attempt (see ``_reconcile_after_failure``) so the
+    caller never mistakes "the wire failed" for "nothing happened".
     """
 
     def __init__(
@@ -163,8 +229,12 @@ class RobinhoodMcpHttpTransport:
         url: Optional[str] = None,
         token: Optional[str] = None,
         timeout_seconds: float = 10.0,
+        *,
+        allow_insecure_url: bool = False,
+        overall_deadline_seconds: Optional[float] = None,
+        max_response_bytes: int = _DEFAULT_MAX_RESPONSE_BYTES,
     ):
-        self.url = url or os.environ.get(URL_ENV) or DEFAULT_MCP_URL
+        self.url = _resolve_and_validate_url(url, allow_insecure_url)
         tok = token if token is not None else os.environ.get(TOKEN_ENV, "")
         if not tok:
             raise McpDispatchError(
@@ -173,11 +243,14 @@ class RobinhoodMcpHttpTransport:
                 f"live transport without credentials.")
         self._token = tok
         self.timeout = float(timeout_seconds)
+        self.overall_deadline = float(
+            overall_deadline_seconds if overall_deadline_seconds is not None
+            else self.timeout + _DEFAULT_DEADLINE_MARGIN_SECONDS)
+        self.max_response_bytes = int(max_response_bytes)
         self._ids = itertools.count(1)
 
-    def __call__(self, full_tool: str, params: dict) -> dict | list:
-        name = (full_tool[len(MCP_TOOL_PREFIX):]
-                if full_tool.startswith(MCP_TOOL_PREFIX) else full_tool)
+    # -- request plumbing ----------------------------------------------------
+    def _build_request(self, name: str, params: dict) -> tuple[urllib.request.Request, int]:
         req_id = next(self._ids)
         body = json.dumps({
             "jsonrpc": "2.0",
@@ -190,16 +263,104 @@ class RobinhoodMcpHttpTransport:
             "Accept": "application/json, text/event-stream",
             "Authorization": f"Bearer {self._token}",
         })
+        return req, req_id
+
+    def _send(self, req: urllib.request.Request, deadline_at: float) -> tuple[str, str]:
+        """Issue the request and read the body under an overall wall-clock
+        deadline and a max-size cap (defect C). Raises ``McpDispatchError`` on
+        deadline/size overrun, or the underlying socket/URL error otherwise —
+        both are transport-level failures the caller may reconcile on."""
+        remaining = deadline_at - time.monotonic()
+        if remaining <= 0:
+            raise McpDispatchError(
+                f"MCP request exceeded its overall deadline of "
+                f"{self.overall_deadline}s before it could be sent")
+        with urllib.request.urlopen(req, timeout=min(self.timeout, remaining)) as resp:
+            ctype = resp.headers.get("Content-Type", "") or ""
+            chunks: list[bytes] = []
+            total = 0
+            while True:
+                if time.monotonic() > deadline_at:
+                    raise McpDispatchError(
+                        f"MCP response read exceeded overall deadline of "
+                        f"{self.overall_deadline}s")
+                chunk = resp.read(65536)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > self.max_response_bytes:
+                    raise McpDispatchError(
+                        f"MCP response exceeded max body size of "
+                        f"{self.max_response_bytes} bytes")
+                chunks.append(chunk)
+            payload = b"".join(chunks).decode("utf-8")
+        return payload, ctype
+
+    def __call__(self, full_tool: str, params: dict) -> dict | list:
+        name = (full_tool[len(MCP_TOOL_PREFIX):]
+                if full_tool.startswith(MCP_TOOL_PREFIX) else full_tool)
+        req, req_id = self._build_request(name, params)
+        deadline_at = time.monotonic() + self.overall_deadline
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                ctype = resp.headers.get("Content-Type", "") or ""
-                payload = resp.read().decode("utf-8")
+            payload, ctype = self._send(req, deadline_at)
         except (urllib.error.URLError, socket.timeout, TimeoutError,
-                OSError, UnicodeDecodeError) as e:
+                OSError, UnicodeDecodeError, McpDispatchError) as e:
+            if name in GATED_MUTATIONS:
+                raise self._reconcile_after_failure(name, params, e) from e
             raise McpDispatchError(
                 f"MCP HTTP failure calling {name!r}: {e!r}") from e
         msg = self._extract_message(payload, ctype, req_id, name)
         return self._extract_result(msg, name)
+
+    # -- reconciliation after a mutating transport failure (defect B) -------
+    def _reconcile_after_failure(
+        self, name: str, params: dict, orig_exc: Exception,
+    ) -> McpDispatchError:
+        """Exactly ONE read-only ``get_option_orders`` lookup for the failed
+        mutation's ``ref_id``/``order_id``. Never places, cancels, or retries
+        anything — a failure here is reported as unverifiable, not as
+        "the order failed", because the mutation may well have gone through.
+        """
+        ref_id = params.get("ref_id")
+        order_id_param = params.get("order_id")
+        account_number = params.get("account_number")
+        read_params = {"account_number": account_number} if account_number else {}
+        try:
+            req, req_id = self._build_request("get_option_orders", read_params)
+            deadline_at = time.monotonic() + self.overall_deadline
+            payload, ctype = self._send(req, deadline_at)
+            msg = self._extract_message(payload, ctype, req_id, "get_option_orders")
+            orders = self._extract_result(msg, "get_option_orders")
+        except Exception as recon_exc:  # noqa: BLE001 — report, never re-raise raw
+            return McpDispatchError(
+                f"{name} transport failure ({orig_exc!r}) for ref_id="
+                f"{ref_id!r}: order state is UNKNOWN and UNVERIFIABLE — the "
+                f"read-only reconciliation check also failed ({recon_exc!r}). "
+                f"Do NOT treat this as a failed/unplaced order — it may have "
+                f"been placed. Halt and verify manually before retrying.")
+        match = None
+        for o in _rows_for_reconciliation(orders):
+            if not isinstance(o, dict):
+                continue
+            if ref_id and o.get("ref_id") == ref_id:
+                match = o
+                break
+            if order_id_param and order_id_param in (o.get("id"), o.get("order_id")):
+                match = o
+                break
+        if match is not None:
+            oid = match.get("id") or match.get("order_id")
+            return McpDispatchError(
+                f"{name} transport failure ({orig_exc!r}): order state is "
+                f"UNKNOWN — reconciliation FOUND a matching order for "
+                f"ref_id={ref_id!r} (order_id={oid!r}). The order MAY HAVE "
+                f"BEEN PLACED even though the call appeared to fail. Do not "
+                f"retry or resubmit; verify and reconcile manually.")
+        return McpDispatchError(
+            f"{name} transport failure ({orig_exc!r}) for ref_id={ref_id!r}: "
+            f"read-only reconciliation found no matching order. Treating as "
+            f"not placed, but this is not a guarantee — verify manually "
+            f"before assuming so.")
 
     # -- response decoding (no fallbacks: undecodable => raise) -------------
     @staticmethod
@@ -256,6 +417,15 @@ class RobinhoodMcpHttpTransport:
         return parsed
 
 
+def _rows_for_reconciliation(data) -> list:
+    """Same shape-tolerant row extraction as ``robinhood_mcp._rows``,
+    duplicated locally so this module has no upward dependency — reconciling
+    a failed mutation must not need anything but this module's own transport."""
+    if isinstance(data, dict):
+        return data.get("results") or data.get("data") or []
+    return data or []
+
+
 def live_dispatcher(
     cfg: RuntimeConfig,
     kill_state: KillState,
@@ -264,12 +434,20 @@ def live_dispatcher(
     url: Optional[str] = None,
     token: Optional[str] = None,
     timeout_seconds: float = 10.0,
+    overall_deadline_seconds: Optional[float] = None,
+    max_response_bytes: int = _DEFAULT_MAX_RESPONSE_BYTES,
 ) -> McpDispatcher:
     """Build the real dispatcher. Without an explicit ``transport`` this
     constructs the HTTP transport, which raises unless an OAuth token is
-    present — so calling this in an unconfigured environment stays inert."""
+    present — so calling this in an unconfigured environment stays inert.
+
+    Deliberately has no ``allow_insecure_url`` passthrough: that escape hatch
+    is for tests constructing ``RobinhoodMcpHttpTransport`` directly, never
+    for this production wiring path."""
     return McpDispatcher(
         transport or RobinhoodMcpHttpTransport(
-            url=url, token=token, timeout_seconds=timeout_seconds),
+            url=url, token=token, timeout_seconds=timeout_seconds,
+            overall_deadline_seconds=overall_deadline_seconds,
+            max_response_bytes=max_response_bytes),
         cfg, kill_state,
     )

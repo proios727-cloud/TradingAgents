@@ -8,14 +8,19 @@ ever called: every transport here is an in-memory fake.
 from __future__ import annotations
 
 import json
+import os
+import socket
 import unittest
 from datetime import datetime
+from unittest.mock import patch
 
 from agent.broker.mcp_dispatch import (
+    DEFAULT_MCP_URL,
     MCP_TOOL_PREFIX,
     McpDispatchError,
     McpDispatcher,
     RobinhoodMcpHttpTransport,
+    URL_ENV,
     live_dispatcher,
 )
 from agent.broker.robinhood_mcp import RobinhoodMcpBroker
@@ -353,6 +358,232 @@ class HttpTransportDecoding(unittest.TestCase):
         with self.assertRaises(McpDispatchError):
             RobinhoodMcpHttpTransport._extract_result(
                 {"id": 1, "result": {"content": []}}, "get_accounts")
+
+
+class _FakeHttpResponse:
+    """Minimal stand-in for the ``http.client.HTTPResponse`` context manager
+    ``urllib.request.urlopen`` returns. ``read(n)`` hands back queued chunks
+    one at a time so the transport's chunked-read loop is exercised."""
+
+    def __init__(self, chunks: list[bytes], headers: dict | None = None):
+        self._chunks = list(chunks)
+        self.headers = headers or {"Content-Type": "application/json"}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self, n: int = -1) -> bytes:
+        if self._chunks:
+            return self._chunks.pop(0)
+        return b""
+
+
+def _rpc_body(req_id: int, results: list[dict]) -> bytes:
+    return json.dumps({
+        "jsonrpc": "2.0", "id": req_id,
+        "result": {"structuredContent": {"results": results}},
+    }).encode("utf-8")
+
+
+class HttpTransportUrlValidation(unittest.TestCase):
+    """Defect A: the resolved endpoint must be https and pinned to the real
+    Robinhood host — never plaintext, never an attacker-controlled host."""
+
+    def test_https_default_url_is_accepted(self):
+        t = RobinhoodMcpHttpTransport(token="t")
+        self.assertEqual(t.url, DEFAULT_MCP_URL)
+
+    def test_http_scheme_rejected(self):
+        with self.assertRaises(McpDispatchError) as ctx:
+            RobinhoodMcpHttpTransport(
+                url="http://agent.robinhood.com/mcp/trading", token="t")
+        self.assertIn("https", str(ctx.exception))
+
+    def test_attacker_host_rejected(self):
+        with self.assertRaises(McpDispatchError) as ctx:
+            RobinhoodMcpHttpTransport(
+                url="https://agent.robinhood.com.evil.example/mcp", token="t")
+        self.assertIn("evil", str(ctx.exception).lower())
+
+    def test_unrelated_https_host_rejected(self):
+        with self.assertRaises(McpDispatchError):
+            RobinhoodMcpHttpTransport(url="https://example.com/mcp", token="t")
+
+    def test_localhost_not_special_cased(self):
+        with self.assertRaises(McpDispatchError):
+            RobinhoodMcpHttpTransport(url="https://localhost/mcp", token="t")
+
+    def test_subdomain_of_expected_host_accepted(self):
+        t = RobinhoodMcpHttpTransport(
+            url="https://eu.agent.robinhood.com/mcp/trading", token="t")
+        self.assertTrue(t.url.startswith("https://eu.agent.robinhood.com"))
+
+    def test_env_var_url_is_still_validated(self):
+        old = os.environ.get(URL_ENV)
+        os.environ[URL_ENV] = "http://agent.robinhood.com/mcp/trading"
+        try:
+            with self.assertRaises(McpDispatchError):
+                RobinhoodMcpHttpTransport(token="t")
+        finally:
+            if old is None:
+                os.environ.pop(URL_ENV, None)
+            else:
+                os.environ[URL_ENV] = old
+
+    def test_allow_insecure_url_opt_out_works_when_explicit(self):
+        t = RobinhoodMcpHttpTransport(
+            url="http://localhost:9999/mcp", token="t", allow_insecure_url=True)
+        self.assertEqual(t.url, "http://localhost:9999/mcp")
+
+    def test_allow_insecure_url_not_enabled_by_default(self):
+        # No kwarg passed at all — the default must reject, never silently
+        # allow. (Regression guard: catches a future `allow_insecure_url=True`
+        # default sneaking in.)
+        with self.assertRaises(McpDispatchError):
+            RobinhoodMcpHttpTransport(url="http://localhost:9999/mcp", token="t")
+
+    def test_allow_insecure_url_is_not_env_configurable(self):
+        # There must be no env var that flips this on — only the explicit
+        # constructor kwarg. Setting an unrelated/plausible env var must not
+        # bypass validation.
+        old = os.environ.get(URL_ENV)
+        os.environ[URL_ENV] = "http://localhost:9999/mcp"
+        os.environ["ROBINHOOD_MCP_ALLOW_INSECURE"] = "true"  # not a real knob
+        try:
+            with self.assertRaises(McpDispatchError):
+                RobinhoodMcpHttpTransport(token="t")
+        finally:
+            os.environ.pop("ROBINHOOD_MCP_ALLOW_INSECURE", None)
+            if old is None:
+                os.environ.pop(URL_ENV, None)
+            else:
+                os.environ[URL_ENV] = old
+
+
+class HttpTransportDeadlineAndSize(unittest.TestCase):
+    """Defect C: an overall wall-clock deadline and a response body cap."""
+
+    @patch("urllib.request.urlopen")
+    def test_oversized_response_rejected(self, mock_urlopen):
+        mock_urlopen.return_value = _FakeHttpResponse([b"x" * 1000])
+        t = RobinhoodMcpHttpTransport(token="t", max_response_bytes=10)
+        with self.assertRaises(McpDispatchError) as ctx:
+            t(MCP_TOOL_PREFIX + "get_accounts", {})
+        self.assertIn("max body size", str(ctx.exception))
+
+    def test_overall_deadline_exceeded_rejected(self):
+        # A deadline that has already elapsed must fail before any I/O.
+        t = RobinhoodMcpHttpTransport(
+            token="t", overall_deadline_seconds=0.0)
+        with self.assertRaises(McpDispatchError) as ctx:
+            t(MCP_TOOL_PREFIX + "get_accounts", {})
+        self.assertIn("deadline", str(ctx.exception))
+
+    def test_deadline_and_cap_are_configurable(self):
+        t = RobinhoodMcpHttpTransport(
+            token="t", overall_deadline_seconds=42.0, max_response_bytes=123)
+        self.assertEqual(t.overall_deadline, 42.0)
+        self.assertEqual(t.max_response_bytes, 123)
+
+    def test_default_deadline_sits_above_socket_timeout(self):
+        t = RobinhoodMcpHttpTransport(token="t", timeout_seconds=10.0)
+        self.assertGreater(t.overall_deadline, t.timeout)
+
+
+class HttpTransportMutationReconciliation(unittest.TestCase):
+    """Defect B: a transport-level failure on a mutating call must trigger
+    exactly one read-only reconciliation, never a bare "it failed"."""
+
+    def _transport(self):
+        return RobinhoodMcpHttpTransport(token="t")
+
+    @patch("urllib.request.urlopen")
+    def test_timed_out_place_found_on_reconciliation_is_unknown_not_failed(
+            self, mock_urlopen):
+        def side_effect(req, timeout=None):
+            if mock_urlopen.call_count == 1:
+                raise socket.timeout("timed out")
+            return _FakeHttpResponse([_rpc_body(
+                2, [{"ref_id": "REF-1", "id": "ORDER-9"}])])
+        mock_urlopen.side_effect = side_effect
+
+        t = self._transport()
+        with self.assertRaises(McpDispatchError) as ctx:
+            t(MCP_TOOL_PREFIX + "place_option_order",
+              {"ref_id": "REF-1", "account_number": "A1"})
+        msg = str(ctx.exception)
+        self.assertIn("REF-1", msg)
+        self.assertIn("UNKNOWN", msg)
+        self.assertIn("MAY HAVE BEEN PLACED", msg)
+        self.assertIn("ORDER-9", msg)
+        self.assertNotIn("not placed", msg)  # must not claim it failed
+
+    @patch("urllib.request.urlopen")
+    def test_timed_out_place_not_found_on_reconciliation_reports_not_placed(
+            self, mock_urlopen):
+        def side_effect(req, timeout=None):
+            if mock_urlopen.call_count == 1:
+                raise socket.timeout("timed out")
+            return _FakeHttpResponse([_rpc_body(2, [])])
+        mock_urlopen.side_effect = side_effect
+
+        t = self._transport()
+        with self.assertRaises(McpDispatchError) as ctx:
+            t(MCP_TOOL_PREFIX + "place_option_order",
+              {"ref_id": "REF-2", "account_number": "A1"})
+        msg = str(ctx.exception)
+        self.assertIn("REF-2", msg)
+        self.assertIn("not placed", msg)
+
+    @patch("urllib.request.urlopen")
+    def test_reconciliation_failure_reported_as_unverifiable_not_failed(
+            self, mock_urlopen):
+        mock_urlopen.side_effect = socket.timeout("timed out")  # every call
+        t = self._transport()
+        with self.assertRaises(McpDispatchError) as ctx:
+            t(MCP_TOOL_PREFIX + "place_option_order",
+              {"ref_id": "REF-3", "account_number": "A1"})
+        msg = str(ctx.exception)
+        self.assertIn("REF-3", msg)
+        self.assertIn("UNKNOWN", msg)
+        self.assertIn("UNVERIFIABLE", msg)
+        # Never claim it failed outright — state is unknown, not negative.
+        self.assertNotIn("the order failed", msg.lower())
+
+    @patch("urllib.request.urlopen")
+    def test_reconciliation_never_issues_a_mutating_call(self, mock_urlopen):
+        bodies: list[dict] = []
+
+        def side_effect(req, timeout=None):
+            bodies.append(json.loads(req.data))
+            if len(bodies) == 1:
+                raise socket.timeout("timed out")
+            return _FakeHttpResponse([_rpc_body(2, [])])
+        mock_urlopen.side_effect = side_effect
+
+        t = self._transport()
+        with self.assertRaises(McpDispatchError):
+            t(MCP_TOOL_PREFIX + "place_option_order", {"ref_id": "REF-4"})
+        self.assertEqual(len(bodies), 2)
+        self.assertEqual(bodies[0]["params"]["name"], "place_option_order")
+        self.assertEqual(bodies[1]["params"]["name"], "get_option_orders")
+
+    @patch("urllib.request.urlopen")
+    def test_non_mutating_read_failure_does_not_reconcile(self, mock_urlopen):
+        calls = []
+
+        def side_effect(req, timeout=None):
+            calls.append(req)
+            raise socket.timeout("timed out")
+        mock_urlopen.side_effect = side_effect
+
+        t = self._transport()
+        with self.assertRaises(McpDispatchError):
+            t(MCP_TOOL_PREFIX + "get_accounts", {})
+        self.assertEqual(len(calls), 1)  # no reconciliation attempt at all
 
 
 if __name__ == "__main__":

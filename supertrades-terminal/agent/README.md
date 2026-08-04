@@ -81,6 +81,54 @@ TSLA gamma-flip → **rejected by the earnings filter** (hyperscaler week).
 Kill anytime: say **STOP** (cancel all, flatten, halt), disconnect the connector in
 Claude settings, or one-tap disconnect in the Robinhood app.
 
+## Credential failure disables exits, not just entries
+
+**Read this before running with an open position.**
+
+Every broker call goes over one authenticated HTTPS connection. The transport
+collapses all HTTP failures into a single `McpDispatchError`, which trips the
+kill switch: cancel all working orders, flatten every position, halt for the
+day. That is the right response to a *transient* error. It is **not** sufficient
+for a *credential* error — and the two are indistinguishable at the transport,
+because `urllib` raises `HTTPError` for both a 401 and a 500 and the body is
+never read.
+
+If the OAuth token expires or is revoked mid-session with positions open:
+
+1. The next broker call fails → kill switch trips.
+2. The kill path runs `cancel_all()` then `_flatten_all()`.
+3. **Both are also broker calls, so they fail too** — same cause.
+4. Each position is journaled as `flatten_failed` and left **open**.
+5. The agent is halted, holding, and blind.
+
+Per-position isolation means you get one `flatten_failed` record per position
+instead of a silent abort on the first — you can see exactly what is still open.
+It does not, and cannot, close them. **No code change fixes this.** An agent
+that reaches its broker over an authenticated socket cannot close a position
+when its credentials stop working.
+
+Operationally:
+
+- **Do not run unattended.** The 15:45 ET force-flatten is only as reliable as
+  the connection it runs over.
+- **A `flatten_failed` burst is a page, not a log line.** Open the Robinhood app
+  and close the positions by hand, now. If the cause is credential expiry, every
+  later cycle fails identically — waiting accomplishes nothing.
+- **Re-auth before the session, not during it.** Complete the OAuth flow fresh
+  each trading day. A token minted days earlier that expires at 14:00 with an
+  open book is the scenario this section exists for.
+- **Know your manual kill paths.** Disconnecting the connector, the one-tap
+  disconnect in the app, and closing positions directly in the app all work
+  regardless of what the agent can reach.
+
+What the code does do: a timed-out **mutating** call is reconciled against
+`get_option_orders` by `ref_id` and reported as **unknown state**, never as
+"failed" — a timeout is not proof the order never reached the broker. Failures
+never synthesize a default price, balance, or Greek. And exits are
+advisory-approved, never vetoable, so nothing on the *human* side can hold a
+position open; this section is about the case where the machine side cannot act
+at all.
+
 ## What this is not
 
 Not a market-data feed and not a persistent runtime. Live signal inputs (Massive/
