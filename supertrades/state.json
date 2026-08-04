@@ -4,11 +4,12 @@
   "trading_date": "2026-08-04",
   "rule_version": "v4.0",
   "mode": {
-    "cadence_min": 15,
+    "cadence_min": 30,
     "dnd": true,
-    "set_at": "2026-07-21T17:00:00Z",
-    "note": "user-set slow/DND; push only on fills or halt; revert on user request (say 'fast mode' / 'notifications on')",
-    "surface_new_setups": "user (7/23 9:50 ET) wants NEW opportunities surfaced in chat each cycle, not only position management: fresh GEX-gate plays, gapper/theme setups, watchlist candidates crossing into conviction, notable universe moves. Report them even under DND (chat is live); DND still governs mobile PUSH (fills/halt/system-failure only)."
+    "least_stressful": true,
+    "set_at": "2026-08-04T14:05:00Z",
+    "note": "user-set LEAST-STRESSFUL/quiet (8/4 10:05 ET). PUSH the phone ONLY for: (a) a clean qualifying entry setup the user explicitly asked to be pinged on, (b) an actual fill, (c) a halt/system failure. Everything else stays silent — no per-cycle chatter, no routine status. Revert on request ('fast mode' / 'notifications on').",
+    "surface_new_setups": "DOWNGRADED for least-stressful mode: do NOT surface routine new-setup chatter each cycle. Only surface (and push) a setup that fully clears the v4 gate. Silent otherwise."
   },
   "dashboard_url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4",
   "pages": {
