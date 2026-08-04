@@ -34,6 +34,14 @@ Safety design — read carefully:
     independently; a parse failure on one check does not skip the rest. The
     exception text is preserved verbatim — that text is the deliverable, not
     a paraphrase.
+
+Also holds ``preflight()`` — the go/no-go check run before climbing to
+``go_live.STAGES["tiny_live"]``: agentic access, option level, settled buying
+power, and (see its docstring) account pinning. It lives here rather than in
+``go_live.py`` because it needs a live, read-through ``RobinhoodMcpBroker``
+(the same one this module already builds/consumes) — ``go_live.py`` is
+deliberately pure-stdlib with no relative imports so its gate can be loaded
+standalone by the PreToolUse hook.
 """
 
 from __future__ import annotations
@@ -43,7 +51,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional, Sequence
 
 from .broker.mcp_dispatch import McpDispatchError
-from .broker.robinhood_mcp import RobinhoodMcpBroker
+from .broker.robinhood_mcp import RobinhoodMcpBroker, _rows
 from .config import RuntimeConfig, WATCHLIST
 from .earnings import McpEarningsCalendar
 from .kill_switch import KillState
@@ -201,3 +209,57 @@ def format_report(results: list[CheckResult]) -> str:
     if passed != len(results):
         lines.append("SMOKE TEST FAILED — do not arm until every check passes.")
     return "\n".join(lines)
+
+
+def preflight(
+    broker: RobinhoodMcpBroker, *, want_levels=("option_level_2", "option_level_3"),
+) -> tuple[bool, list[str], object]:
+    """Go/no-go check before ``go_live.STAGES["tiny_live"]``: agentic-accessible,
+    options-approved, has settled buying power, AND is pinned to the RIGHT
+    account. Returns ``(ok, reasons, account)``.
+
+    Account pinning (added once a SECOND agentic account is in play): picking
+    "any agentic_allowed account" — what ``robinhood_mcp._pick_account`` falls
+    back to when ``cfg.account_number`` is unset or doesn't match a row — is
+    fine for read-only paths (a stale watchlist read is not a loss event), but
+    it must never be how a LIVE order finds its account. So, unlike the read
+    path, preflight requires ``cfg.account_number`` to be set AND to name an
+    ``agentic_allowed`` row in the live ``get_accounts`` response, checked
+    directly against the raw rows rather than trusting ``get_account()``'s own
+    (inference-tolerant) selection.
+
+    Soft-fails to ``(False, [reason], None)`` rather than raising if the
+    account can't even be read — a preflight is a diagnostic, not another
+    place for an unhandled exception to end the run.
+    """
+    try:
+        acct = broker.get_account()
+        raw_accounts = _rows(broker._mcp("get_accounts", {}), "accounts")
+    except Exception as e:  # noqa: BLE001 — surface as a soft no-go
+        return False, [f"cannot read account: {e}"], None
+    reasons: list[str] = []
+    account_number = broker.cfg.account_number
+    if not account_number:
+        reasons.append(
+            "cfg.account_number is unset — refusing to infer which account "
+            "receives live orders now that a second agentic account exists; "
+            "pin it explicitly in config"
+        )
+    else:
+        pinned = next(
+            (a for a in raw_accounts if a.get("account_number") == account_number),
+            None,
+        )
+        if pinned is None or not pinned.get("agentic_allowed"):
+            reasons.append(
+                f"configured account_number {account_number!r} does not match "
+                f"an agentic_allowed account in the get_accounts response — "
+                f"refusing to place live orders against it"
+            )
+    if not acct.agentic_allowed:
+        reasons.append("account is not agentic_allowed (not accessible to this agent)")
+    if acct.option_level not in want_levels:
+        reasons.append(f"option level {acct.option_level!r} is below Level 2")
+    if acct.settled_cash <= 0:
+        reasons.append("no settled buying power")
+    return (not reasons), reasons, acct
