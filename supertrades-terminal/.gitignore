@@ -6,3 +6,6 @@ __pycache__/
 
 # Live-stage runtime state (per-machine; never commit)
 .supertrades/
+
+# ...but DO track the forward-validation log (must persist across sessions)
+!data/gex_forward_log.jsonl
