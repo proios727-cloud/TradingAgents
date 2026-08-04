@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T18:18:00Z",
+  "updated_at": "2026-08-04T18:29:00Z",
   "trading_date": "2026-08-04",
   "rule_version": "v4.3",
   "mode": {
@@ -8,8 +8,8 @@
     "dnd": true,
     "least_stressful": true,
     "push_policy": "fills_or_improvement_ideas",
-    "set_at": "2026-08-04T17:40:00Z",
-    "note": "user-set FILLS or IMPROVEMENT IDEAS (8/4 13:40 ET). PUSH the phone when: (a) an order FILLS, or (b) there's a genuine, high-value improvement idea for the system/strategy (not routine chatter - a real optimization worth acting on). Still NO per-cycle status. Halts/failures logged, not pushed. Revert on request.",
+    "set_at": "2026-08-04T18:24:00Z",
+    "note": "user-set FILLS or IMPROVEMENT IDEAS (8/4). PUSH when: (a) an order FILLS, (b) a genuine high-value improvement idea, or (c) EXPLICIT one-off request - INTC OVERNIGHT GATE decision at 15:35-15:44 ET: push HOLD/FLATTEN + why regardless of fill (user asked 'ping me when intc hits the overnight gate'). Still NO per-cycle status. Halts/failures logged, not pushed.",
     "surface_new_setups": "OFF in fills-only mode: do not surface or push setups. The loop reconciles + manages rails silently; it only reaches the phone on a fill."
   },
   "dashboard_url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4",
@@ -158,14 +158,14 @@
       "account": "902341866",
       "qty": 1,
       "entry": 1.99,
-      "hwm": 2.035,
+      "hwm": 2.135,
       "ratchet_engaged": false,
+      "never_red": true,
       "class": "day_trade",
       "expiry": "2026-08-05",
       "exit_rules": [
         {"type": "target", "pct": 50, "price": 2.99, "runner": true, "mech": "hold_runner_trail_no_cap"},
-        {"type": "stop", "pct": -30, "price": 1.39, "mech": "sell_limit_at_bid"},
-        {"type": "ratchet", "arm_pct": 25, "arm_price": 2.49, "be_stop_price": 1.99, "mech": "breakeven_stop_after_arm"},
+        {"type": "never_red_floor", "floor_bid": 2.03, "trail_style": "LOOSE_milestone_not_tight", "milestone_ratchets": [{"when_bid_gte": 2.49, "raise_floor_to": 2.20}, {"when_bid_gte": 2.79, "raise_floor_to": 2.49}, {"when_bid_gte": 2.99, "raise_floor_to": 2.70}], "mech": "sell_marketable_if_bid_at_or_below_floor", "note": "USER 'never red' + 'allow just enough wiggle to still get the target, no paperhand'. Floor guarantees a GREEN close (breakeven+fees ~2.03) but sits LOOSE for maximum wiggle room - do NOT tight-trail a 128%-IV name or noise stops you out before target. Floor steps UP only at milestones (+25%->2.20, +40%->2.49, +50%->2.70), never down; give-back trail owns +50%+. Exit only on a floor breach or a REAL stall (score not high) - not on wiggle."},
         {"type": "giveback", "arm_gain_pct": 50, "peak_frac": 0.40, "mech": "sell_marketable_through_bid"},
         {"type": "flatten_et_conditional", "at": "15:44", "mech": "sell_limit_at_bid_unless_overnight_gate_passes"}
       ],
@@ -199,11 +199,12 @@
           "theta_vs_catalyst_weigh.decision favors HOLD (identifiable AH/PM upside catalyst beats the overnight theta hurdle; NOT an unwanted earnings gamble)"
         ],
         "if_all_true": "reclass class -> 'swing_overnight'; set stop to breakeven 1.99 (protect gain); exit plan = sell tomorrow 8/5 by 10:30 ET OR on any -20% from carry mark, whichever first. Never ride to 8/5 expiry.",
-        "if_any_false": "FLATTEN at 15:44 marketable through the bid (theta beats hope on a 1-DTE)."
+        "if_any_false": "FLATTEN at 15:44 marketable through the bid (theta beats hope on a 1-DTE).",
+        "delegation": "User 8/4: 'if not sold before close I trust your judgment.' Agent makes the final overnight call at 15:35-15:44 using this gate; with no catalyst tonight the default is LEAN FLATTEN. USER-REQUESTED PING: push the HOLD/FLATTEN decision at the gate regardless of fill."
       },
       "note": "AGENTIC entry 8/4 13:24 ET @1.99 (user 'tiny live', top rvol-screen affordable mover; DTE broken to 1). 1-DTE, IV ~122%, theta -1.19. DEFAULT = same-day scalp flatten 15:44, BUT user authorized OVERNIGHT SWING IF overnight_swing_gate passes at 15:35-15:44 (strong close required). If held, exit 8/5 by 10:30 ET or -20%, never to expiry. ~49% BP. INTC +10.4% $100 breakout. OVERRIDES daily-2/midday/min_dte per user.",
-      "last_mark": 2.035,
-      "hwm_note": "hwm bumped 1.99 -> 2.035 at 13:58 ET; not armed (arm 2.49)"
+      "last_mark": 2.135,
+      "hwm_note": "mark 2.135 / bid 2.09 at 14:26 ET (+7%). NEVER-RED floor active at bid 2.05 (ratchets up). Runner above; give-back trail arms at +50%. Overnight: with never_red + no catalyst -> lean FLATTEN to lock green."
     }
   },
   "watchlist": [],
@@ -283,6 +284,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T18:29Z",
+      "event": "rule",
+      "detail": "INTC (now +7%, bid 2.09/mark 2.135) risk reframed per user: 'never red, close for profit at least, max best' + 'allow just enough wiggle to still get target, no paperhand' + 'holding paid off'. Replaced -30% stop (1.39, red) with NEVER-RED FLOOR at bid 2.03 (breakeven+fees, guarantees green) - LOOSE/milestone, NOT tight-trail (128% IV needs wiggle to reach target). Milestone step-ups: +25%->floor 2.20, +40%->2.49, +50%->2.70; give-back trail owns +50%+. Stall exit only on REAL score-fade, not noise. Overnight: never-red + no-catalyst -> lean FLATTEN to lock green (user delegated the call, wants gate PING regardless of fill). Management chain re-armed (prior one-shot fired 14:23); fresh trigger fires 14:43, re-arms to the 15:35-15:44 gate."
+    },
     {
       "t": "2026-08-04T18:18Z",
       "event": "rule",
