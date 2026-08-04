@@ -12,6 +12,7 @@ import re
 import unittest
 from pathlib import Path
 
+from supertrades.engine import journal
 from supertrades.engine import nodes as nodes_mod
 from supertrades.engine import ops
 from supertrades.engine.discovery import build_nodes, expected_node_count, gex_underlyings
@@ -261,10 +262,10 @@ class TestDisciplineGovernorV4(unittest.TestCase):
         snap["option_quotes"]["cand-nvda"].update({"ask": 0.30})    # < $0.40 premium floor
         self.assertIn("min_premium", self._blocked(run(state, snap)))
 
-    def test_per_trade_cap_tightened_to_25pct(self):
+    def test_per_trade_cap_tightened(self):
         state = entry_ready_state(load_state())
         snap = perfect_candidate(state)                              # bp 300
-        snap["option_quotes"]["cand-nvda"].update({"ask": 1.00})    # $100 = 33% (was ok <40%)
+        snap["option_quotes"]["cand-nvda"].update({"ask": 1.00})    # $100 = 33% (> 22% cap)
         self.assertIn("per_trade_cap", self._blocked(run(state, snap)))
 
     def test_min_dte_blocks_short_dated_day_trade(self):
@@ -380,6 +381,45 @@ class TestReliableOpsV4(unittest.TestCase):
         self.assertIn("flatten", it["actions"])
         self.assertEqual(it["flatten_ids"], ["dt"])
         self.assertIn("reconcile_broker", it["actions"])
+
+
+class TestJournalWriterV4(unittest.TestCase):
+    def test_slug_is_filename_safe_and_stable(self):
+        self.assertEqual(journal.slug("DIS 8/21 $105C"), "DIS-8-21-105C")
+        self.assertEqual(journal.slug("SPY 8/7 $765C"), "SPY-8-7-765C")
+
+    def test_append_under_replaces_placeholder_then_appends(self):
+        md = "# D\n\n## Cycle log\n- (none yet)\n"
+        out = journal.append_under(md, "## Cycle log",
+                                   journal.cycle_line("09:56", "reconcile", "flat"))
+        self.assertNotIn("(none yet)", out)
+        self.assertIn("- 09:56 ET — **reconcile**: flat", out)
+        # a second append keeps both bullets, in order
+        out2 = journal.append_under(out, "## Cycle log",
+                                    journal.cycle_line("10:30", "cycle", "no entry"))
+        self.assertLess(out2.index("reconcile"), out2.index("no entry"))
+
+    def test_append_under_missing_heading_appends_section(self):
+        out = journal.append_under("# D\n", "## Cycle log",
+                                   journal.cycle_line("09:56", "x", "y"))
+        self.assertIn("## Cycle log", out)
+        self.assertIn("**x**: y", out)
+
+    def test_append_under_stops_at_next_heading(self):
+        md = "## Cycle log\n- a\n\n## EOD review\n- keep me\n"
+        out = journal.append_under(md, "## Cycle log",
+                                   journal.cycle_line("10:00", "b", "c"))
+        # new bullet lands before EOD review, which is untouched
+        self.assertLess(out.index("**b**: c"), out.index("EOD review"))
+        self.assertIn("- keep me", out)
+
+    def test_trade_frontmatter_defaults_pinescript_source(self):
+        fm = journal.trade_frontmatter({"symbol": "NVDA",
+                                        "contract": "NVDA 8/21 $210C"})
+        self.assertIn("signal_source: pinescript", fm)
+        self.assertIn("account: 902341866", fm)
+        self.assertIn("# NVDA 8/21 $210C", fm)
+        self.assertTrue(fm.startswith("---\n"))
 
 
 if __name__ == "__main__":

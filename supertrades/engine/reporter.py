@@ -22,7 +22,9 @@ GUARDRAILS = {
     "max_entries_per_day_total": 2,     # v4 governor: auto + manual combined; alert on the 3rd
     "max_contracts_per_order": 1,
     "bp_floor_usd": 30.0,               # never leave less than this after entry
-    "per_trade_bp_frac": 0.25,          # v4: contract cost <= 25% of settled BP (was 40%)
+    "per_trade_bp_frac": 0.22,          # v4.1: contract cost <= 22% of settled BP (was 25/40).
+                                        #   On the live ~$541 acct: max ~$119 capital/trade;
+                                        #   intended -30% stop ~= $36 risk (~6.6% of account).
     "settlement_suppressed_below_bp": 80.0,
     "entry_delta_floor": 0.35,          # v4: raised from 0.25 (quality of expression)
     "spread_cap_pct_of_ask": 12.0,      # v4: paired with the premium floor below

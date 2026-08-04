@@ -1,8 +1,8 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-07-24T20:11:00Z",
-  "trading_date": "2026-07-24",
-  "rule_version": "v3.1",
+  "updated_at": "2026-08-04T13:57:00Z",
+  "trading_date": "2026-08-04",
+  "rule_version": "v4.0",
   "mode": {
     "cadence_min": 15,
     "dnd": true,
@@ -83,145 +83,98 @@
     "alert_only": {}
   },
   "day": {
-    "realized_pnl": -102.0,
+    "realized_pnl": 0.0,
     "auto_entries_used": 0,
-    "manual_round_trips": 8,
-    "churn_threshold_hit": true,
-    "halted": true,
-    "open_pnl_est": -13.0,
-    "note": "EOD CLOSE 7/24. Account 437.40->322.42 = -115 (worst day). Realized -102 (SPY 0DTE churn ~-42, NVDA stop -56, QQQ expired -4). Open -13 = DIS 105C which CARRIED THE WEEKEND - 3:45 flatten MISSED (wakeup stalled, caught post-close). QS margin expired worthless. HALTED. Monday: rollover resets halt; DIS flatten-vs-swing decision at open.",
-    "day_pnl_est": -115.0
+    "manual_round_trips": 0,
+    "churn_threshold_hit": false,
+    "halted": false,
+    "open_pnl_est": 0.0,
+    "note": "LIVE 8/4 rollover+reconcile (09:56 ET). Broker truth: agentic 902341866 FLAT, $541.18 cash/BP; margin 812234458 FLAT. Stale 7/24 DIS 8/21 105C is GONE at broker (closed between 7/24-8/4) - phantom cleared. Day counters reset, halt cleared for new day. v4 governor live: caps 1 auto / 2 total entries, delta>=0.35, spread<=12%, no entry <09:40, midday skip 12-14.",
+    "day_pnl_est": 0.0
   },
-  "positions": {
-    "9e66b7db-0699-4776-beb3-f9290775ea0a": {
-      "contract": "DIS 8/21 $105C",
-      "account": "902341866",
-      "qty": 1,
-      "entry": 0.97,
-      "hwm": 0.97,
-      "ratchet_engaged": false,
-      "class": "day_trade",
-      "expiry": "2026-08-21",
-      "exit_rules": [
-        {
-          "type": "target",
-          "pct": 50,
-          "price": 1.455,
-          "mech": "sell_limit_at_mark"
-        },
-        {
-          "type": "stop",
-          "pct": -30,
-          "price": 0.679,
-          "mech": "sell_limit_at_bid"
-        },
-        {
-          "type": "ratchet",
-          "arm_pct": 25,
-          "arm_price": 1.212,
-          "be_stop_price": 0.97,
-          "mech": "breakeven_stop_after_arm"
-        },
-        {
-          "type": "flatten_et",
-          "at": "15:45",
-          "mech": "sell_limit_at_bid_unless_ratchet"
-        }
-      ],
-      "note": "USER buy 7/24 @0.97. DAY-TRADE FLATTEN MISSED (3:45 wakeup stalled; caught 4:10 post-close). Carries weekend as accidental swing hold. mark 0.84 (-13%), above stop 0.679. MONDAY OPEN: decide flatten-per-belated-rule vs keep-as-swing. 8/21 expiry.",
-      "last_mark": 0.84
-    }
-  },
+  "positions": {},
   "watchlist": [],
   "pool": [
     {
       "id": "d68712fc-7956-4131-ae60-c1ef25d330ea",
       "contract": "SPY 8/7 $765C"
-    },
-    {
-      "id": "82178806-3eb9-4e0d-97b7-a2b062d86543",
-      "contract": "TSLA 7/31 $460C",
-      "requires_delta": 0.08
     }
   ],
   "settlement": {
-    "pending": [
-      {
-        "amount": 47,
-        "settles_on": "2026-07-27",
-        "kind": "t1_sale_proceeds",
-        "confirmed": false,
-        "note": "NVDA 220C stop 0.47"
-      }
-    ],
+    "pending": [],
     "cleared": [
       {
-        "amount": 437.4,
+        "amount": 541.18,
         "kind": "settled_cash",
-        "confirmed": "2026-07-24 BP 437.40 (proceeds T+1 settled; $250 deposit no longer pending - did NOT add to cash, check bank side)"
+        "confirmed": "2026-08-04 09:56 ET: get_portfolio 902341866 = total_value 541.18, cash 541.18, BP 541.18, options_value 0. Fully settled, no pending."
       }
     ]
   },
   "prior_cycle": {
-    "at": "2026-07-24T15:11:00Z",
+    "at": "2026-08-04T13:57:00Z",
     "marks": {},
     "contract_cum_volume": {},
     "day_pct": {
-      "QQQ": -0.65,
-      "SPY": 0.33,
-      "INTC": -3.78,
-      "AMD": -1.64,
-      "NVDA": 0.27,
-      "RIVN": -3.65,
-      "XLE": 1.38,
-      "TSLA": -3.16
+      "SPY": 0.68,
+      "QQQ": 1.84,
+      "IWM": 0.70,
+      "NVDA": 1.43,
+      "AMD": 4.89,
+      "INTC": 6.48,
+      "TSLA": 0.04,
+      "META": -0.87
     },
-    "crossed_2pct": [],
-    "note": "11:10 ET: QQQ held above -0.75 gate (no arm). Value/energy lead (SPY +0.33, XLE +1.4), tech/semis weak (INTC -3.8, TSLA -3.2). RIVN -3.6 PRUNED (drifting from strike). Watchlist EMPTY - no conviction names. Morning window closed, no clean entry. Heading to midday skip (12-14)."
+    "crossed_2pct": ["QQQ", "AMD", "INTC"],
+    "note": "09:56 ET 8/4: broad RISK-ON, tech/semis lead (QQQ +1.84, INTC +6.5, AMD +4.9, NVDA +1.4). SPY +0.68, IWM +0.70. META -0.9 + TSLA flat lag. QQQ strongly GREEN -> negative-gamma downside GEX gate NOT armed (no index 0DTE fade). Semis already extended (+5-6% gaps) - chasing = day-1/day-3 mistake the v4 governor blocks. Agentic FLAT, BP 541. No entry yet; wait for 9:40+ pullback-with-confirmation, not a gap-chase."
   },
   "gex_map": {},
   "open_plan": {
-    "built_at": "2026-07-24T13:11:00Z",
-    "settled_bp": 437.4,
-    "per_trade_cap": 174.96,
+    "built_at": "2026-08-04T13:57:00Z",
+    "settled_bp": 541.18,
+    "per_trade_cap": 119.06,
+    "risk_budget": {
+      "per_trade_bp_frac": 0.22,
+      "max_capital_per_trade": 119.06,
+      "intended_stop_risk_usd": 36.0,
+      "intended_stop_risk_pct_acct": 6.6,
+      "note": "v4.1: capital-at-risk cap tightened 0.25->0.22 of BP. Single-leg long only, 1 contract, worst-case (gap-to-0) = ~22% of account; engineered -30% stop = ~$36 (~6.6%). Frequency cap (1 auto / 2 total entries/day) remains the primary loss control."
+    },
     "deposit_landed": true,
     "gappers": {
       "up": {
-        "INTC": 2.29,
-        "AMD": 1.35,
-        "TSLA": 0.57,
-        "RIVN": 0.67
+        "INTC": 6.48,
+        "AMD": 4.89,
+        "NVDA": 1.43,
+        "QQQ": 1.84,
+        "IWM": 0.70,
+        "SPY": 0.68
       },
       "down": {
-        "USO": -1.94,
-        "XOM": -0.83,
-        "CVX": -0.6,
-        "META": -0.5,
-        "XLE": -0.4,
-        "NVDA": -0.39
+        "META": -0.87
       }
     },
     "gate": {
       "status": "NOT_ARMED",
-      "reason": "QQQ -0.06% premarket (> -0.75% threshold); indices flat",
-      "action": "no index 0DTE setup premarket; re-check on any intraday QQQ/SPY -0.75% dip or red-after-green"
+      "reason": "QQQ +1.84% (strongly green; negative-gamma downside gate arms on -0.75% dip, not up)",
+      "action": "no index 0DTE setup; re-check only on an intraday QQQ/SPY -0.75% red-after-green reversal"
     },
     "candidates": [
       {
-        "note": "FRESH CAPITAL DAY: BP 437.40 settled, cap ~$175, halt reset, no settlement suppression - can finally afford quality delta 0.30-0.50 contracts (1 lot)."
+        "note": "BP 541.18 settled, per-trade cap 0.25*BP = ~$135, halt reset, no settlement suppression. Can afford quality delta 0.35-0.50, 1 lot, under v4 caps (1 auto / 2 total entries max)."
       },
       {
-        "contract": "INTC / AMD bounce watch",
-        "note": "semis green premarket (INTC +2.3 recovering from yest -3.6, AMD +1.4). NOT a premarket auto-entry - need 9:40-11:00 window + above-VWAP + 15-min OR-high confirmation. Chasing a bounce in a choppy tape is the day-1/day-3 mistake."
-      },
-      {
-        "contract": "ENERGY = AVOID today",
-        "note": "2-day run reversing (USO -1.9). XLE 62C arm PRUNED (thesis broken). Do not fade into a reversal."
+        "contract": "SEMIS = do NOT chase the gap",
+        "note": "INTC +6.5, AMD +4.9 already extended at open. v4 blocks the chase. Only a clean 9:40-11:00 pullback to VWAP that HOLDS + reclaims the 15-min OR high is a candidate - and only ONE, quality delta."
       }
     ],
-    "notes": "Discipline focus after -69 day: ONE high-conviction setup, quality delta, not multiple low-delta punts. QS margin expires today (alert-only). Watchlist now: RIVN 19C only (thin) - add only on conviction."
+    "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T13:57Z",
+      "event": "reconcile",
+      "detail": "LIVE 8/4 09:56 ET rollover+full broker reconcile. Broker truth: agentic 902341866 FLAT (0 option positions), total_value/cash/BP all 541.18; margin 812234458 FLAT. Stale 7/24 DIS 8/21 105C phantom CLEARED (broker shows flat - closed sometime 7/24->8/4; not a live carry). Day block reset, halt cleared, counters zeroed. Pool pruned: TSLA 7/31 460C removed (expired); SPY 8/7 765C kept. Tape RISK-ON, tech/semis lead (QQQ +1.84, INTC +6.5, AMD +4.9); GEX downside gate NOT armed (indices green). No entry - semis extended, awaiting 9:40+ pullback-with-confirmation. rule_version -> v4.0."
+    },
     {
       "t": "2026-07-24T20:11Z",
       "event": "eod",
