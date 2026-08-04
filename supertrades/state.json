@@ -15,6 +15,30 @@
     "single_executor": "THIS session only creates trading triggers. Audit list_triggers at session start; delete competing account-traders (8/4 lesson: a rival session's 0DTE hard-exit flattened the INTC runner early).",
     "next": "populate watchlist candidates for tomorrow; run the engine-driven cycle live on the next session (paper-verify the first entry via review before enabling autonomous place)."
   },
+  "flowspace": {
+    "principle": "user 8/4: each branch/session is DEDICATED to one role and OPTIMAL at it; they flow into the lean engine without colliding. Specialists produce, the engine executes. Beats both a monolith and a pile of duplicates.",
+    "trunk": "supertrades/ engine (this branch) = the ONLY executor + the rails/exits/evolution. Lean, single guardrail gate.",
+    "specialists": {
+      "gex_analyst": "dealer-positioning (GEX/VEX) maps -> feeds the index-scalp gate (branch: gex-market-analyst)",
+      "monitoring": "daily reports + journal of what happened (branch: rh-agentic-monitoring)",
+      "watchlist_earnings": "candidate pool + self-refreshing earnings fixtures (branch: watchlist-market-trends)",
+      "framework": "tradingagents analysts / model + graph optimizations -> research signals (branches: graph-optimizations, agent-team-model-enhancement)",
+      "plumbing": "hardened Robinhood MCP + account pinning (branch: fable5-robinhood-agentic, merged to main via #14)"
+    },
+    "flow_discipline": [
+      "Specialists are READ-ONLY toward the live account - ONLY the engine (this session) places orders.",
+      "Specialists write to well-defined OUTPUTS (data files, reports, GEX maps, watchlist rows); the engine CONSUMES the useful outputs, cherry-picked one piece at a time - never a bulk merge.",
+      "ONE executor session at a time (audit list_triggers at start). Everything else advises, never trades.",
+      "Keep each piece small and dedicated - less size is best; a specialist that sprawls stops being optimal."
+    ],
+    "efficiency": [
+      "PARALLEL by design: specialists run concurrently and OFF the critical path - research/monitoring never blocks a trade decision.",
+      "The engine reads FINISHED outputs (a built GEX map, a ready watchlist) instead of recomputing - work is done once, by the owner, and cached to a file/state.",
+      "Lean trunk = fast, cheap cycles: the fan-out/fan-in engine runs one node per ticker/position/candidate concurrently, then ONE gate decides - low token + compute per cycle.",
+      "No duplicated effort: exactly one owner per concern, so nothing is computed twice across sessions.",
+      "Deterministic + tested (77/77): the engine re-runs identically offline, so a live cycle spends tokens on data, not on re-deriving logic."
+    ]
+  },
   "canonical_home": {
     "decision": "user 8/4: focused, refined SuperTrades engine built this session IS the project. Continue from here.",
     "branch": "claude/claude-code-mcp-study-s227lj",
