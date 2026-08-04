@@ -126,10 +126,21 @@ python3 -m http.server 8099                     # the terminal UI (SIMULATED DAT
 - Stage file may read `tiny_live` (you set it), but it's inert — no dispatcher,
   no engine loop, floor blocks entries. Reset with `python -m agent.go_live set preview`.
 
+## GEX strategy — evaluation verdict (adversarial 4-lens review)
+- **Verdict: UNSOUND / unvalidated. Do NOT trade it.** Zero validated evidence;
+  the concept (dealer hedging) is real but the retail OI-based implementation
+  degrades it, and the review found **real gate bugs** (now fixed): regime was
+  welded to direction (dead-code branch), spot==flip double-confirmed both ways,
+  and +gamma confirmed unconditionally (greenlighting the losing pin trade).
+- **Forward-validation pipeline (built, 116 tests):** `gex_live.build_snapshot`
+  (enriched scorable rows) → `gex_score` (replay on real premium) →
+  `gex_validate.analyze` (matched baselines: coin-flip/anti-gate/always; session
+  bootstrap; pre-registered decision: ≥200 entries / ≥25 sessions / paired edge
+  ≥ +0.20R / CI>0 / beats anti-gate — else KILL). ~2–3 months to a first verdict.
+- Owned by the **quant-strategist** agent (its definition references this tooling).
+
 ## Open threads / next steps
-- **GEX strategy evaluation** — an adversarial 4-lens review + honest go/no-go is
-  running; verdict + a rigorous forward-validation protocol pending.
-- **Recurring GEX forward-log** — decision pending (scheduled vs manual). Caveat:
+- **Recurring GEX capture** — pipeline is ready; scheduling pending. Caveat:
   scheduled/fresh sessions may lack live RH auth, so a cron job could no-op.
 - **Real flow feed** — true sweep flow needs a paid tape (Unusual Whales/FlowAlgo);
   current `flow_skew` is an honest volume/OI proxy only.
