@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T15:05:00Z",
+  "updated_at": "2026-08-04T17:10:00Z",
   "trading_date": "2026-08-04",
   "rule_version": "v4.0",
   "mode": {
@@ -85,16 +85,37 @@
     "alert_only": {}
   },
   "day": {
-    "realized_pnl": 0.0,
+    "realized_pnl": 48.0,
     "auto_entries_used": 0,
-    "manual_round_trips": 0,
+    "manual_entries_today": 2,
+    "manual_round_trips": 1,
     "churn_threshold_hit": false,
     "halted": false,
-    "open_pnl_est": 0.0,
-    "note": "LIVE 8/4 rollover+reconcile (09:56 ET). Broker truth: agentic 902341866 FLAT, $541.18 cash/BP; margin 812234458 FLAT. Stale 7/24 DIS 8/21 105C is GONE at broker (closed between 7/24-8/4) - phantom cleared. Day counters reset, halt cleared for new day. v4 governor live: caps 1 auto / 2 total entries, delta>=0.35, spread<=12%, no entry <09:40, midday skip 12-14.",
-    "day_pnl_est": 0.0
+    "open_pnl_est": 14.5,
+    "note": "LIVE 8/4. User opened TWO 0DTE calls manually (own signals): SPY 8/4 771C @0.75 (12:51 ET), QQQ 8/4 724C @0.64 (13:06 ET). 1:10 ET reconcile: SPY hit +50% target (+70% mark) -> AGENTIC target exit sold 1 @1.23, realized +48 (order 6a721cea, placed_agent=agentic). QQQ 724C still open +23%, managing to 3:15 hard-exit. Realized +48, open +14.5, day +62.5. No halt.",
+    "day_pnl_est": 62.5
   },
-  "positions": {},
+  "positions": {
+    "qqq-724c-0804": {
+      "contract": "QQQ 8/4 $724C",
+      "option_id": "bd5e89c8-f20a-4df5-90b2-689302e39681",
+      "account": "902341866",
+      "qty": 1,
+      "entry": 0.64,
+      "hwm": 0.785,
+      "ratchet_engaged": false,
+      "class": "0dte_scalp",
+      "expiry": "2026-08-04",
+      "exit_rules": [
+        {"type": "target", "pct": 50, "price": 0.96, "mech": "sell_limit_at_mark"},
+        {"type": "stop", "pct": -30, "price": 0.448, "mech": "sell_limit_at_bid"},
+        {"type": "ratchet", "arm_pct": 25, "arm_price": 0.80, "be_stop_price": 0.64, "mech": "breakeven_stop_after_arm"},
+        {"type": "hard_exit_et", "at": "15:15", "mech": "sell_limit_at_bid"}
+      ],
+      "note": "USER buy 8/4 @0.64 (own signal). 0DTE - hard-exit 15:15. mark 0.785 (+23%), below target 0.96 + ratchet-arm 0.80, above stop 0.448. Manage tight into close.",
+      "last_mark": 0.785
+    }
+  },
   "watchlist": [],
   "pool": [
     {
@@ -172,6 +193,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T17:10Z",
+      "event": "fill",
+      "detail": "AGENTIC TARGET EXIT: SPY 8/4 771C 0DTE (user buy @0.75, 12:51 ET) hit +50% target (mark ran to 1.275/+70%). Sold 1 @ limit 1.23 (bid), FILLED 1.23, proceeds $123, realized +$48 (+64%), order 6a721cea, placed_agent=agentic. QQQ 8/4 724C 0DTE (user buy @0.64) STILL OPEN +23% (mark 0.785) - rails set (tgt 0.96/stop 0.448/arm 0.80/hard-exit 15:15). Day realized +48, open +14.5. PUSH sent (fill). Scheduling tight QQQ management into 3:15."
+    },
     {
       "t": "2026-08-04T15:05Z",
       "event": "reconcile",
