@@ -17,12 +17,57 @@ handoff's `GO-LIVE.md` enforced in exactly one place.
 One independent component per job; components exchange plain dataclasses and never
 read each other's internals. Guardrails live in **one** place.
 
+One scan cycle, every 5 minutes from 09:30 to 16:00 ET. Read it top to bottom —
+the vertical order is the order things actually happen, and it is deliberate.
+
 ```
-signals ─▶ contract_selector ─▶ risk_governor ─▶ approval ─▶ broker.place_order
-                                    (THE gate)   (preview-    (dry-run / arm /
- exit_manager ─────────────────────────────────  every-order) eligibility gated)
- kill_switch  ── checked first every cycle ──▶ cancel all + flatten + halt
+   ┌── ① KILL CHECK ─ first, every cycle, before anything else ────────────┐
+   │   STOP · MCP error · data stale >10s · 3 straight losses              │
+   │        └─▶ cancel_all (best-effort) ─▶ flatten ALL ─▶ halt ─▶ return  │
+   └──────────────────────────────────────────────────────────────────────┘
+                                    │ not killed
+                                    ▼
+   ┌── ② EXITS ─ run even when halted. Getting out is never gated. ───────┐
+   │   exit_manager: 15:45 flatten · −50% stop · +90% target ·            │
+   │                thesis break · scale ½ at +1R · trail                 │
+   │        └─▶ approval (ADVISORY — cannot veto) ─▶ place_order          │
+   │            each position isolated: one failure never skips the rest  │
+   └──────────────────────────────────────────────────────────────────────┘
+                                    │ halted? ─── yes ──▶ return
+                                    ▼ no
+   ┌── ③ ENTRIES ─ every gate below can say no, and no means no ──────────┐
+   │   signals ─▶ risk_governor   THE single entry gate: sizing, −2R halt,│
+   │              │               earnings, RVOL, windows, settled cash   │
+   │              ▼                                                        │
+   │            contract_selector  0DTE only · Δ0.45–0.55 · spread ≤10%   │
+   │              ▼                                                        │
+   │            broker.review_order  failed review ⇒ BLOCKED (fail closed)│
+   │              ▼                                                        │
+   │            approval  HARD VETO · default approver DENIES             │
+   │              ▼                                                        │
+   │            broker.place_order                                        │
+   └──────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+   ┌── every broker call crosses this boundary ───────────────────────────┐
+   │   mcp_dispatch  refuses non-allowlisted + mutating tools · re-checks │
+   │                 can_place_live() · https-pinned · deadline + size cap│
+   │                 timeout on a mutation ⇒ read-only reconcile by       │
+   │                 legs[].option_id ⇒ report UNKNOWN, never "failed"    │
+   │        ↑ any failure raises ─▶ trips kill_switch ─▶ halts next cycle │
+   └──────────────────────────────────────────────────────────────────────┘
+                                    │
+                              Robinhood MCP
 ```
+
+The asymmetry running through it: **entries fail closed, exits fail open.**
+Anything uncertain on the way in becomes "don't trade". Anything uncertain on
+the way out becomes "get out anyway". Every gate is a veto on entry; none of
+them can block an exit.
+
+`decision_log.py` records every step above as append-only JSONL — previews,
+rejections, approvals, fills, and each distinct failure (`exit_failed`,
+`flatten_failed`, `cancel_all_failed`, `exit_approver_error`).
 
 | File | Responsibility |
 |------|----------------|
@@ -75,7 +120,7 @@ previewed as a 0DTE long entry — subject to the earnings blackout below.
 
 1. In the Robinhood app: apply for **options Level 2** on the Agentic account; **fund** it (~$2,500 — funding is your hard loss cap).
 2. Connect the MCP: `claude mcp add robinhood-trading --transport http https://agent.robinhood.com/mcp/trading`; complete OAuth. Reads always-allow; order placement ask-every-time.
-3. **Smoke-test the real API while still inert:** `python3 -m agent.cli smoke`. This builds the REAL dispatcher/transport (`RobinhoodMcpBroker.live` / `broker/mcp_dispatch.py` — the same code path live trading uses, not a fake) and issues only READ calls (`get_accounts`, `get_option_positions`, and `get_option_chains` for every symbol in `WATCHLIST`), run through the same strict parsing the live path uses. No test in this repo has ever made a real HTTP call to Robinhood — every other test uses in-memory fakes — so this is the first point a schema mismatch (a missing/renamed field, which trips the kill switch under strict parsing) can be caught, while `armed=False, dry_run=True`. It refuses outright if that invariant doesn't hold, or if `ROBINHOOD_MCP_TOKEN` is unset (no fallback to a paper broker — that would validate nothing). It prints PASS/FAIL/latency per check and the real exception text on failure, continues after a failure, and exits non-zero if anything failed. Do not proceed past this step until every check passes.
+3. **Smoke-test the real API while still inert:** `python3 -m agent.cli smoke`. This builds the REAL dispatcher/transport (`RobinhoodMcpBroker.live` / `broker/mcp_dispatch.py` — the same code path live trading uses, not a fake) and issues only READ calls (`get_accounts`, `get_portfolio`, `get_option_positions`, and `get_option_chains` for every symbol in `WATCHLIST`), run through the same strict parsing the live path uses. No test in this repo has ever made a real HTTP call to Robinhood — every other test uses in-memory fakes — so this is the first point a schema mismatch (a missing/renamed field, which trips the kill switch under strict parsing) can be caught, while `armed=False, dry_run=True`. It refuses outright if that invariant doesn't hold, or if `ROBINHOOD_MCP_TOKEN` is unset (no fallback to a paper broker — that would validate nothing). It prints PASS/FAIL/latency per check and the real exception text on failure, continues after a failure, and exits non-zero if anything failed. Do not proceed past this step until every check passes.
 4. Wire the dispatcher: `RobinhoodMcpBroker.live(cfg, kill_state=ks)` builds the real `mcp_call` from `broker/mcp_dispatch.py` — it refuses to construct until `ROBINHOOD_MCP_TOKEN` holds your OAuth bearer token, and refuses to dispatch any placing/cancelling tool while `dry_run=True` or `armed=False`. Pass the same `kill_state` to `SuperTradesAgent(..., kill=ks)` so any MCP failure halts the next cycle.
 5. Wire the **same** dispatcher into the live earnings calendar and pass it to the engine:
 
@@ -107,6 +152,47 @@ malformed payload, or a row whose date will not parse all block the *entire*
 watchlist rather than nothing. "We could not confirm this name is clear" and
 "this name has no earnings" must never produce the same answer. Expect the agent
 to stop trading on a feed outage — that is the design, not a bug.
+
+## Where this runs, and where it must not
+
+**Build and change it anywhere** — a Claude Code session, cloud or local, is fine
+for editing, reviewing, and dry runs. Nothing here can place an order.
+
+**Run it on a machine you control, with you present.** Not in an ephemeral cloud
+container, and not unattended:
+
+- The loop needs to stay alive from 09:45 to 15:45 ET. A session container gets
+  reclaimed; the 15:45 force-flatten is not something to lose to a timeout.
+- The OAuth token lives in that machine's environment. It cannot be carried into
+  a fresh remote session.
+- Per "Credential failure disables exits" below, a token that expires mid-session
+  leaves positions open and the agent blind. Someone has to be there to notice.
+
+What to have open while it runs: the terminal running the loop, the Robinhood app
+(your manual kill path and the only way to close a position the agent can't), and
+the decision journal — a burst of `flatten_failed` means go close positions by
+hand, now.
+
+**One account, one owner.** `get_positions()` returns every option position in the
+account, with no notion of which ones the agent opened. Point it at an account you
+also trade manually and its stop, target, and 15:45 flatten will act on *your*
+positions too. Give it a dedicated account.
+
+## Changing this repo
+
+- `config.py` holds the binding guardrail values. It is deliberately the only
+  place limits live — change a limit there, never by special-casing at a call
+  site. Treat a change to it as a risk decision, not a code change.
+- Guardrails are enforced in exactly one place each (`risk_governor` for entries,
+  `exit_manager` for exits, `kill_switch` for halts). If you find yourself adding
+  a second check somewhere else, that is the bug.
+- `python3 -m unittest` must be green before anything is armed. The 48 rail tests
+  force every guardrail; they are the contract.
+- Parsers are strict on purpose — a missing field raises and trips the kill
+  switch rather than defaulting. Do not "fix" a live schema mismatch by adding a
+  fallback; fix the parser against the real response and add it as a fixture.
+- After any change to broker or dispatcher code, re-run `python3 -m agent.cli
+  smoke` against the live API before arming again.
 
 ## Credential failure disables exits, not just entries
 
@@ -148,8 +234,12 @@ Operationally:
   disconnect in the app, and closing positions directly in the app all work
   regardless of what the agent can reach.
 
-What the code does do: a timed-out **mutating** call is reconciled against
-`get_option_orders` by `ref_id` and reported as **unknown state**, never as
+What the code does do: a timed-out **mutating** call is reconciled against a
+narrowed `get_option_orders` window (`placed_agent`/`created_at_gte`) and
+matched primarily on the `legs[].option_id` the API echoes back, falling back
+to `placed_agent == "agentic"` + quantity + price + recency when a response
+carries no legs — the real API never echoes `ref_id` back on order rows, so
+that can't be the match key — and reported as **unknown state**, never as
 "failed" — a timeout is not proof the order never reached the broker. Failures
 never synthesize a default price, balance, or Greek. And exits are
 advisory-approved, never vetoable, so nothing on the *human* side can hold a

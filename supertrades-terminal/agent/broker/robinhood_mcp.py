@@ -112,18 +112,32 @@ class RobinhoodMcpBroker(BrokerAdapter):
             # Buying power is NOT on get_accounts — it lives in get_portfolio.
             port = _data(mcp("get_portfolio", {"account_number": num}))
             bp = port.get("buying_power") if isinstance(port, dict) else None
-            # settled cash = live buying power (cash account), else the cash field.
-            settled = (_req_num(bp, ("buying_power",), "buying power")
-                       if isinstance(bp, dict) and bp
-                       else _req_num(port, ("cash",), "settled cash"))
-            cash = float(port.get("cash", 0) or 0) if isinstance(port, dict) else 0.0
+            # Settled cash is buying power, and ONLY buying power. On the real
+            # cash account those differ by exactly the unsettled balance
+            # (cash 633.88 vs buying_power 203.06, unsettled 430.82 — verified
+            # live). GO-LIVE requires "never buy with unsettled proceeds; open
+            # premium <= settled cash", so falling back to the "cash" field
+            # would let the risk governor size a trade against money that has
+            # not settled. If buying power is missing we do NOT guess — we
+            # raise, which trips the kill switch. Do not "simplify" this.
+            if not isinstance(bp, dict) or not bp:
+                raise ValueError(
+                    "missing required field buying_power (settled cash) — "
+                    "refusing to fall back to the unsettled 'cash' figure")
+            settled = _req_num(bp, ("buying_power",), "settled cash (buying power)")
+            # Prefer the broker's own unsettled figure over deriving it: the
+            # account row reports it directly and authoritatively.
+            unsettled = acct.get("unsettled_funds")
+            if unsettled in (None, ""):
+                cash = float(port.get("cash", 0) or 0) if isinstance(port, dict) else 0.0
+                unsettled = max(0.0, cash - settled)
             return AccountState(
                 account_number=num,
                 agentic_allowed=bool(acct.get("agentic_allowed", False)),
                 option_level=acct.get("option_level", "") or "",
                 balance=_req_num(port, ("total_value", "portfolio_value"), "account balance"),
                 settled_cash=settled,
-                unsettled_cash=max(0.0, cash - settled),
+                unsettled_cash=float(unsettled),
                 open_premium=float(port.get("options_value", 0) or 0) if isinstance(port, dict) else 0.0,
             )
         except (KeyError, ValueError, TypeError) as e:
