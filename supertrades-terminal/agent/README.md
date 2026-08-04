@@ -43,7 +43,7 @@ signals ─▶ contract_selector ─▶ risk_governor ─▶ approval ─▶ bro
 - Press rule: only once ≥ +2R is **booked** may later trades size up 2×, funded from that day's profit.
 - Exits: +90% target, −50% stop or thesis break, scale ½ at +1R and trail, **flatten all by 15:45 ET**.
 - Daily −2R halt (entries stop, exits stay live); no entries first 15 min / last 10 min; no earnings names within 3 sessions; never widen a stop, never average down.
-- Cash settlement (T+1): never buy with unsettled proceeds; open premium ≤ settled cash; balance nearing $2,000 → halt + alert.
+- Cash settlement (T+1): never buy with unsettled proceeds; open premium ≤ settled cash; settled cash at/below $300 → halt + alert (operator-lowered from $2,000, 2026-08-04).
 - Contract: Δ 0.45–0.55 from broker Greeks, reject spread > 10% of mid, limit at mid (reprice once after 5s, abandon after 2 misses).
 
 > Note: the terminal's `data.js` has an illustrative per-strategy risk map

@@ -329,7 +329,7 @@ def grade(snap: Snapshot, closed: list[RoundTrip], open_lots: list[RoundTrip]) -
             f"{len(equity_fills)} filled share order(s) — Guardrails permit 0DTE long options only",
             15.0))
 
-    if snap.total_value < G.balance_floor_alert_usd:
+    if snap.total_value <= G.balance_floor_alert_usd:
         v.append(Violation(
             "balance_floor", "info", "",
             f"balance ${snap.total_value:.0f} is below Guardrails.balance_floor_alert_usd "

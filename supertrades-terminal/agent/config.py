@@ -48,7 +48,8 @@ class Guardrails:
     # that $2,000 kept Kickstart dormant): below $300 the account has lost
     # ~45% from the kickstart stake and the right behavior is halt + alert,
     # not smaller bets. The 15% clamp above keeps budgets sane down to it.
-    kickstart_max_pct_of_balance: float = 0.15  # fixed budgets never exceed 15% of balance
+    kickstart_max_pct_of_balance: float = 0.15  # base fixed budget <= 15% of balance
+    # (A+ conviction multiplies AFTER the clamp: effective entry <= 22.5% at 1.5x)
 
     # --- Conviction-tiered sizing (operator-approved 2026-08-04) ---
     # A+ (confidence >= conv_min_confidence AND rvol >= conv_min_rvol — the
@@ -61,7 +62,8 @@ class Guardrails:
 
     def __post_init__(self):
         bounds = [b for b, _ in self.sizing_phases]
-        assert bounds == sorted(bounds), "sizing_phases must be sorted ascending"
+        if bounds != sorted(bounds):   # raise (not assert): must survive python -O
+            raise ValueError("sizing_phases must be sorted ascending")
 
     def premium_budget(self, balance: float) -> float:
         """Per-trade premium budget for ``balance`` under the phase ladder.
