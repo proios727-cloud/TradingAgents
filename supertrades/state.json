@@ -111,9 +111,21 @@
         {"type": "target", "pct": 50, "price": 2.99, "mech": "sell_limit_at_mark"},
         {"type": "stop", "pct": -30, "price": 1.39, "mech": "sell_limit_at_bid"},
         {"type": "ratchet", "arm_pct": 25, "arm_price": 2.49, "be_stop_price": 1.99, "mech": "breakeven_stop_after_arm"},
-        {"type": "flatten_et", "at": "15:44", "mech": "sell_limit_at_bid_unless_ratchet"}
+        {"type": "flatten_et_conditional", "at": "15:44", "mech": "sell_limit_at_bid_unless_overnight_gate_passes"}
       ],
-      "note": "AGENTIC entry 8/4 13:24 ET @1.99 (user-directed 'tiny live', top rvol-screen affordable mover; DTE broken to 1 per user). 1-DTE, IV ~122%, theta -1.19 - SAME-DAY SCALP ONLY, flatten 15:44, do NOT hold into 8/5 expiry. ~49% of BP. INTC +10.4% $100 breakout. OVERRIDES: 3rd entry (past daily-2), midday, min_dte, delta ok 0.41.",
+      "overnight_swing_gate": {
+        "authorized_by": "user 8/4 13:30 ET - 'can swing intc if scoring permits for overnight hold'",
+        "evaluate_at": "15:35-15:44 ET",
+        "hold_overnight_requires_ALL": [
+          "INTC day_pct still >= +5% AND green vs prior close",
+          "INTC last price above intraday VWAP (trend intact)",
+          "option mark >= ratchet-arm 2.49 (i.e. >=+25%, in profit) - do NOT carry a red 1-DTE overnight",
+          "no sharp reversal: INTC not down >2% from the day's high in the last 30 min"
+        ],
+        "if_all_true": "reclass class -> 'swing_overnight'; set stop to breakeven 1.99 (protect gain); exit plan = sell tomorrow 8/5 by 10:30 ET OR on any -20% from carry mark (0DTE theta), whichever first. Do NOT let it ride to 8/5 expiry.",
+        "if_any_false": "FLATTEN at 15:44 at the bid (same-day scalp default)."
+      },
+      "note": "AGENTIC entry 8/4 13:24 ET @1.99 (user 'tiny live', top rvol-screen affordable mover; DTE broken to 1). 1-DTE, IV ~122%, theta -1.19. DEFAULT = same-day scalp flatten 15:44, BUT user authorized OVERNIGHT SWING IF overnight_swing_gate passes at 15:35-15:44 (strong close required). If held, exit 8/5 by 10:30 ET or -20%, never to expiry. ~49% BP. INTC +10.4% $100 breakout. OVERRIDES daily-2/midday/min_dte per user.",
       "last_mark": 1.99
     },
     "qqq-724c-0804": {
@@ -213,6 +225,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T17:31Z",
+      "event": "rule",
+      "detail": "User authorized CONDITIONAL OVERNIGHT SWING for INTC 8/5 102C ('can swing intc if scoring permits'). Added overnight_swing_gate: at 15:35-15:44 ET, hold overnight ONLY if ALL true - INTC day% >=+5% & green, above VWAP, option mark >=2.49 (+25%, in profit), no >2% reversal from HOD. If pass -> reclass swing_overnight, stop to BE 1.99, exit 8/5 by 10:30 ET or -20% (never to expiry). If any fail -> flatten 15:44. Default remains same-day scalp. Fills-only pings unchanged."
+    },
     {
       "t": "2026-08-04T17:25Z",
       "event": "fill",
