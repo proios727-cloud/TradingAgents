@@ -5,6 +5,11 @@ Pure stdlib; NO real MCP tool is ever called — every transport here is an
 in-memory fake.
 
     cd supertrades-terminal && python -m unittest agent.tests.test_smoke -v
+
+Also covers ``preflight()`` — the go/no-go gate before ``tiny_live``,
+including the account-pinning rule (migrated from the retired
+``agent/mcp_dispatch.py`` / ``test_rh_wire.py`` — see ``PreflightGoNoGo``
+below).
 """
 
 from __future__ import annotations
@@ -22,9 +27,11 @@ from agent.broker.mcp_dispatch import (
     _MUTATING_PREFIXES,
     McpDispatchError,
 )
+from agent.broker.robinhood_mcp import RobinhoodMcpBroker
 from agent.config import RuntimeConfig
 from agent.kill_switch import KillState
-from agent.smoke import SmokeRefused, build_checks, run_smoke
+from agent.models import AccountState
+from agent.smoke import SmokeRefused, build_checks, preflight, run_smoke
 
 
 class RecordingTransport:
@@ -255,6 +262,120 @@ class ExitCodeTally(unittest.TestCase):
             responses=_responses_for(watchlist), fail_on={"get_accounts"})
         _, code = run_smoke(INERT, transport=transport, watchlist=watchlist)
         self.assertEqual(code, 1)
+
+
+class OnlyOneDispatcherExists(unittest.TestCase):
+    """``agent/mcp_dispatch.py`` (the earlier, blocklist-based, non-kill-wired
+    parallel dispatcher) is retired. This guards against it reappearing —
+    accidentally restored by a merge, a stray revert, etc. The production
+    dispatcher lives at ``agent/broker/mcp_dispatch.py`` only."""
+
+    def test_top_level_mcp_dispatch_module_does_not_exist(self):
+        import importlib
+        with self.assertRaises(ModuleNotFoundError):
+            importlib.import_module("agent.mcp_dispatch")
+
+    def test_top_level_mcp_dispatch_file_is_gone(self):
+        import agent
+        from pathlib import Path
+        self.assertFalse(
+            (Path(agent.__file__).parent / "mcp_dispatch.py").exists())
+
+
+AGENTIC = "902341866"
+OTHER = "812234458"
+
+# Two-account get_accounts response — one agentic, one not — matching the
+# real live-captured shape (see agent/broker/robinhood_mcp.py docstring).
+TWO_ACCOUNTS = {"data": {"accounts": [
+    {"account_number": OTHER, "agentic_allowed": False, "option_level": "option_level_2"},
+    {"account_number": AGENTIC, "agentic_allowed": True, "option_level": "option_level_2"},
+]}}
+GOOD_PORTFOLIO_2 = {"data": {"total_value": "434.36", "options_value": "0",
+                             "cash": "334.36", "buying_power": {"buying_power": "334.36"}}}
+ZERO_CASH_PORTFOLIO = {"data": {"total_value": "434.36", "options_value": "0",
+                                "cash": "0", "buying_power": {"buying_power": "0"}}}
+
+
+def _preflight_mcp(accounts=TWO_ACCOUNTS, portfolio=GOOD_PORTFOLIO_2):
+    def call(tool, params):
+        if tool == "get_accounts":
+            return accounts
+        if tool == "get_portfolio":
+            return portfolio
+        return {}
+    return call
+
+
+def _preflight_broker(account_number, **overrides):
+    accounts = overrides.pop("accounts", TWO_ACCOUNTS)
+    portfolio = overrides.pop("portfolio", GOOD_PORTFOLIO_2)
+    cfg = RuntimeConfig(account_number=account_number, dry_run=True, armed=False, **overrides)
+    return RobinhoodMcpBroker(cfg, _preflight_mcp(accounts, portfolio))
+
+
+class PreflightGoNoGo(unittest.TestCase):
+    def test_passes_on_a_good_account(self):
+        ok, reasons, acct = preflight(_preflight_broker(AGENTIC))
+        self.assertTrue(ok, reasons)
+        self.assertEqual(acct.account_number, AGENTIC)
+
+    def test_fails_when_not_agentic(self):
+        ok, reasons, _ = preflight(_preflight_broker(OTHER))
+        self.assertFalse(ok)
+        self.assertTrue(any("agentic" in r for r in reasons), reasons)
+
+    def test_fails_when_option_level_below_2(self):
+        accounts = {"data": {"accounts": [
+            {"account_number": AGENTIC, "agentic_allowed": True, "option_level": "option_level_0"},
+        ]}}
+        ok, reasons, _ = preflight(_preflight_broker(AGENTIC, accounts=accounts))
+        self.assertFalse(ok)
+        self.assertTrue(any("option level" in r for r in reasons), reasons)
+
+    def test_fails_when_settled_cash_is_zero(self):
+        ok, reasons, _ = preflight(
+            _preflight_broker(AGENTIC, portfolio=ZERO_CASH_PORTFOLIO))
+        self.assertFalse(ok)
+        self.assertTrue(any("settled buying power" in r for r in reasons), reasons)
+
+    def test_fails_when_account_number_is_unset(self):
+        ok, reasons, acct = preflight(_preflight_broker(None))
+        self.assertFalse(ok)
+        self.assertTrue(any("account_number is unset" in r for r in reasons), reasons)
+        # A live account was still readable (inference resolved *something*
+        # for get_account()) — the point is preflight refuses to trust it.
+        self.assertIsNotNone(acct)
+
+    def test_fails_when_configured_account_number_is_not_agentic_allowed(self):
+        # Pinned to the non-agentic account explicitly — must fail even though
+        # it matches a real row, because that row isn't agentic_allowed.
+        ok, reasons, _ = preflight(_preflight_broker(OTHER))
+        self.assertFalse(ok)
+        self.assertTrue(
+            any("does not match an agentic_allowed account" in r for r in reasons),
+            reasons,
+        )
+
+    def test_fails_when_configured_account_number_matches_no_row_at_all(self):
+        ok, reasons, _ = preflight(_preflight_broker("no-such-account"))
+        self.assertFalse(ok)
+        self.assertTrue(
+            any("does not match an agentic_allowed account" in r for r in reasons),
+            reasons,
+        )
+
+    def test_soft_fails_when_account_read_raises(self):
+        class Unreadable(RobinhoodMcpBroker):
+            def get_account(self):
+                raise RuntimeError("boom")
+
+        cfg = RuntimeConfig(account_number=AGENTIC, dry_run=True, armed=False)
+        broker = Unreadable(cfg, _preflight_mcp())
+        ok, reasons, acct = preflight(broker)
+        self.assertFalse(ok)
+        self.assertIsNone(acct)
+        self.assertTrue(any("cannot read account" in r for r in reasons), reasons)
 
 
 if __name__ == "__main__":
