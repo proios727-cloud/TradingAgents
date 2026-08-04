@@ -1,0 +1,505 @@
+{
+  "schema": "supertrades-state-v2",
+  "updated_at": "2026-08-04T18:49:00Z",
+  "risk_posture": {
+    "priority": "LOW_DRAWDOWN",
+    "set_by": "user 8/4 'keep DD low'",
+    "note": "Capital preservation first. Served by: never-red floor (open positions can't go red), floor ratchets UP only, +50% give-back trail (locks ~60% of peak), v4.2 concentration ceilings, -$60 daily halt, and taking profit on real stalls. Balance with 'enough wiggle to reach target, no paperhand' - keep DD low WITHOUT choking runners: floors/trails, not tight noise-stops."
+  },
+  "performance": {
+    "window": "2026-07-21..2026-08-04 (visible log)",
+    "trades_closed": 6, "wins": 2, "losses": 4, "win_rate": 0.33,
+    "gross_pnl_usd": -7, "avg_win_usd": 42.0, "avg_loss_usd": -22.8,
+    "expectancy_per_trade_usd": -1.2,
+    "read": "Wins are clean (+50-64% targets); edge erased by 2 OVERSIZED losses (NVDA -55%, DIS -42% - stops slipped past the -30% line). Win-rate/expectancy levers (v4.4): (1) green_lock converts brief winners into guaranteed small wins; (2) CAP loss size - marketable stops, no single-name overnight gap; (3) keep runner upside so the big wins that carry expectancy survive. Goal = raise win rate WITHOUT shrinking the winners.",
+    "recompute": "on each close from the journal; wire an auto-updater next."
+  },
+  "barbell_runner_strategy": {
+    "authorized_by": "user 8/4: 'lock win early = my scale-out to make sure I'm profit on the day for sure, but let some continue for 1000% growth with a strict trailing stop'",
+    "applies_to": "options-watchlist runners; requires >=2 contracts (prefer 2x-small sizing so scale-out is possible)",
+    "principle": "ALWAYS BE REALIZING: bank tranches of profit on the way UP (not just trail paper gains), so growth is continuously locked as realized $ while a final piece keeps running. Maximize overall gains, but every leg realizes profit.",
+    "leg_A_day_lock": "SCALE OUT ~half at the first target (+30-50%) to BANK guaranteed profit -> secures the DAY green for sure (target.scale_out_frac). Once realized day P&L is green and covers this trade's cost, the remainder is HOUSE MONEY.",
+    "leg_B_moonshot": "Runner remainder rides for 1000%+ (no cap) with CONTINUOUS REALIZATION - scale out a slice at each milestone to keep banking realized profit: sell ~1/3 of the remainder at +100%, ~1/3 at +300%, hold the last piece toward +500-1000%. The final piece rides a STRICT trailing stop (NOT the loose day trail): give-back peak_frac 0.20 (lock 80% of peak) armed at +100%, PLUS floor ratchets +100%->lock +50%, +200%->+120%, +300%->+200%, +500%->+380%, +1000%->+800%. Marketable exits. Never-red automatic (leg A covered cost).",
+    "why": "Barbell = guaranteed green day (leg A) + a continuously-realized, protected moonshot (leg B). You always lock/realize growth on the way up AND keep a piece for the 10x; the strict trail protects the big number without paperhanding it. Single-contract positions can't scale - they use never-red + give-back (or size to 2-3 lots to enable tranche realization).",
+    "engine": "expressible today via target.scale_out_frac (leg A) + a strict giveback {arm_gain_pct:100,peak_frac:0.20} + milestone ratchets (leg B). Auto-materializer + 2-lot default sizing = next build."
+  },
+  "trading_date": "2026-08-04",
+  "rule_version": "v4.4",
+  "mode": {
+    "cadence_min": 30,
+    "dnd": true,
+    "least_stressful": true,
+    "push_policy": "fills_or_improvement_ideas",
+    "set_at": "2026-08-04T18:24:00Z",
+    "note": "user-set FILLS or IMPROVEMENT IDEAS (8/4). PUSH when: (a) an order FILLS, (b) a genuine high-value improvement idea, or (c) EXPLICIT one-off request - INTC OVERNIGHT GATE decision at 15:35-15:44 ET: push HOLD/FLATTEN + why regardless of fill (user asked 'ping me when intc hits the overnight gate'). Still NO per-cycle status. Halts/failures logged, not pushed.",
+    "surface_new_setups": "OFF in fills-only mode: do not surface or push setups. The loop reconciles + manages rails silently; it only reaches the phone on a fill."
+  },
+  "dashboard_url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4",
+  "pages": {
+    "console": {
+      "path": "supertrades/pages/supertrades-console.html",
+      "url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4",
+      "favicon": "\u26a1"
+    },
+    "index_desk": {
+      "path": "supertrades/pages/supertrades-indexes.html",
+      "url": "https://claude.ai/code/artifact/ed76be77-02f7-42d1-9eb5-ae50f4159249",
+      "favicon": "\ud83d\udce1",
+      "rule": "alert feed accumulates all DND-muted alerts"
+    },
+    "publish_rule": "edit the repo file, then Artifact publish with BOTH file_path (repo path) AND url (stored above) so the existing URL is kept; republish only when displayed values changed"
+  },
+  "universe": [
+    "SPY",
+    "QQQ",
+    "IWM",
+    "NVDA",
+    "TSLA",
+    "AMD",
+    "INTC",
+    "RIVN",
+    "DIS",
+    "META",
+    "LMT",
+    "XOM",
+    "CVX",
+    "XLE",
+    "USO"
+  ],
+  "ticker_classes": {
+    "SPY": "index",
+    "QQQ": "index",
+    "IWM": "index",
+    "NVDA": "single_name",
+    "TSLA": "single_name",
+    "AMD": "single_name",
+    "INTC": "single_name",
+    "RIVN": "single_name",
+    "DIS": "single_name",
+    "META": "single_name",
+    "LMT": "single_name",
+    "XOM": "single_name",
+    "CVX": "single_name",
+    "XLE": "sector_etf",
+    "USO": "sector_etf"
+  },
+  "class_defaults": {
+    "0dte_scalp": {
+      "target_pct": 50,
+      "stop_pct": -30,
+      "ratchet_pct": 25,
+      "green_lock": {"arm_pct": 20, "floor_pct": 8},
+      "am_index_trail": {
+        "applies_to": "morning index scalps (SPY/QQQ entered ~09:40-11:00)",
+        "materialize_rule": {"type": "underlying_vwap_stop", "buffer_pct": 0.1},
+        "note": "USER 8/4 'trailing stop for morning entries on indices'. Trend-trailing stop: hold while the index holds the right side of VWAP (0.1% buffer); exit marketable on a VWAP break. VWAP rises through an uptrend so the stop trails the trend and does NOT cap upside like the fixed +50% target - lets a morning index runner ride the whole move. Composes with green_lock (lock +8% once peak +20%), give-back trail, and the HARD 15:00 index close. Add {type:underlying_vwap_stop,buffer_pct:0.1} to the scalp's exit_rules at entry."
+      },
+      "hard_exit_et": "15:15",
+      "index_hard_close_et": "15:00",
+      "exit_time_discipline": "HARD (user 8/4 'hard on exit time ... always close before best target time for indexes'). INDEX positions (SPY/QQQ) MUST be flat by index_hard_close_et 15:00 - non-discretionary buffer BEFORE the 15:15 backstop; never ride to the deadline (late-day gamma/pin/theta risk). Non-index 0dte: hard-exit 15:15. No ratchet-keep discretion for indexes into the close.",
+      "profit_max": {
+        "runner": true,
+        "giveback": {"arm_gain_pct": 40, "peak_frac": 0.30},
+        "scale_out_frac": 0.5, "scale_out_at_pct": 60,
+        "exit_mech": "marketable_through_bid",
+        "note": "Fastest clock: trail tight (lock 70% of peak), price/gamma only. Runner = do NOT hard-cap at +50%; let it run and trail. QQQ 8/4 lesson. Exit time is HARD - indexes close by 15:00."
+      }
+    },
+    "day_trade": {
+      "target_pct": 50,
+      "stop_pct": -30,
+      "ratchet_pct": 25,
+      "green_lock": {"arm_pct": 20, "floor_pct": 5},
+      "flatten_et": "15:45",
+      "profit_max": {
+        "runner": true,
+        "giveback": {"arm_gain_pct": 50, "peak_frac": 0.40},
+        "scale_out_frac": 0.5, "scale_out_at_pct": 75,
+        "exit_mech": "marketable_through_bid",
+        "note": "1-5 DTE: medium trail (lock 60% of peak), let it breathe more than 0DTE. Price + VWAP structure."
+      }
+    },
+    "swing": {
+      "target_pct": 50,
+      "stop_pct": -30,
+      "ratchet_pct": 25,
+      "green_lock": {"arm_pct": 30, "floor_pct": 10},
+      "time_stop": {
+        "days_before_expiry": 14
+      },
+      "profit_max": {
+        "runner": true,
+        "giveback": {"arm_gain_pct": 60, "peak_frac": 0.50},
+        "scale_out_tiers": [{"at_pct": 75, "frac": 0.33}, {"at_pct": 150, "frac": 0.5}],
+        "exit_mech": "limit_at_bid",
+        "ta_fundamental_gate": "Weekly horizon: give the runner the MOST room (lock 50% of peak) BUT keep holding ONLY while BOTH hold: (TA) daily trend intact - price > rising MA20 / making higher-highs, no daily reversal candle on volume; (FUNDAMENTAL) growth thesis intact - no earnings miss / guidance cut / negative catalyst. If TA breaks OR fundamentals deteriorate, exit regardless of the give-back %. Trail the stop under the prior daily swing-low.",
+        "enforcement": "HARD (user 8/4 'hard on ... swing rails'). Give-back trail, swing-low stop, and the TA+fundamental gate are non-discretionary - a break exits, no 'give it one more day'. Also hard: exit >= 1 trading day before expiry (no expiry-week theta cliff on swings).",
+        "note": "~1-3 week swings: widest trail, but gated by TA structure + fundamental quality (get_equity_fundamentals / earnings). This is where growth TA + fundamentals overlay the numeric trail. Rails are HARD, not advisory."
+      }
+    },
+    "swing_overnight": {
+      "stop_pct": -30,
+      "ratchet_pct": 25,
+      "green_lock": {"arm_pct": 20, "floor_pct": 8},
+      "profit_max": {
+        "runner": true,
+        "giveback": {"arm_gain_pct": 50, "peak_frac": 0.45},
+        "exit_mech": "marketable_through_bid",
+        "note": "1-2 day carry (e.g. INTC overnight): lock 55% of peak, tighter than swing due to gap + 0DTE-tomorrow theta risk."
+      }
+    },
+    "alert_only": {}
+  },
+  "governor_v42": {
+    "active": true,
+    "authorized_by": "user 8/4 13:45 ET - 'build both ... for current session'",
+    "engine_ref": "supertrades/engine/reporter.py GUARDRAILS (single gate) + tests/test_engine.py::TestVolAwareAndConcentrationV42",
+    "vol_aware_pricing": {
+      "iv_soft_cap": 0.90,
+      "iv_hard_cap": 2.50,
+      "iv_rank_soft_cap": 0.80,
+      "note": "IV > soft cap (or iv_rank top-20%) -> FLAG 'overpaying for vol'; prefer a DEBIT SPREAD (sell a higher strike to fund the long, cutting theta) over a naked call; engine de-ranks it vs any lower-IV eligible pick. IV > hard cap -> block (uninvestable premium). Applies to future entries only."
+    },
+    "short_dte_concentration": {
+      "short_dte_days": 5,
+      "short_dte_bp_frac_cap": 0.35,
+      "note": "Hand-placed (manual/agentic) entry with <5 DTE: contract cost must be <= 35% of settled BP. This is the FLOOR UNDER OVERRIDES - it binds even when daily-2 / midday / min_dte are overridden by hand. Engine auto path stays capped tighter at per_trade_bp_frac 0.22. Helper: reporter.short_dte_override_max_usd(bp)."
+    },
+    "grandfathered": {
+      "positions": ["intc-102c-0805"],
+      "note": "INTC 8/5 102C (1-DTE, IV ~122%, ~49% BP) predates these rails and would breach both. Per user 'leave open and rails in line for exit' it is NOT force-closed - it keeps its existing exit_rules + overnight_swing_gate. New rails govern the NEXT entry, not this open one."
+    }
+  },
+  "day": {
+    "realized_pnl": 84.0,
+    "auto_entries_used": 1,
+    "manual_entries_today": 2,
+    "manual_round_trips": 2,
+    "entries_today_total": 3,
+    "churn_threshold_hit": false,
+    "halted": false,
+    "open_pnl_est": 4.5,
+    "note": "LIVE 8/4. SPY 771C -> +48 (order 6a721cea). QQQ 724C: target (+50%) tripped but at eval it was +123% (mark 1.43); bid evaporated in a fast 0DTE selloff (1.42->1.33->1.15->1.00 in ~2min); chased down and AGENTIC exit filled @1.00 = +36 (+56%, order 6a7228d3 after 2 cancels). Locked the win, did NOT round-trip to zero. Realized now +84. Open: INTC 8/5 102C @1.99, mark 2.035 (+2%). BP ~203.",
+    "day_pnl_est": 88.5
+  },
+  "positions": {
+    "intc-102c-0805": {
+      "contract": "INTC 8/5 $102C",
+      "option_id": "fcf1eaae-926f-4e41-b4ca-990db635982c",
+      "account": "902341866",
+      "qty": 1,
+      "entry": 1.99,
+      "hwm": 2.23,
+      "ratchet_engaged": false,
+      "never_red": true,
+      "class": "day_trade",
+      "expiry": "2026-08-05",
+      "exit_rules": [
+        {"type": "target", "pct": 50, "price": 2.99, "runner": true, "mech": "hold_runner_trail_no_cap"},
+        {"type": "never_red_floor", "floor_bid": 2.03, "trail_style": "LOOSE_milestone_not_tight", "milestone_ratchets": [{"when_bid_gte": 2.49, "raise_floor_to": 2.20}, {"when_bid_gte": 2.79, "raise_floor_to": 2.49}, {"when_bid_gte": 2.99, "raise_floor_to": 2.70}], "mech": "sell_marketable_if_bid_at_or_below_floor", "note": "USER 'never red' + 'allow just enough wiggle to still get the target, no paperhand'. Floor guarantees a GREEN close (breakeven+fees ~2.03) but sits LOOSE for maximum wiggle room - do NOT tight-trail a 128%-IV name or noise stops you out before target. Floor steps UP only at milestones (+25%->2.20, +40%->2.49, +50%->2.70), never down; give-back trail owns +50%+. Exit only on a floor breach or a REAL stall (score not high) - not on wiggle."},
+        {"type": "giveback", "arm_gain_pct": 50, "peak_frac": 0.40, "mech": "sell_marketable_through_bid"},
+        {"type": "flatten_et_conditional", "at": "15:44", "mech": "sell_limit_at_bid_unless_overnight_gate_passes"}
+      ],
+      "profit_max_ladder": "day_trade runner (v4.3). entry->+25%: hard stop 1.39. +25%->+50%: breakeven stop 1.99 (ratchet). +50%+: RUNNER - do NOT cap at +50%; trail give-back (arm at peak >=+50%, exit if it gives back 40% of peak gain -> locks ~60% of the peak), MARKETABLE exit through bid (QQQ lesson: resting-at-bid missed the fast reversal). Close: overnight gate 15:35-15:44. Exit timing: management cadence tightens to ~8min once mark >= 2.49 (extended/near trail).",
+      "growth_score_hold_gate": {
+        "authorized_by": "user 8/4 - 'intc held too long unless scoring shows greater potential for growth thru close into tomorrow'",
+        "principle": "Do NOT overstay a 1-DTE into theta (-1.25/day). The runner only KEEPS holding a profit while the growth score is HIGH; on a STALL, book it.",
+        "growth_score_HIGH_requires": ["INTC day% strong / near HOD", "above VWAP", "RVOL elevated (volume confirming)", "still making higher highs (no 15-min stall)", "$100 breakout holding"],
+        "if_in_profit_and_score_NOT_high": "STALL EXIT - take profit marketable now rather than bleed theta (don't wait for the give-back trail). Applies once mark is meaningfully green (>= ~+15%).",
+        "if_score_HIGH": "keep running (give-back trail + overnight gate govern). Strong score into 15:35-15:44 -> overnight gate may carry to 8/5.",
+        "expiry_reality": "Contract expires 8/5 (Wed). Holding 'into Thursday 8/6' is IMPOSSIBLE without a ROLL to a later INTC expiry - pending user decision (roll-on-strength vs exit-by-8/5)."
+      },
+      "overnight_swing_gate": {
+        "authorized_by": "user 8/4 - 'can swing intc if scoring permits' + 'weigh expiry theta vs potential huge growth AH/PM'",
+        "evaluate_at": "15:35-15:44 ET",
+        "theta_vs_catalyst_weigh": {
+          "principle": "This is a 1-DTE: holding overnight = heavy overnight theta AND it becomes 0DTE tomorrow. Carry it ONLY if an identifiable AH/PM UPSIDE CATALYST plausibly gaps INTC enough to beat the overnight decay. No catalyst + just grinding = theta wins, FLATTEN.",
+          "theta_cost_side": "Estimate overnight decay: at IV ~122%, theta ~-1.25/day - a flat open tomorrow bleeds a large fraction of the option. That is the hurdle the upside must clear.",
+          "catalyst_upside_side": [
+            "EARNINGS CHECKED 8/4: INTC last reported 2026-07-23 (Q2 beat 0.42 vs 0.19); NEXT is 2026-10-22 (unverified). NO earnings catalyst tonight - today's +10% is news/momentum, not a scheduled event. So there is NO binary AH event to justify carry; the upside case is pure momentum-continuation.",
+            "Absent a fresh AH/PM news catalyst, momentum-only continuation rarely beats a 1-DTE's overnight theta -> bias FLATTEN.",
+            "Would only favor hold if INTC is powering into the close (near HOD, strong RVOL, higher highs) AND a fresh catalyst/news is driving it."
+          ],
+          "decision": "HOLD overnight only if (strong-close conditions ALL true) AND a real AH/PM upside catalyst beats the theta hurdle. With no earnings tonight, DEFAULT LEANS FLATTEN unless INTC is exceptionally strong into 15:44."
+        },
+        "hold_overnight_requires_ALL": [
+          "INTC day_pct still >= +5% AND green vs prior close",
+          "INTC last price above intraday VWAP (trend intact)",
+          "option mark >= ratchet-arm 2.49 (i.e. >=+25%, in profit) - do NOT carry a red 1-DTE overnight",
+          "no sharp reversal: INTC not down >2% from the day's high in the last 30 min",
+          "theta_vs_catalyst_weigh.decision favors HOLD (identifiable AH/PM upside catalyst beats the overnight theta hurdle; NOT an unwanted earnings gamble)"
+        ],
+        "if_all_true": "reclass class -> 'swing_overnight'; set stop to breakeven 1.99 (protect gain); exit plan = sell tomorrow 8/5 by 10:30 ET OR on any -20% from carry mark, whichever first. Never ride to 8/5 expiry.",
+        "if_any_false": "FLATTEN at 15:44 marketable through the bid (theta beats hope on a 1-DTE).",
+        "delegation": "User 8/4: 'if not sold before close I trust your judgment.' Agent makes the final overnight call at 15:35-15:44 using this gate; with no catalyst tonight the default is LEAN FLATTEN. USER-REQUESTED PING: push the HOLD/FLATTEN decision at the gate regardless of fill."
+      },
+      "note": "AGENTIC entry 8/4 13:24 ET @1.99 (user 'tiny live', top rvol-screen affordable mover; DTE broken to 1). 1-DTE, IV ~122%, theta -1.19. DEFAULT = same-day scalp flatten 15:44, BUT user authorized OVERNIGHT SWING IF overnight_swing_gate passes at 15:35-15:44 (strong close required). If held, exit 8/5 by 10:30 ET or -20%, never to expiry. ~49% BP. INTC +10.4% $100 breakout. OVERRIDES daily-2/midday/min_dte per user.",
+      "last_mark": 2.23,
+      "floor_bid": 2.03,
+      "hwm_note": "14:48 ET check: option mark 2.23 / bid 2.20 = NEW HIGH +12.1%, hwm 2.23. INTC equity 100.90 (+10.9%), VWAP 98.88 -> above VWAP, higher highs = growth score HIGH. HOLD runner. Floor 2.03 intact; no milestone (bid < 2.49); green_lock arms at +20% (mark 2.39) -> then floor +5% (2.09). Cadence 8min. No push (no fill/target/gate)."
+    }
+  },
+  "watchlist": [],
+  "pool": [
+    {
+      "id": "d68712fc-7956-4131-ae60-c1ef25d330ea",
+      "contract": "SPY 8/7 $765C"
+    }
+  ],
+  "settlement": {
+    "pending": [],
+    "cleared": [
+      {
+        "amount": 541.18,
+        "kind": "settled_cash",
+        "confirmed": "2026-08-04 09:56 ET: get_portfolio 902341866 = total_value 541.18, cash 541.18, BP 541.18, options_value 0. Fully settled, no pending."
+      }
+    ]
+  },
+  "prior_cycle": {
+    "at": "2026-08-04T13:57:00Z",
+    "marks": {},
+    "contract_cum_volume": {},
+    "day_pct": {
+      "SPY": 0.68,
+      "QQQ": 1.84,
+      "IWM": 0.70,
+      "NVDA": 1.43,
+      "AMD": 4.89,
+      "INTC": 6.48,
+      "TSLA": 0.04,
+      "META": -0.87
+    },
+    "crossed_2pct": ["QQQ", "AMD", "INTC"],
+    "note": "09:56 ET 8/4: broad RISK-ON, tech/semis lead (QQQ +1.84, INTC +6.5, AMD +4.9, NVDA +1.4). SPY +0.68, IWM +0.70. META -0.9 + TSLA flat lag. QQQ strongly GREEN -> negative-gamma downside GEX gate NOT armed (no index 0DTE fade). Semis already extended (+5-6% gaps) - chasing = day-1/day-3 mistake the v4 governor blocks. Agentic FLAT, BP 541. No entry yet; wait for 9:40+ pullback-with-confirmation, not a gap-chase."
+  },
+  "gex_map": {},
+  "open_plan": {
+    "built_at": "2026-08-04T13:57:00Z",
+    "settled_bp": 541.18,
+    "per_trade_cap": 119.06,
+    "risk_budget": {
+      "per_trade_bp_frac": 0.22,
+      "max_capital_per_trade": 119.06,
+      "intended_stop_risk_usd": 36.0,
+      "intended_stop_risk_pct_acct": 6.6,
+      "note": "v4.1: capital-at-risk cap tightened 0.25->0.22 of BP. Single-leg long only, 1 contract, worst-case (gap-to-0) = ~22% of account; engineered -30% stop = ~$36 (~6.6%). Frequency cap (1 auto / 2 total entries/day) remains the primary loss control."
+    },
+    "deposit_landed": true,
+    "gappers": {
+      "up": {
+        "INTC": 6.48,
+        "AMD": 4.89,
+        "NVDA": 1.43,
+        "QQQ": 1.84,
+        "IWM": 0.70,
+        "SPY": 0.68
+      },
+      "down": {
+        "META": -0.87
+      }
+    },
+    "gate": {
+      "status": "NOT_ARMED",
+      "reason": "QQQ +1.84% (strongly green; negative-gamma downside gate arms on -0.75% dip, not up)",
+      "action": "no index 0DTE setup; re-check only on an intraday QQQ/SPY -0.75% red-after-green reversal"
+    },
+    "candidates": [
+      {
+        "note": "BP 541.18 settled, per-trade cap 0.25*BP = ~$135, halt reset, no settlement suppression. Can afford quality delta 0.35-0.50, 1 lot, under v4 caps (1 auto / 2 total entries max)."
+      },
+      {
+        "contract": "SEMIS = do NOT chase the gap",
+        "note": "INTC +6.5, AMD +4.9 already extended at open. v4 blocks the chase. Only a clean 9:40-11:00 pullback to VWAP that HOLDS + reclaims the 15-min OR high is a candidate - and only ONE, quality delta."
+      }
+    ],
+    "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
+  },
+  "log": [
+    {
+      "t": "2026-08-04T18:49Z",
+      "event": "build",
+      "detail": "v4.4 cont: (a) underlying_vwap_stop exit_rule = morning-index TREND TRAIL (user 'trailing stop for morning index entries') - hold while index holds right side of VWAP, exit on break; VWAP rises in an uptrend so it trails the trend, no fixed-target cap. am_index_trail profile on 0dte_scalp. (b) BARBELL RUNNER STRATEGY (user 'lock win early = scale-out to secure day profit for sure, let some run 1000% with strict trailing stop ... always realizing profit'): leg A scale-out ~half at first target -> guaranteed green DAY; leg B runner rides 1000%+ with CONTINUOUS REALIZATION (scale tranches at +100/+300%) + STRICT trail (give-back 0.20 = lock 80% of peak, milestone floors) on the final piece. Needs >=2-3 lots. +6 tests (58->60 total), selftest 25/0. INTC 14:48 = new high +12%, hold. Re-arming 8min chain."
+    },
+    {
+      "t": "2026-08-04T18:45Z",
+      "event": "build",
+      "detail": "v4.4 WIN-RATE / EXPECTANCY layer (user: 'adjust for best win rate + review exits/maximize growth/trailing, best logical approach'). REVIEW: 6 closes, ~33% win rate, gross ~-$7 - wins clean (+50-64%) but edge erased by 2 oversized losses (NVDA -55%, DIS -42% past -30% stop) + winners round-tripping (QQQ +123%->+56%). BUILT: green_lock exit_rule (arm ~+20% peak -> small-green floor +5-10% so a brief winner can't become a loss) + per-class green_lock + state.performance tracker. Framework = max EXPECTANCY not naive win rate: lock win early (green_lock), cut losers hard (marketable stop, no gap), run a piece (trail), scale-out on >=2 lots. +4 tests, 54/54, selftest 25 nodes 0 err. v4.3->v4.4. Recommended next: 2-contract sizing for scale-out; auto performance updater."
+    },
+    {
+      "t": "2026-08-04T18:41Z",
+      "event": "rule",
+      "detail": "Added TARGET PING (user 'ping me if it hits target before the gate'): if INTC mark >= 2.985 (+50%) before the 15:35-15:44 gate, push once - runner keeps trailing past it. Push policy now: fills + target ping (once) + gate ping. Also set risk_posture=LOW_DRAWDOWN (user 'keep DD low') - served by never-red floor + up-only milestone ratchets + give-back trail + concentration caps + daily halt, balanced against 'enough wiggle/no paperhand'. Live chain trig_01F6xJf7 (14:43)."
+    },
+    {
+      "t": "2026-08-04T18:29Z",
+      "event": "rule",
+      "detail": "INTC (now +7%, bid 2.09/mark 2.135) risk reframed per user: 'never red, close for profit at least, max best' + 'allow just enough wiggle to still get target, no paperhand' + 'holding paid off'. Replaced -30% stop (1.39, red) with NEVER-RED FLOOR at bid 2.03 (breakeven+fees, guarantees green) - LOOSE/milestone, NOT tight-trail (128% IV needs wiggle to reach target). Milestone step-ups: +25%->floor 2.20, +40%->2.49, +50%->2.70; give-back trail owns +50%+. Stall exit only on REAL score-fade, not noise. Overnight: never-red + no-catalyst -> lean FLATTEN to lock green (user delegated the call, wants gate PING regardless of fill). Management chain re-armed (prior one-shot fired 14:23); fresh trigger fires 14:43, re-arms to the 15:35-15:44 gate."
+    },
+    {
+      "t": "2026-08-04T18:18Z",
+      "event": "rule",
+      "detail": "Overnight gate now weighs THETA vs AH/PM CATALYST (user). EARNINGS CHECKED: INTC last reported 7/23 (beat), next 10/22 - NO earnings tonight, so no binary AH catalyst; overnight case is momentum-only -> gate DEFAULT LEANS FLATTEN unless INTC is exceptionally strong into 15:44. HARD RULES added (user 'hard on exit time and swing rails', agent agrees): (1) exit-time non-discretionary - INDEX (SPY/QQQ) positions HARD-close by 15:00 ET (buffer before 15:15 backstop), never ride the deadline; DTE is a first-class exit input. (2) SWING rails hard - give-back trail + swing-low stop + TA/fundamental gate non-discretionary, exit >=1 day before expiry. Spec §6b + class_defaults updated."
+    },
+    {
+      "t": "2026-08-04T18:14Z",
+      "event": "rule",
+      "detail": "User: 'intc held too long unless scoring shows greater potential for growth thru close into tomorrow/thurs'. Added growth_score_hold_gate to INTC: runner keeps holding ONLY while growth score HIGH (day% strong/near HOD + above VWAP + volume confirming + higher highs). STALL EXIT: if green >= ~+15% AND score NOT high -> take profit marketable now (don't bleed 1-DTE theta, don't wait for give-back trail). Management trigger updated to compute the score each fire + tighter cadence. FLAGGED: contract expires 8/5 (Wed) - 'Thursday 8/6' hold needs a ROLL; roll_on_strength not set -> asking user (exit-by-8/5 vs roll-to-later-expiry)."
+    },
+    {
+      "t": "2026-08-04T18:11Z",
+      "event": "build",
+      "detail": "v4.3 PROFIT-MAX / GIVE-BACK TRAIL built (user: 'maximize profits for these situations ... apply differently to non-0dte ... weekly TA+fundamentally ... for cons like intc ... and exit timing'). Engine: new 'giveback' exit_rule (trail off persisted HWM, exit when peak gain retraces peak_frac), 'runner' (target no-cap - let winners run past +50%), multi-contract scale-out, hwm persistence, all in single gate. Per-class profit_max profiles by horizon: 0dte lock70% / day lock60% / swing lock50% / swing_overnight lock55%; swing adds TA (trend>MA20/HH) + fundamental (get_equity_fundamentals/earnings) hold-gate. Exits marketable-through-bid; cadence tightens to ~8min when extended. Applied LIVE to INTC (day_trade runner: stop 1.39 -> BE 1.99 ratchet -> giveback arm+50%/0.40 -> runner -> overnight gate). +8 tests, 50/50, selftest 25 nodes 0 err. rule_version v4.2->v4.3. Not pushed (build)."
+    },
+    {
+      "t": "2026-08-04T18:01Z",
+      "event": "fill",
+      "detail": "QQQ 8/4 724C EXIT (target rule): sold 1 @1.00 = +36 realized (+56%; order 6a7228d3). Target +50% (0.96) tripped, but at the 13:58 eval the position was already +123% (mark 1.43) and the 0DTE bid collapsed 1.42->1.33->1.15->1.00 in ~2min mid-exit. Chased down through 2 cancel/replaces to lock it; did NOT give it back to zero. Realized day now +84. LESSON/IMPROVEMENT: 20-min poll cadence + resting-at-bid exit is too slow for a fast 0DTE - target drifted from +50% to +123% then crashed. Fix candidate: on 0DTE entry, place a resting GTC sell-limit AT the target (bracket) so it auto-fills without cadence lag, and use marketable/through-bid exits for 0DTE in fast tape. PUSH sent (fill)."
+    },
+    {
+      "t": "2026-08-04T17:47Z",
+      "event": "build",
+      "detail": "v4.2 governor built (user 'build both for current session'): (1) VOL-AWARE PRICING - candidate_entry surfaces IV; reporter flags IV>90% ('overpaying, prefer debit spread'), de-ranks vs lower-IV picks, hard-blocks IV>250%. (2) SHORT-DTE CONCENTRATION CEILING - <5 DTE hand-placed entry cost <=35% BP, binds under overrides (reporter.short_dte_override_max_usd). Single-gate invariant preserved (all thresholds in reporter.py). +7 tests, 42/42 pass, selftest 26 nodes 0 err. rule_version v4.0->v4.2. Open INTC grandfathered (leave open, exits in line per user). Not pushed (build, not a fill)."
+    },
+    {
+      "t": "2026-08-04T17:31Z",
+      "event": "rule",
+      "detail": "User authorized CONDITIONAL OVERNIGHT SWING for INTC 8/5 102C ('can swing intc if scoring permits'). Added overnight_swing_gate: at 15:35-15:44 ET, hold overnight ONLY if ALL true - INTC day% >=+5% & green, above VWAP, option mark >=2.49 (+25%, in profit), no >2% reversal from HOD. If pass -> reclass swing_overnight, stop to BE 1.99, exit 8/5 by 10:30 ET or -20% (never to expiry). If any fail -> flatten 15:44. Default remains same-day scalp. Fills-only pings unchanged."
+    },
+    {
+      "t": "2026-08-04T17:25Z",
+      "event": "fill",
+      "detail": "AGENTIC ENTRY (user-directed 'tiny live' + rvol screen): INTC 8/5 102C bought 1 @1.99 FILLED (order 6a722065, placed_agent=agentic, cost $199). Top affordable mover on rvol screen (INTC +10.4%, $100 breakout; AMD/QQQ higher-rvol but unaffordable/held). DTE broken to 1 per user ('if scores high break dte') to fit delta 0.41 <=$2.00 (IV ~122%). Rails: tgt 2.99/stop 1.39/arm 2.49/flatten 15:44. SAME-DAY SCALP - no overnight (theta -1.19, 0DTE tomorrow). OVERRIDES daily-2 cap (3rd entry), midday, min_dte - explicit user call. Relayed to RH watchlist. PUSH sent (fill). BP ~203."
+    },
+    {
+      "t": "2026-08-04T17:10Z",
+      "event": "fill",
+      "detail": "AGENTIC TARGET EXIT: SPY 8/4 771C 0DTE (user buy @0.75, 12:51 ET) hit +50% target (mark ran to 1.275/+70%). Sold 1 @ limit 1.23 (bid), FILLED 1.23, proceeds $123, realized +$48 (+64%), order 6a721cea, placed_agent=agentic. QQQ 8/4 724C 0DTE (user buy @0.64) STILL OPEN +23% (mark 0.785) - rails set (tgt 0.96/stop 0.448/arm 0.80/hard-exit 15:15). Day realized +48, open +14.5. PUSH sent (fill). Scheduling tight QQQ management into 3:15."
+    },
+    {
+      "t": "2026-08-04T15:05Z",
+      "event": "reconcile",
+      "detail": "11:05 ET scheduled reconcile (self-bound trigger fired into session; Robinhood connector CONFIRMED working on resume). Agentic 902341866 FLAT, $541.18, 0 positions. No rails to act, no fills. Silent per fills-only. Next fire 1p ET."
+    },
+    {
+      "t": "2026-08-04T14:54Z",
+      "event": "triggers",
+      "detail": "Loop reshaped for FILLS-ONLY + less usage. Org blocks granting connectors to scheduled fresh sessions (create_trigger connectors param unavailable) and fresh sessions have NO broker access -> a separate Haiku loop can't reach Robinhood. So all broker-touching triggers must be SELF-BOUND to this session (inherits its connector + model). New set (all self-bound, fills-only): routine reconcile trig_01NUeyrHSQfwSHSibbvaVFjG (9/11a,1p ET); 0DTE hard-exit trig_01THTFBw2GTCdMks8U8jCs4h (3:15); EOD flatten trig_01VJg7VrWvDTHz2jry9egbSx (3:44). DELETED: heartbeat trig_01AuFqYEVYqWvtmJhkvSPAx3, 9:40 window trig_01NPtNbHrgoBqCnfhrJeaQeq, blind PASS scan trig_01G7CFLd2Y4HZzmEB6AeZWR5. Cost lever = this session's model (user /model). Non-SuperTrades triggers left untouched."
+    },
+    {
+      "t": "2026-08-04T13:57Z",
+      "event": "reconcile",
+      "detail": "LIVE 8/4 09:56 ET rollover+full broker reconcile. Broker truth: agentic 902341866 FLAT (0 option positions), total_value/cash/BP all 541.18; margin 812234458 FLAT. Stale 7/24 DIS 8/21 105C phantom CLEARED (broker shows flat - closed sometime 7/24->8/4; not a live carry). Day block reset, halt cleared, counters zeroed. Pool pruned: TSLA 7/31 460C removed (expired); SPY 8/7 765C kept. Tape RISK-ON, tech/semis lead (QQQ +1.84, INTC +6.5, AMD +4.9); GEX downside gate NOT armed (indices green). No entry - semis extended, awaiting 9:40+ pullback-with-confirmation. rule_version -> v4.0."
+    },
+    {
+      "t": "2026-07-24T20:11Z",
+      "event": "eod",
+      "detail": "CLOSE 7/24: account 322.42, day -115 (WORST day: SPY churn -42, NVDA stop -56, QQQ exp -4, DIS -13 open). PROCESS MISS: DIS 105C day-trade 3:45 FLATTEN DID NOT FIRE (ScheduleWakeup stalled through 3:45; heartbeat caught it 4:10 post-close) - DIS now carries weekend. QQQ 694C + QS 7/24 both expired worthless. Only DIS open. 4-day P&L: -10/+65/-69/-115. Monday: rollover resets halt; handle DIS at open (flatten belatedly or keep swing). SYSTEMIC: ScheduleWakeup unreliable all day - hourly heartbeat too coarse for 3:45-precision exits; needs concentrated-cron reshape (pending user OK) or accept coarse intraday timing."
+    },
+    {
+      "t": "2026-07-24T19:11Z",
+      "event": "fill",
+      "detail": "AGENTIC STOP EXECUTED: NVDA 7/31 220C breached -55% (mark 0.465 vs 1.03 entry, stop 0.721). Sold 1 @ limit 0.46, FILLED 0.47 (price improvement), order 6a63b8ba, placed_agent=agentic. Realized -56. Day P&L -107 (account 330.42). No new purchases this cycle. DIS 105C holds to 3:45 flatten (stop 0.679 intact). QQQ 694C dead (bid 0, expires worthless)."
+    },
+    {
+      "t": "2026-07-24T18:18Z",
+      "event": "rails",
+      "detail": "Rails verified+made explicit (entries from broker fills): NVDA 220C entry 1.03 -> tgt 1.545/stop 0.721/ratchet-arm 1.2875; DIS 105C entry 0.97 -> tgt 1.455/stop 0.679/arm 1.2125; QQQ 694C entry 0.04 -> tgt 0.06/stop 0.028/hard-exit 3:15. HWM=entry on all (no ratchet armed). QQQ 0DTE stop breached (0.025<0.028) but $2 dead - deferred to hard-exit/expiry. NVDA/DIS both above stops, holding to 3:45 flatten."
+    },
+    {
+      "t": "2026-07-24T18:12Z",
+      "event": "halt",
+      "detail": "2ND HALT: account 437.40->375.48 (-61.92) <= -60. Cause: SPY 0DTE spread-churn ~8 round-trips 12:56-2:04 (743C x5, 738P, 744C flip) ~-45 realized + open -17. CHURN GUARD hit. SPY 738P closed (churned). Now holding QQQ 694C 0DTE (dead lotto), DIS 105C -5%, NVDA 220C -12%. BP 0.96. Entries off; exits live (0DTE hard-exit 3:15, 3:45 flatten). User live in chat - halt surfaced there."
+    },
+    {
+      "t": "2026-07-24T17:12Z",
+      "event": "reconcile",
+      "detail": "1pm check caught 3 USER midday adds (agentic): NVDA 7/31 220C @1.03 (12:43), DIS 8/21 105C @0.97 (12:58), SPY 7/24 738P x2 @0.335 (1:08). Reconciled w/ rails (NVDA/DIS day_trade, SPY 0dte_scalp hard-exit 3:15). NVDA/DIS removed from pool. All above stops, no exit triggers. Open ~-12, day P&L ~-12. ~$170 BP left. SPY 738P is non-gated index 0DTE (bearish fade) - user's call, managing rails. Tighter afternoon watch for the 0DTE + 3:45 flatten."
+    },
+    {
+      "t": "2026-07-24T15:11Z",
+      "event": "cycle",
+      "detail": "No entry. QQQ never armed gate (held -0.65). Value>growth rotation. RIVN -3.6 pruned from watchlist+RH (drifting from 19 strike) - watchlist now EMPTY. Agentic flat, BP 437. Morning window closed clean (no forced trades). Midday skip next; heartbeat carries to ~1pm per user cadence."
+    },
+    {
+      "t": "2026-07-24T14:11Z",
+      "event": "cycle",
+      "detail": "No entry (correct). Semis bounce failed premkt->AM (INTC +2.3->-3.2, AMD +1.4->-2.1). Tech risk-off, SPY/XLE green divergence. QQQ -0.62 approaching -0.75 GEX gate - watching. Agentic flat, BP 437. QS margin expires today (alert-only)."
+    },
+    {
+      "t": "2026-07-24T13:11Z",
+      "event": "premarket",
+      "detail": "DAY ROLLOVER 7/24: halt RESET, counters zeroed, prior_cycle cleared, gex cleared. BP 437.40 SETTLED (proceeds cleared T+1; $250 deposit no longer pending but did NOT add cash - check bank). Cap $174.96. Energy REVERSING (USO -1.9) -> XLE 62C arm PRUNED (thesis broken), removed from RH watchlist. Semis bouncing (INTC +2.3, AMD +1.4). Indices flat, gate NOT armed. Agentic FLAT. QS margin expires today (alert-only). Plan: patient 9:40-11:00, one quality setup, avoid energy."
+    },
+    {
+      "t": "2026-07-23T20:11Z",
+      "event": "eod",
+      "detail": "CLOSE 7/23. Agentic FLAT + halted. Day realized -69 (worst of 3 days: -10, +65, -69). Cash 437.40; BP 4.76 (proceeds T+1: DIS 38 + NVDA/QQQ 62 settle 7/24; $250 deposit still pending). GEX maps marked stale (7/23 expired). Open: QS 7/24 7C (margin, alert-only) expires TOMORROW - time-stop alert active 7/24. Watchlist: RIVN 19C, XLE 62C (energy arm, re-eval at tomorrow's open). Tomorrow: day rollover resets halt+counters; premarket plan 9:05-9:30; expected BP ~$350+ once deposit+proceeds land. Loop idles to hourly heartbeat overnight; premarket cycle rebuilds tomorrow."
+    },
+    {
+      "t": "2026-07-23T19:11Z",
+      "event": "reconcile",
+      "detail": "USER closed both agentic positions 14:14-14:15 ET: NVDA 225C sold 0.61 (-27), QQQ 706C sold 0.01 (-15). Agentic FLAT. Day realized -69 (DIS -27 + NVDA -27 + QQQ -15). Halt stands. Note: ScheduleWakeup chain stalled 2x today - heartbeat (hourly) is the reliable driver; each heartbeat now does a full broker reconcile when state is stale."
+    },
+    {
+      "t": "2026-07-23T18:11Z",
+      "event": "halt",
+      "detail": "DAILY HALT TRIGGERED: day P&L ~-66.5 <= -60 (realized -27 + open NVDA -25 + QQQ -14.5). Entries stopped for day (XLE arm now dead today); exits stay live. NVDA 225C mark 0.63 = -28%, bid 0.62, stop at 0.616 (one tick away) - next cycle executes if breached. QQQ 706C 0DTE dead (~$1). BP 4.76. Reported in chat (user live); mobile push withheld given active engagement."
+    },
+    {
+      "t": "2026-07-23T17:12Z",
+      "event": "reconcile",
+      "detail": "LOOP STALL CAUGHT: autonomous wakeup chain broke ~10:25 ET; 3h blind (heartbeats ran selftest only, no broker reconcile). Broker truth at 13:10: 2 USER-opened agentic positions untracked - NVDA 7/31 225C @0.88 (9:36, -14%, day_trade rails) + QQQ 7/23 706C 0DTE @0.16 (10:08, -84% dead). Both now in ledger w/ rails. NVDA removed from watchlist (held). BP 4.76 (deposit still pending). Day P&L ~-53 (within $7 of halt). Energy faded midday: XLE +0.9% (from +1.7%), XLE62C armed delta 0.21. Re-arming wakeup with pointer prompt (reliable cycle) instead of stalled autonomous sentinel."
+    },
+    {
+      "t": "2026-07-23T14:01Z",
+      "event": "watchlist_prune",
+      "detail": "Standing rule added (rulebook \u00a76): loop+prune watchlist every cycle. Removed DIS 8/21 110C (stopped out same-day, deep OTM delta 0.086, DIS red) from state + RH watchlist ef1b61ef. Remaining: RIVN 8/7 19C (delta 0.34), NVDA 7/31 225C (delta 0.17, on-watch), XLE 7/31 62C (energy theme, armed)."
+    },
+    {
+      "t": "2026-07-23T14:00Z",
+      "event": "watchlist_add",
+      "detail": "Armed XLE 7/31 62C (energy day-2 continuation, best green sector; delta 0.25, spread ~11%, OI 817). Ask 0.41=$41 unaffordable at 20.80 BP; queued for deposit/settlement unlock. Mirrored to RH watchlist ef1b61ef."
+    },
+    {
+      "t": "2026-07-23T13:49Z",
+      "event": "fill",
+      "detail": "AGENTIC STOP EXECUTED: DIS 8/21 110C stop breached -42% (mark 0.375 vs 0.65 entry, stop -30%). Sold 1 @ limit 0.35, filled 0.38 (price improvement), order 6a621bd8, placed_agent=agentic. Realized -$27. Day realized -$27. Agentic FLAT. QS 7/24 7C (margin, alert-only) bid-floor alert 0.01 - near-dead, expires tomorrow. No entries (BP 20.80, settlement-suppressed). Opus lean cycle."
+    },
+    {
+      "t": "2026-07-23T13:16Z",
+      "event": "premarket",
+      "detail": "Day rolled to 7/23. Reconcile: DIS 8/21 110C NEW agentic position (user buy 7/22 @0.65, day_trade rails); IREN put CLOSED by user (removed); QS 7/24 7C NEW margin position @0.13 (alert-only, expires Fri). BP 317.96, deposit $250 still pending, cap $127.18. QQQ -1.48 premkt = GEX gate ARMED; QQQ+SPY 0DTE maps built (both negative-gamma below flip). Energy theme continues (USO +5.6). Orchestrated engine cycle #1."
+    },
+    {
+      "t": "2026-07-23T12:50Z",
+      "event": "resume",
+      "detail": "User 'go' (8:49 ET Thu 7/23): loop RESUMED on orchestrated engine (selftest 28/28 green). Heartbeat re-enabled. First cycle scheduled ~9:05 ET (day rollover + premarket plan first). Mode stays 15-min DND. Watchlist+pool mirrored to RH options watchlist."
+    },
+    {
+      "t": "2026-07-21",
+      "event": "fills",
+      "detail": "RIVN 18c +$1, NVDA 240c +$1, INTC 110c -$4 (user closes); QQQ 713c 0DTE + RIVN 19c opened 16:04-16:05 (user)"
+    },
+    {
+      "t": "2026-07-21T17:12Z",
+      "event": "fill",
+      "detail": "QQQ 713c 0DTE sold by user @ 0.07 (-$4); day realized -$6; churn threshold hit (4 round-trips, ~spread cost est. $8-10 today) \u2014 DND: logged, not pushed"
+    },
+    {
+      "t": "2026-07-21T19:11Z",
+      "event": "fill",
+      "detail": "FIRST AGENTIC EXECUTION: RIVN 7/24 19c stop (breached -36% during session-restart outage) sold @ 0.07 limit-at-bid, filled instantly (-$4, order 6a5fc460, placed_agent=agentic). Day realized -$10. Agentic acct FLAT. IREN put swung +55% to 0.21 (IREN selling off) \u2014 salvage improved, alert-only."
+    },
+    {
+      "t": "2026-07-21T20:02Z",
+      "event": "eod",
+      "detail": "Day close: realized -$10 (5 round-trips, ~$8-10 spread cost). Agentic flat. IREN 0.20. Pages EOD-published from repo paths (URL continuity verified). Tomorrow: rollover-first rule, premarket plan 9:05-9:30, expected settled BP ~$540, cap $216/trade, delta 0.30-0.50, entries from 9:40 with OR+VWAP."
+    },
+    {
+      "t": "2026-07-22T13:15Z",
+      "event": "premarket",
+      "detail": "Day rolled. BP 303.20 settled ($282 landed; $250 deposit NOT YET). Cap $121. QQQ gap -0.87 = gate PRE-ARMED (DND: chat+pages only, no push). Lead candidate XLE 7/24 59c conditional. INTC put priced out by earnings IV."
+    }
+  ]
+}

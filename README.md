@@ -269,3 +269,17 @@ Please reference our work if you find *TradingAgents* provides you with some hel
       url={https://arxiv.org/abs/2412.20138}, 
 }
 ```
+
+## SuperTrades v3 orchestrated loop (this fork)
+
+The per-cycle SuperTrades loop in `supertrades/` was rewritten (2026-07-23)
+from a serial pipeline into a fan-out / layered fan-in orchestrator: one
+concurrent node per ticker, GEX underlying, open position, and watchlist
+candidate; batch fan-in; and a single guardrail gate in
+`supertrades/engine/reporter.py`. Run commands, architecture, and the change
+rationale are in [`supertrades/README.md`](supertrades/README.md).
+
+```bash
+python -m supertrades.engine.run_cycle --selftest          # offline health check
+python -m unittest discover -s supertrades/engine/tests    # test suite
+```
