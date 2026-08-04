@@ -30,9 +30,28 @@ class Guardrails:
     # No spreads, no shares, never a later expiry.
     only_0dte_long: bool = True
 
-    # --- Sizing (flat, GO-LIVE.md) ---
-    sizing_pct: float = 0.025          # 2.5% of CURRENT balance as premium/trade
-    per_trade_cap_usd: float = 1000.0  # hard cap per trade
+    # --- Sizing (phase ladder; operator-amended 2026-08-04) ---
+    # GO-LIVE's flat 2.5% is unsatisfiable at small balances (2.5% of $500 buys
+    # no contract), so sizing runs a phase ladder until 2.5% takes over:
+    #   Kickstart  balance < $1,500  -> $75 fixed  (tiny_live's proven cap)
+    #   Build      balance < $4,000  -> $100 fixed
+    #   Scale      balance >= $4,000 -> 2.5% of balance (2.5% x $4k = $100,
+    #              so the handoff is seamless), always capped at $1,000.
+    # Red-day / week-1 half-size multipliers apply to the phase budget too.
+    sizing_pct: float = 0.025          # % of CURRENT balance once in Scale phase
+    per_trade_cap_usd: float = 1000.0  # hard cap per trade, all phases
+    sizing_phases: tuple = ((1500.0, 75.0), (4000.0, 100.0))
+    # (upper_balance_bound, fixed_premium_budget); above the last bound -> sizing_pct
+
+    def premium_budget(self, balance: float) -> float:
+        """Per-trade premium budget for ``balance`` under the phase ladder.
+        The single sizing entry point — risk_governor and the monitoring
+        scorer both call this so live gating and retrospective grading can
+        never disagree."""
+        for bound, fixed in self.sizing_phases:
+            if balance < bound:
+                return min(fixed, self.per_trade_cap_usd)
+        return min(self.sizing_pct * balance, self.per_trade_cap_usd)
 
     # --- Exits ---
     target_premium_gain: float = 0.90  # sell at +90% premium

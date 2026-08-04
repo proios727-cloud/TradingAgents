@@ -106,10 +106,23 @@ class RiskGovernorRails(unittest.TestCase):
         self.assertFalse(v.allow)
 
     def test_cannot_afford_one_contract(self):
-        # settled just above floor but tiny balance -> budget too small.
+        # settled just above floor but small balance -> phase budget too small.
         v = self._eval(acct=account(balance=2500.0, settled=2100.0), ask=1.21)
-        # 2.5% of 2500 = $62.5 < $121/contract -> deny.
+        # Build phase ($1.5k-$4k) budget $100 < $121/contract -> deny.
         self.assertFalse(v.allow)
+
+    def test_kickstart_phase_floor_buys_one(self):
+        # Balance below $1,500 -> Kickstart fixed $75; a $60 contract fits
+        # where the old 2.5% rule ($20 here) never could.
+        v = self._eval(acct=account(balance=800.0, settled=2100.0), ask=0.60)
+        self.assertTrue(v.allow)
+        self.assertEqual(v.max_contracts, 1)
+
+    def test_build_phase_fixed_100(self):
+        # $1.5k-$4k -> $100 fixed: two $0.45 contracts, not three.
+        v = self._eval(acct=account(balance=2500.0, settled=2100.0), ask=0.45)
+        self.assertTrue(v.allow)
+        self.assertEqual(v.max_contracts, 2)
 
     def test_sizing_cap_at_1000(self):
         # 2.5% of 200k = $5000 but cap $1000 -> 8 contracts at $121.

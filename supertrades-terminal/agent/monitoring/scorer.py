@@ -246,7 +246,7 @@ def _entry_window_ok(ts: datetime) -> bool:
 
 def grade(snap: Snapshot, closed: list[RoundTrip], open_lots: list[RoundTrip]) -> list[Violation]:
     v: list[Violation] = []
-    allowed = min(G.sizing_pct * snap.total_value, G.per_trade_cap_usd)
+    allowed = G.premium_budget(snap.total_value)
     trades = closed + open_lots
 
     for t in trades:
@@ -259,7 +259,7 @@ def grade(snap: Snapshot, closed: list[RoundTrip], open_lots: list[RoundTrip]) -
             v.append(Violation(
                 "sizing", "medium", t.label(),
                 f"${t.entry_premium:.0f} premium vs ~${allowed:.0f} allowed "
-                f"(min of {G.sizing_pct:.1%} of ${snap.total_value:.0f} balance, ${G.per_trade_cap_usd:.0f} cap; "
+                f"(phase ladder at ${snap.total_value:.0f} balance; "
                 f"balance is snapshot-time, approximate)",
                 8.0))
         if not _entry_window_ok(t.entry_ts):
@@ -359,15 +359,14 @@ def recommend(snap: Snapshot, closed: list[RoundTrip], open_lots: list[RoundTrip
     operator; each note carries its sample size so thin evidence reads as thin."""
     recs: list[str] = []
     n = metrics["n_closed"]
-    allowed = min(G.sizing_pct * snap.total_value, G.per_trade_cap_usd)
+    allowed = G.premium_budget(snap.total_value)
 
-    if allowed < 25:
+    if snap.total_value < G.sizing_phases[-1][0]:
+        next_bound = next(b for b, _ in G.sizing_phases if snap.total_value < b)
         recs.append(
-            f"Sizing rule is unworkable at this balance: {G.sizing_pct:.1%} of "
-            f"${snap.total_value:.0f} = ${allowed:.2f}, below any tradable 0DTE premium. "
-            f"Every trade is forced to violate it. Needs an operator decision: fund the "
-            f"account toward the ${G.balance_floor_alert_usd:.0f} floor, or amend Guardrails "
-            f"with an explicit minimum-premium floor.")
+            f"Sizing phase: fixed ${allowed:.0f}/trade at ${snap.total_value:.0f} balance "
+            f"(next phase at ${next_bound:.0f}; {G.sizing_pct:.1%} takes over at "
+            f"${G.sizing_phases[-1][0]:.0f}).")
 
     dte_break = [t for t in closed + open_lots if t.dte_at_entry != 0]
     if dte_break:

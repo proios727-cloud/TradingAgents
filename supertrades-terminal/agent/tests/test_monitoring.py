@@ -152,9 +152,16 @@ class TestMetricsAndRecs(unittest.TestCase):
         self.assertAlmostEqual(m["win_rate"], 0.5)
         self.assertAlmostEqual(m["profit_factor"], 2.5)
 
-    def test_low_balance_makes_sizing_unworkable_rec(self):
+    def test_low_balance_reports_sizing_phase(self):
         score = score_snapshot(snap([], total_value=434.0))
-        self.assertTrue(any("unworkable" in r for r in score.recommendations))
+        self.assertTrue(any("Sizing phase: fixed $75" in r for r in score.recommendations))
+
+    def test_kickstart_phase_budget_used_for_grading(self):
+        # $75 allowed in Kickstart: a $70 entry is clean, $90 is oversize.
+        ok = [order("o1", "QQQ", "buy", "open", 0.70, ts="2026-07-28T14:30:00Z")]
+        self.assertNotIn("sizing", {v.rule for v in score_snapshot(snap(ok, total_value=800.0)).violations})
+        big = [order("o1", "QQQ", "buy", "open", 0.90, ts="2026-07-28T14:30:00Z")]
+        self.assertIn("sizing", {v.rule for v in score_snapshot(snap(big, total_value=800.0)).violations})
 
     def test_sample_size_caveat_always_present_when_thin(self):
         score = score_snapshot(snap([]))

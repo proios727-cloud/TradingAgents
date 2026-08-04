@@ -80,7 +80,7 @@ def evaluate(
     if signal.symbol in held_symbols:
         return RiskVerdict.deny(f"already holding {signal.symbol} — no adding/averaging")
 
-    # --- Sizing: min(2.5% x balance, $1k), composed with red-day / week1 ---
+    # --- Sizing: phase ladder (config.premium_budget), red-day / week1 mults ---
     # Build a size multiplier and a hard cap, then apply once.
     mult = 1.0
     cap = G.per_trade_cap_usd
@@ -91,7 +91,7 @@ def evaluate(
         mult *= 0.5
         cap = min(cap, G.per_trade_cap_usd * 0.5)  # week-1: $500 cap / half risk
         reasons.append("week-1 half-size ($500 cap)")
-    budget = min(G.sizing_pct * account.balance * mult, cap)
+    budget = min(G.premium_budget(account.balance) * mult, cap)
     # Press rule: only once >= +2R is booked, later trades may size up 2x,
     # funded strictly by the day's booked profit (never base bankroll).
     if day.booked_profit_r >= G.press_min_booked_r and day.entries_today > 0:

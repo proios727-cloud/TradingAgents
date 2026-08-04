@@ -183,7 +183,7 @@ moves extend or revert.**
 - Below B does not trade. There is no C tier, deliberately.
 
 Standing risk rules from the account playbook still bind and are not overridden
-here: 2.5% per position and a $1,000 cap, −2R daily halt, half-size after a red
+here: the sizing phase ladder ($75/trade under a $1.5k balance, $100 to $4k, then 2.5%, always capped $1,000), −2R daily halt, half-size after a red
 day, never average down, never widen a stop, flat by 15:45 ET on short-dated.
 
 ## Step 7 — Log every signal

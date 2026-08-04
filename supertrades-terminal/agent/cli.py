@@ -36,7 +36,9 @@ def cmd_status(_args) -> int:
     print(f"  can_place_live: {cfg.can_place_live()}  (False = fully inert)")
     print(f"  entry approval required: {cfg.require_entry_approval}")
     print("Guardrails (from GO-LIVE.md):")
-    print(f"  sizing        : {G.sizing_pct:.1%} of balance, cap ${G.per_trade_cap_usd:,.0f}")
+    ladder = " / ".join(f"<${b:,.0f}: ${f:,.0f}" for b, f in G.sizing_phases)
+    print(f"  sizing        : phases {ladder} / then {G.sizing_pct:.1%}, "
+          f"cap ${G.per_trade_cap_usd:,.0f}")
     print(f"  exits         : +{G.target_premium_gain:.0%} target / "
           f"-{G.stop_premium_loss:.0%} stop / flatten {G.force_flatten_et} ET")
     print(f"  daily halt    : {G.daily_halt_r} R")

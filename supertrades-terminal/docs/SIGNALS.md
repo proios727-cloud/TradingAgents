@@ -51,9 +51,12 @@ entry-confirmation fields:
 
 ## Risk numbers (binding, from Guardrails)
 
-- **Size:** 2.5% of current balance per trade, $1,000 hard cap. (At balances
-  where 2.5% is below any tradable premium, the rule is unsatisfiable — halt
-  and surface to the operator; do not improvise a floor.)
+- **Size (phase ladder, operator-amended 2026-08-04):** fixed **$75**/trade
+  below a $1,500 balance (Kickstart), fixed **$100** from $1,500–$4,000
+  (Build), then **2.5% of balance** above $4,000 (Scale — 2.5% × $4k = $100,
+  seamless handoff), $1,000 hard cap in every phase. Red-day and week-1
+  half-size multipliers apply to the phase budget. One authority:
+  `Guardrails.premium_budget(balance)`.
 - **Stop:** −50% premium, never widened. **Target:** +90%, or scale half at
   +1R and trail the runner with 30% peak give-back when `scale_and_trail` is on.
 - **Daily:** −2R halt · 3 straight losses = kill · half-size after a red day ·
