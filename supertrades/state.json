@@ -173,6 +173,11 @@
   },
   "log": [
     {
+      "t": "2026-08-04T14:54Z",
+      "event": "triggers",
+      "detail": "Loop reshaped for FILLS-ONLY + less usage. Org blocks granting connectors to scheduled fresh sessions (create_trigger connectors param unavailable) and fresh sessions have NO broker access -> a separate Haiku loop can't reach Robinhood. So all broker-touching triggers must be SELF-BOUND to this session (inherits its connector + model). New set (all self-bound, fills-only): routine reconcile trig_01NUeyrHSQfwSHSibbvaVFjG (9/11a,1p ET); 0DTE hard-exit trig_01THTFBw2GTCdMks8U8jCs4h (3:15); EOD flatten trig_01VJg7VrWvDTHz2jry9egbSx (3:44). DELETED: heartbeat trig_01AuFqYEVYqWvtmJhkvSPAx3, 9:40 window trig_01NPtNbHrgoBqCnfhrJeaQeq, blind PASS scan trig_01G7CFLd2Y4HZzmEB6AeZWR5. Cost lever = this session's model (user /model). Non-SuperTrades triggers left untouched."
+    },
+    {
       "t": "2026-08-04T13:57Z",
       "event": "reconcile",
       "detail": "LIVE 8/4 09:56 ET rollover+full broker reconcile. Broker truth: agentic 902341866 FLAT (0 option positions), total_value/cash/BP all 541.18; margin 812234458 FLAT. Stale 7/24 DIS 8/21 105C phantom CLEARED (broker shows flat - closed sometime 7/24->8/4; not a live carry). Day block reset, halt cleared, counters zeroed. Pool pruned: TSLA 7/31 460C removed (expired); SPY 8/7 765C kept. Tape RISK-ON, tech/semis lead (QQQ +1.84, INTC +6.5, AMD +4.9); GEX downside gate NOT armed (indices green). No entry - semis extended, awaiting 9:40+ pullback-with-confirmation. rule_version -> v4.0."
