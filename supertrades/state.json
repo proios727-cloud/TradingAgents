@@ -1,6 +1,7 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T21:05:00Z",
+  "updated_at": "2026-08-04T21:15:00Z",
+  "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
     "status": "CLOSED - market closed 16:00 ET; account FLAT, no overnight positions, no pending management triggers",
@@ -13,6 +14,14 @@
     "loop": "FETCH (get_portfolio/get_equity_quotes/get_option_quotes/get_equity_technical_indicators vwap) -> live.assemble_snapshot -> run_one_cycle -> execute actions (exits first, then review_option_order+place_option_order for actions.entry, materialize exit_rules to state) -> commit. Entries are ENGINE-DECIDED from the watchlist candidate pool, gated by the single reporter guardrail. See supertrades-v3.md section 7.",
     "single_executor": "THIS session only creates trading triggers. Audit list_triggers at session start; delete competing account-traders (8/4 lesson: a rival session's 0DTE hard-exit flattened the INTC runner early).",
     "next": "populate watchlist candidates for tomorrow; run the engine-driven cycle live on the next session (paper-verify the first entry via review before enabling autonomous place)."
+  },
+  "canonical_home": {
+    "decision": "user 8/4: focused, refined SuperTrades engine built this session IS the project. Continue from here.",
+    "branch": "claude/claude-code-mcp-study-s227lj",
+    "source_of_truth": "the supertrades/ directory on this branch (engine/ + state.json + pages/ + supertrades-v3.md). Self-contained, ~3.7k lines, v4.7, 77/77 tests.",
+    "ignore": "PR #14 and the ~10 other claude/* branches are PARALLEL architectures from other sessions (a supertrades-terminal React app + a tradingagents framework restructure, ~20k lines). They do NOT touch this engine. Do NOT merge main/#14 in - it would bury the focused engine. Cherry-pick a single file only if a specific piece is clearly wanted.",
+    "resume": "open this project + this chat -> 'resume SuperTrades' -> read state.json, audit list_triggers (one executor), run premarket AH/PM tune, then the engine-driven cycle.",
+    "pr_note": "PR #1 tracks this branch as the engine's record; it is NOT meant to merge into the diverged main."
   },
   "risk_posture": {
     "priority": "LOW_DRAWDOWN",
