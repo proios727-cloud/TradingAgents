@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T18:11:00Z",
+  "updated_at": "2026-08-04T18:14:00Z",
   "trading_date": "2026-08-04",
   "rule_version": "v4.3",
   "mode": {
@@ -167,6 +167,14 @@
         {"type": "flatten_et_conditional", "at": "15:44", "mech": "sell_limit_at_bid_unless_overnight_gate_passes"}
       ],
       "profit_max_ladder": "day_trade runner (v4.3). entry->+25%: hard stop 1.39. +25%->+50%: breakeven stop 1.99 (ratchet). +50%+: RUNNER - do NOT cap at +50%; trail give-back (arm at peak >=+50%, exit if it gives back 40% of peak gain -> locks ~60% of the peak), MARKETABLE exit through bid (QQQ lesson: resting-at-bid missed the fast reversal). Close: overnight gate 15:35-15:44. Exit timing: management cadence tightens to ~8min once mark >= 2.49 (extended/near trail).",
+      "growth_score_hold_gate": {
+        "authorized_by": "user 8/4 - 'intc held too long unless scoring shows greater potential for growth thru close into tomorrow'",
+        "principle": "Do NOT overstay a 1-DTE into theta (-1.25/day). The runner only KEEPS holding a profit while the growth score is HIGH; on a STALL, book it.",
+        "growth_score_HIGH_requires": ["INTC day% strong / near HOD", "above VWAP", "RVOL elevated (volume confirming)", "still making higher highs (no 15-min stall)", "$100 breakout holding"],
+        "if_in_profit_and_score_NOT_high": "STALL EXIT - take profit marketable now rather than bleed theta (don't wait for the give-back trail). Applies once mark is meaningfully green (>= ~+15%).",
+        "if_score_HIGH": "keep running (give-back trail + overnight gate govern). Strong score into 15:35-15:44 -> overnight gate may carry to 8/5.",
+        "expiry_reality": "Contract expires 8/5 (Wed). Holding 'into Thursday 8/6' is IMPOSSIBLE without a ROLL to a later INTC expiry - pending user decision (roll-on-strength vs exit-by-8/5)."
+      },
       "overnight_swing_gate": {
         "authorized_by": "user 8/4 13:30 ET - 'can swing intc if scoring permits for overnight hold'",
         "evaluate_at": "15:35-15:44 ET",
@@ -261,6 +269,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T18:14Z",
+      "event": "rule",
+      "detail": "User: 'intc held too long unless scoring shows greater potential for growth thru close into tomorrow/thurs'. Added growth_score_hold_gate to INTC: runner keeps holding ONLY while growth score HIGH (day% strong/near HOD + above VWAP + volume confirming + higher highs). STALL EXIT: if green >= ~+15% AND score NOT high -> take profit marketable now (don't bleed 1-DTE theta, don't wait for give-back trail). Management trigger updated to compute the score each fire + tighter cadence. FLAGGED: contract expires 8/5 (Wed) - 'Thursday 8/6' hold needs a ROLL; roll_on_strength not set -> asking user (exit-by-8/5 vs roll-to-later-expiry)."
+    },
     {
       "t": "2026-08-04T18:11Z",
       "event": "build",
