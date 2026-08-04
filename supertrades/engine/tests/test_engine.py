@@ -472,6 +472,18 @@ class TestProfitMaxGivebackV43(unittest.TestCase):
                if u["id"] == "pos-agentic" and u["set"].get("scaled_out")]
         self.assertTrue(upd and upd[0]["set"]["qty"] == 2)        # 2 ride the trail
 
+    def test_strict_moonshot_trail_locks_most_of_a_10x(self):
+        # entry 0.20, peak +1000% (2.20), STRICT 0.20 give-back -> exit locking ~+800%
+        rules = [{"type": "giveback", "arm_gain_pct": 100, "peak_frac": 0.20}]
+        r = self._run_pos(rules, entry=0.20, hwm=2.20, mark=1.80, bid=1.79)
+        # gave back (2.20-1.80)=0.40 >= 0.20*(2.20-0.20)=0.40 -> exit
+        self.assertTrue(self._exits(r))
+
+    def test_barbell_strategy_documented(self):
+        b = load_state()["barbell_runner_strategy"]
+        self.assertIn("ALWAYS BE REALIZING", b["principle"])
+        self.assertIn("scale", b["leg_A_day_lock"].lower())
+
     def test_hwm_persists_for_trail_reference(self):
         # new high above stored hwm -> state bumps hwm so the trail measures true peak
         r = self._run_pos([self.GB], hwm=0.64, mark=1.20, bid=1.19)
@@ -534,6 +546,43 @@ class TestWinRateGreenLockV44(unittest.TestCase):
         self.assertEqual(cd["0dte_scalp"]["green_lock"]["floor_pct"], 8)
         self.assertEqual(cd["day_trade"]["green_lock"]["floor_pct"], 5)
         self.assertEqual(cd["swing"]["green_lock"]["arm_pct"], 30)
+
+
+class TestAmIndexVwapTrailV44(unittest.TestCase):
+    """v4.4: morning-index trend-trailing stop (exit a scalp on a VWAP break)."""
+
+    def _run(self, contract, *, last, vwap, entry=0.60, mark=0.90):
+        state = copy.deepcopy(load_state())
+        sym = contract.split()[0]
+        state["positions"] = {
+            "pos-agentic": {"contract": contract, "account": AGENTIC_ACCT,
+                            "qty": 1, "entry": entry, "hwm": mark,
+                            "ratchet_engaged": False, "class": "0dte_scalp",
+                            "expiry": "2026-08-04",
+                            "exit_rules": [{"type": "underlying_vwap_stop", "buffer_pct": 0.1}]}}
+        state["watchlist"] = []
+        snap = synthetic_snapshot(state, et_time="10:15", bp=500.0)
+        snap["option_quotes"]["pos-agentic"].update({"mark": mark, "bid": mark - 0.02})
+        snap["quotes"].setdefault(sym, {})["last"] = last
+        snap["vwap"][sym] = vwap
+        return [e for e in run(state, snap)["actions"]["exits"] if e["id"] == "pos-agentic"]
+
+    def test_call_exits_on_vwap_break(self):
+        ex = self._run("QQQ 8/4 $724C", last=722.0, vwap=724.0)   # below VWAP -> stop
+        self.assertTrue(ex and ex[0]["order"] == "sell_limit_at_bid")
+        self.assertIn("underlying_vwap_stop", ex[0]["why"])
+
+    def test_call_holds_above_vwap(self):
+        self.assertFalse(self._run("QQQ 8/4 $724C", last=726.0, vwap=724.0))  # trend intact
+
+    def test_put_exits_when_price_reclaims_vwap(self):
+        ex = self._run("SPY 8/4 $770P", last=772.0, vwap=770.0)   # above VWAP -> put stop
+        self.assertTrue(ex)
+
+    def test_am_index_trail_profile_present(self):
+        cd = load_state()["class_defaults"]["0dte_scalp"]
+        self.assertEqual(cd["am_index_trail"]["materialize_rule"]["type"],
+                         "underlying_vwap_stop")
 
 
 class TestReliableOpsV4(unittest.TestCase):

@@ -225,14 +225,20 @@ expectancy = win_rate·avg_win − loss_rate·avg_loss**, raised on all three te
 - **Sizing insight:** the cleanest win-rate + growth combo needs **≥2 contracts** — bank 1 at
   the first target (locks the win), run 1 under the trail (captures growth). Budget-permitting,
   prefer 2×small over 1×large so scale-out is available.
+- **Morning-index trend trail (`underlying_vwap_stop`):** for AM SPY/QQQ scalps (entered
+  ~9:40–11:00), instead of a fixed +50% target, **hold while the index holds the right side of
+  VWAP and exit on a break** (calls exit below VWAP, puts above). VWAP rises through an uptrend,
+  so the stop trails the trend and lets a morning runner ride the whole move; composes with
+  green_lock, the give-back trail, and the hard 3:00 index close.
 - **Visibility:** `state.performance` tracks win_rate / avg_win / avg_loss / expectancy so the
   system sees its own edge and can adapt (auto-updater on close is the next wire-up).
 
 ## Changelog
 - v4.4 (2026-08-04): WIN-RATE / EXPECTANCY layer. `green_lock` exit_rule (arm a small-green
   floor once peak clears ~+20% → brief winners can't round-trip to losses); per-class green_lock
-  profiles; `state.performance` tracker (win_rate/expectancy). Framed by a review of the live
-  window (33% win rate, edge erased by 2 oversized losses). +4 tests; suite 54/54.
+  profiles; `state.performance` tracker (win_rate/expectancy); `underlying_vwap_stop` trend-trail
+  for morning index scalps (ride the trend, exit on a VWAP break). Framed by a review of the live
+  window (33% win rate, edge erased by 2 oversized losses). +8 tests; suite 58/58.
 - v4.3 (2026-08-04): PROFIT-MAX / GIVE-BACK TRAIL. New `giveback` exit_rule + runner
   (uncap winners) + multi-contract scale-out in the exit engine; per-class profit_max
   profiles (0dte tight → swing wide) with a TA+fundamental overlay for weekly swings;

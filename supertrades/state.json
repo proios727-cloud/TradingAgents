@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T18:45:00Z",
+  "updated_at": "2026-08-04T18:49:00Z",
   "risk_posture": {
     "priority": "LOW_DRAWDOWN",
     "set_by": "user 8/4 'keep DD low'",
@@ -13,6 +13,15 @@
     "expectancy_per_trade_usd": -1.2,
     "read": "Wins are clean (+50-64% targets); edge erased by 2 OVERSIZED losses (NVDA -55%, DIS -42% - stops slipped past the -30% line). Win-rate/expectancy levers (v4.4): (1) green_lock converts brief winners into guaranteed small wins; (2) CAP loss size - marketable stops, no single-name overnight gap; (3) keep runner upside so the big wins that carry expectancy survive. Goal = raise win rate WITHOUT shrinking the winners.",
     "recompute": "on each close from the journal; wire an auto-updater next."
+  },
+  "barbell_runner_strategy": {
+    "authorized_by": "user 8/4: 'lock win early = my scale-out to make sure I'm profit on the day for sure, but let some continue for 1000% growth with a strict trailing stop'",
+    "applies_to": "options-watchlist runners; requires >=2 contracts (prefer 2x-small sizing so scale-out is possible)",
+    "principle": "ALWAYS BE REALIZING: bank tranches of profit on the way UP (not just trail paper gains), so growth is continuously locked as realized $ while a final piece keeps running. Maximize overall gains, but every leg realizes profit.",
+    "leg_A_day_lock": "SCALE OUT ~half at the first target (+30-50%) to BANK guaranteed profit -> secures the DAY green for sure (target.scale_out_frac). Once realized day P&L is green and covers this trade's cost, the remainder is HOUSE MONEY.",
+    "leg_B_moonshot": "Runner remainder rides for 1000%+ (no cap) with CONTINUOUS REALIZATION - scale out a slice at each milestone to keep banking realized profit: sell ~1/3 of the remainder at +100%, ~1/3 at +300%, hold the last piece toward +500-1000%. The final piece rides a STRICT trailing stop (NOT the loose day trail): give-back peak_frac 0.20 (lock 80% of peak) armed at +100%, PLUS floor ratchets +100%->lock +50%, +200%->+120%, +300%->+200%, +500%->+380%, +1000%->+800%. Marketable exits. Never-red automatic (leg A covered cost).",
+    "why": "Barbell = guaranteed green day (leg A) + a continuously-realized, protected moonshot (leg B). You always lock/realize growth on the way up AND keep a piece for the 10x; the strict trail protects the big number without paperhanding it. Single-contract positions can't scale - they use never-red + give-back (or size to 2-3 lots to enable tranche realization).",
+    "engine": "expressible today via target.scale_out_frac (leg A) + a strict giveback {arm_gain_pct:100,peak_frac:0.20} + milestone ratchets (leg B). Auto-materializer + 2-lot default sizing = next build."
   },
   "trading_date": "2026-08-04",
   "rule_version": "v4.4",
@@ -80,6 +89,11 @@
       "stop_pct": -30,
       "ratchet_pct": 25,
       "green_lock": {"arm_pct": 20, "floor_pct": 8},
+      "am_index_trail": {
+        "applies_to": "morning index scalps (SPY/QQQ entered ~09:40-11:00)",
+        "materialize_rule": {"type": "underlying_vwap_stop", "buffer_pct": 0.1},
+        "note": "USER 8/4 'trailing stop for morning entries on indices'. Trend-trailing stop: hold while the index holds the right side of VWAP (0.1% buffer); exit marketable on a VWAP break. VWAP rises through an uptrend so the stop trails the trend and does NOT cap upside like the fixed +50% target - lets a morning index runner ride the whole move. Composes with green_lock (lock +8% once peak +20%), give-back trail, and the HARD 15:00 index close. Add {type:underlying_vwap_stop,buffer_pct:0.1} to the scalp's exit_rules at entry."
+      },
       "hard_exit_et": "15:15",
       "index_hard_close_et": "15:00",
       "exit_time_discipline": "HARD (user 8/4 'hard on exit time ... always close before best target time for indexes'). INDEX positions (SPY/QQQ) MUST be flat by index_hard_close_et 15:00 - non-discretionary buffer BEFORE the 15:15 backstop; never ride to the deadline (late-day gamma/pin/theta risk). Non-index 0dte: hard-exit 15:15. No ratchet-keep discretion for indexes into the close.",
@@ -175,7 +189,7 @@
       "account": "902341866",
       "qty": 1,
       "entry": 1.99,
-      "hwm": 2.135,
+      "hwm": 2.23,
       "ratchet_engaged": false,
       "never_red": true,
       "class": "day_trade",
@@ -220,9 +234,9 @@
         "delegation": "User 8/4: 'if not sold before close I trust your judgment.' Agent makes the final overnight call at 15:35-15:44 using this gate; with no catalyst tonight the default is LEAN FLATTEN. USER-REQUESTED PING: push the HOLD/FLATTEN decision at the gate regardless of fill."
       },
       "note": "AGENTIC entry 8/4 13:24 ET @1.99 (user 'tiny live', top rvol-screen affordable mover; DTE broken to 1). 1-DTE, IV ~122%, theta -1.19. DEFAULT = same-day scalp flatten 15:44, BUT user authorized OVERNIGHT SWING IF overnight_swing_gate passes at 15:35-15:44 (strong close required). If held, exit 8/5 by 10:30 ET or -20%, never to expiry. ~49% BP. INTC +10.4% $100 breakout. OVERRIDES daily-2/midday/min_dte per user.",
-      "last_mark": 2.125,
+      "last_mark": 2.23,
       "floor_bid": 2.03,
-      "hwm_note": "14:30 ET check: option mark 2.125 / bid 2.06 (+6.8%), hwm 2.135. INTC equity 100.57 (+10.5%), VWAP 98.85 -> ABOVE VWAP, breakout holding = growth score HIGH. HOLD runner. Never-red floor 2.03 intact (bid 2.06, 3c above). No milestone (bid < 2.49). Cadence 8min (score high). Live chain = trig_01F6xJf7 (fires 14:43). No push (no fill)."
+      "hwm_note": "14:48 ET check: option mark 2.23 / bid 2.20 = NEW HIGH +12.1%, hwm 2.23. INTC equity 100.90 (+10.9%), VWAP 98.88 -> above VWAP, higher highs = growth score HIGH. HOLD runner. Floor 2.03 intact; no milestone (bid < 2.49); green_lock arms at +20% (mark 2.39) -> then floor +5% (2.09). Cadence 8min. No push (no fill/target/gate)."
     }
   },
   "watchlist": [],
@@ -302,6 +316,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T18:49Z",
+      "event": "build",
+      "detail": "v4.4 cont: (a) underlying_vwap_stop exit_rule = morning-index TREND TRAIL (user 'trailing stop for morning index entries') - hold while index holds right side of VWAP, exit on break; VWAP rises in an uptrend so it trails the trend, no fixed-target cap. am_index_trail profile on 0dte_scalp. (b) BARBELL RUNNER STRATEGY (user 'lock win early = scale-out to secure day profit for sure, let some run 1000% with strict trailing stop ... always realizing profit'): leg A scale-out ~half at first target -> guaranteed green DAY; leg B runner rides 1000%+ with CONTINUOUS REALIZATION (scale tranches at +100/+300%) + STRICT trail (give-back 0.20 = lock 80% of peak, milestone floors) on the final piece. Needs >=2-3 lots. +6 tests (58->60 total), selftest 25/0. INTC 14:48 = new high +12%, hold. Re-arming 8min chain."
+    },
     {
       "t": "2026-08-04T18:45Z",
       "event": "build",

@@ -138,6 +138,21 @@ async def position_exit(payload: dict, snapshot: dict) -> dict:
                 trips.append({"rule": "giveback",
                               "detail": f"gave back {rule['peak_frac']*100:.0f}% of peak "
                                         f"+{peak_gain/entry*100:.0f}% -> lock +{locked:.0f}%"})
+        elif t == "underlying_vwap_stop":
+            # trend-trailing stop for morning index scalps: stay in while the underlying
+            # holds the right side of VWAP; exit on a break. VWAP rises through an uptrend,
+            # so the stop trails the trend without capping upside (unlike a fixed target).
+            sym = pos["contract"].split()[0]
+            vwap = snapshot.get("vwap", {}).get(sym)
+            last = snapshot.get("quotes", {}).get(sym, {}).get("last")
+            buf = rule.get("buffer_pct", 0.0) / 100.0
+            is_call = pos["contract"].rstrip().endswith("C")
+            if vwap is not None and last is not None:
+                broke = (last < vwap * (1 - buf)) if is_call else (last > vwap * (1 + buf))
+                if broke:
+                    side = "below" if is_call else "above"
+                    trips.append({"rule": "underlying_vwap_stop",
+                                  "detail": f"{sym} {last:.2f} broke {side} VWAP {vwap:.2f}"})
         elif t == "alert_bid_floor" and oq["bid"] <= rule["bid"]:
             trips.append({"rule": t, "detail": f"bid {oq['bid']} <= {rule['bid']}"})
         elif t == "alert_swing":
