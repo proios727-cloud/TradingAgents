@@ -2,8 +2,8 @@
 
 Every value here is the source of truth from the design handoff's **GO-LIVE.md**,
 which explicitly supersedes older sections of the bundle where they conflict
-(e.g. the per-strategy risk map in the terminal's ``data.js`` — GO-LIVE's flat
-2.5% / $1k sizing wins). Change nothing here without explicit operator approval;
+(e.g. the per-strategy risk map in the terminal's ``data.js`` — GO-LIVE's sizing wins;
+since 2026-08-04 that sizing is the operator-approved phase ladder below). Change nothing here without explicit operator approval;
 these are the risk limits, not tunables.
 """
 
@@ -42,16 +42,45 @@ class Guardrails:
     per_trade_cap_usd: float = 1000.0  # hard cap per trade, all phases
     sizing_phases: tuple = ((1500.0, 75.0), (4000.0, 100.0))
     # (upper_balance_bound, fixed_premium_budget); above the last bound -> sizing_pct
+    # NOTE: the settled-cash floor (balance_floor_alert_usd) still denies ALL
+    # automated entries below $2,000 — the ladder governs manual-trade grading
+    # today and the agent once funded past the floor. Lowering that floor is a
+    # separate operator decision, never a side effect of this ladder.
+    kickstart_max_pct_of_balance: float = 0.15  # fixed budgets never exceed 15% of balance
+
+    # --- Conviction-tiered sizing (operator-approved 2026-08-04) ---
+    # A+ (confidence >= conv_min_confidence AND rvol >= conv_min_rvol — the
+    # same bar as convexity mode) sizes 1.5x the phase budget; B (scored but
+    # low confidence) sizes 0.5x; unscored (confidence == 0) stays neutral.
+    # Evidence for raising the A+ multiplier must come from the signal ledger.
+    conviction_aplus_mult: float = 1.5
+    conviction_b_mult: float = 0.5
+    conviction_b_max_confidence: int = 50
+
+    def __post_init__(self):
+        bounds = [b for b, _ in self.sizing_phases]
+        assert bounds == sorted(bounds), "sizing_phases must be sorted ascending"
 
     def premium_budget(self, balance: float) -> float:
         """Per-trade premium budget for ``balance`` under the phase ladder.
         The single sizing entry point — risk_governor and the monitoring
         scorer both call this so live gating and retrospective grading can
-        never disagree."""
+        never disagree. Fixed phase budgets are clamped to
+        ``kickstart_max_pct_of_balance`` so a fixed dollar amount can never
+        become an unbounded fraction of a shrinking account."""
         for bound, fixed in self.sizing_phases:
             if balance < bound:
-                return min(fixed, self.per_trade_cap_usd)
+                return min(fixed, self.per_trade_cap_usd,
+                           self.kickstart_max_pct_of_balance * balance)
         return min(self.sizing_pct * balance, self.per_trade_cap_usd)
+
+    def conviction_multiplier(self, confidence: int, rvol: float) -> float:
+        """Size multiplier from signal conviction. Neutral when unscored."""
+        if confidence >= self.conv_min_confidence and rvol >= self.conv_min_rvol:
+            return self.conviction_aplus_mult
+        if 0 < confidence < self.conviction_b_max_confidence:
+            return self.conviction_b_mult
+        return 1.0
 
     # --- Exits ---
     target_premium_gain: float = 0.90  # sell at +90% premium

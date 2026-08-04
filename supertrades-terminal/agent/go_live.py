@@ -60,7 +60,7 @@ STAGES: dict[str, Stage] = {
     "tiny_live": Stage("tiny_live", dry_run=False, armed=True,  max_premium_usd=75.0,   max_contracts=1,
                         note="Real money, one contract, <=$75 premium/entry. Prove fills are real."),
     "scaled":    Stage("scaled",    dry_run=False, armed=True,  max_premium_usd=1000.0, max_contracts=0,
-                        note="Sizing governed by the risk gate (2.5%/$1k). Only after tiny_live is boring."),
+                        note="Sizing governed by the risk gate (phase ladder, $1k cap). Only after tiny_live is boring."),
 }
 LADDER = ["preview", "paper", "tiny_live", "scaled"]
 DEFAULT_STAGE = "preview"

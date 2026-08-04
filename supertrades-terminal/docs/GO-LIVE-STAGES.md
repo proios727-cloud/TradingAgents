@@ -19,7 +19,7 @@ can't jump you from paper to full size.
 | `preview` (default) | ✓ | ✗ | — (no orders) | Analysis + `review_option_order` only. Nothing can be placed. |
 | `paper` | ✓ | ✗ | — (no orders) | Full decision path on the `PaperBroker`. Still no live order. |
 | `tiny_live` | ✗ | ✓ | **1 contract, ≤ $75** | Real money, deliberately tiny. Prove fills, slippage, and the arm flow are real. |
-| `scaled` | ✗ | ✓ | ≤ $1,000 (risk gate governs) | Sizing handed back to `risk_governor` (2.5%/$1k). Only after `tiny_live` is boring. |
+| `scaled` | ✗ | ✓ | ≤ $1,000 (risk gate governs) | Sizing handed back to `risk_governor` (phase ladder, $1k cap). Only after `tiny_live` is boring. |
 
 The gate **never auto-approves a live entry**: a permitted entry is surfaced to
 you as an *ask* (with the full order shown); a cap/kill/shape violation is a hard

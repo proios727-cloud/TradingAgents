@@ -51,7 +51,22 @@ class RiskGovernorRails(unittest.TestCase):
     def test_clean_signal_allows_and_sizes(self):
         v = self._eval()
         self.assertTrue(v.allow)
-        # 2.5% of 25k = $625 budget; $1.21*100 = $121/contract -> 5 contracts.
+        # good_signal is A+ (conf 82, rvol 2.0): 2.5% of 25k = $625, x1.5
+        # conviction = $937.50; $121/contract -> 7 contracts.
+        self.assertEqual(v.max_contracts, 7)
+        self.assertTrue(any("A+ conviction" in r for r in v.reasons))
+
+    def test_b_conviction_half_size(self):
+        s = good_signal(); s.confidence = 40; s.rvol = 1.5
+        v = self._eval(sig=s)
+        # B tier halves the $625 budget -> $312.50 -> 2 contracts at $121.
+        self.assertTrue(v.allow)
+        self.assertEqual(v.max_contracts, 2)
+
+    def test_unscored_confidence_is_neutral(self):
+        s = good_signal(); s.confidence = 0
+        v = self._eval(sig=s)
+        # confidence 0 = unscored -> 1.0x: $625 -> 5 contracts.
         self.assertEqual(v.max_contracts, 5)
 
     def test_daily_halt_minus_2R(self):
@@ -61,9 +76,9 @@ class RiskGovernorRails(unittest.TestCase):
 
     def test_red_day_half_size(self):
         v = self._eval(day=DayState(yesterday_red=True))
-        # budget halved to ~$312 -> 2 contracts at $121.
+        # A+ $937.50 halved (day after red) -> $468.75 -> 3 contracts at $121.
         self.assertTrue(v.allow)
-        self.assertEqual(v.max_contracts, 2)
+        self.assertEqual(v.max_contracts, 3)
 
     def test_no_entry_open_window(self):
         self.assertFalse(self._eval(now=et(9, 40)).allow)
@@ -106,21 +121,34 @@ class RiskGovernorRails(unittest.TestCase):
         self.assertFalse(v.allow)
 
     def test_cannot_afford_one_contract(self):
-        # settled just above floor but small balance -> phase budget too small.
-        v = self._eval(acct=account(balance=2500.0, settled=2100.0), ask=1.21)
-        # Build phase ($1.5k-$4k) budget $100 < $121/contract -> deny.
+        # Non-A+ signal in Build phase: budget $100 < $121/contract -> deny.
+        s = good_signal(); s.rvol = 1.5
+        v = self._eval(sig=s, acct=account(balance=2500.0, settled=2400.0), ask=1.21)
         self.assertFalse(v.allow)
 
-    def test_kickstart_phase_floor_buys_one(self):
-        # Balance below $1,500 -> Kickstart fixed $75; a $60 contract fits
-        # where the old 2.5% rule ($20 here) never could.
-        v = self._eval(acct=account(balance=800.0, settled=2100.0), ask=0.60)
-        self.assertTrue(v.allow)
-        self.assertEqual(v.max_contracts, 1)
+    def test_settled_floor_keeps_kickstart_dormant(self):
+        # The $2,000 settled-cash floor fires BEFORE sizing: at the real
+        # small-balance account the Kickstart phase is unreachable for the
+        # automated agent (it governs manual-trade grading only) until the
+        # account is funded past the floor. Deliberate; pinned here.
+        v = self._eval(acct=account(balance=541.0, settled=541.0), ask=0.60)
+        self.assertFalse(v.allow)
+
+    def test_kickstart_phase_budget_math(self):
+        # Ladder arithmetic (the part the scorer uses today): $75 fixed below
+        # $1.5k, clamped to 15% of balance so it can't grow as the account
+        # shrinks; $100 in Build; 2.5% from $4k (seamless); $1k cap.
+        from agent.config import GUARDRAILS as G
+        self.assertEqual(G.premium_budget(800.0), 75.0)
+        self.assertEqual(G.premium_budget(300.0), 45.0)   # 15% clamp
+        self.assertEqual(G.premium_budget(2500.0), 100.0)
+        self.assertEqual(G.premium_budget(4000.0), 100.0)
+        self.assertEqual(G.premium_budget(200000.0), 1000.0)
 
     def test_build_phase_fixed_100(self):
-        # $1.5k-$4k -> $100 fixed: two $0.45 contracts, not three.
-        v = self._eval(acct=account(balance=2500.0, settled=2100.0), ask=0.45)
+        # $1.5k-$4k, non-A+ -> $100 fixed: two $0.45 contracts, not three.
+        s = good_signal(); s.rvol = 1.5
+        v = self._eval(sig=s, acct=account(balance=2500.0, settled=2400.0), ask=0.45)
         self.assertTrue(v.allow)
         self.assertEqual(v.max_contracts, 2)
 

@@ -80,9 +80,13 @@ def evaluate(
     if signal.symbol in held_symbols:
         return RiskVerdict.deny(f"already holding {signal.symbol} — no adding/averaging")
 
-    # --- Sizing: phase ladder (config.premium_budget), red-day / week1 mults ---
-    # Build a size multiplier and a hard cap, then apply once.
-    mult = 1.0
+    # --- Sizing: phase ladder (config.premium_budget), conviction / red-day /
+    # week1 multipliers composed on it, then the hard cap applied once. ---
+    mult = G.conviction_multiplier(signal.confidence, signal.rvol)
+    if mult > 1.0:
+        reasons.append(f"A+ conviction: {mult:g}x phase budget")
+    elif mult < 1.0:
+        reasons.append(f"B conviction: {mult:g}x phase budget")
     cap = G.per_trade_cap_usd
     if day.yesterday_red:
         mult *= 0.5

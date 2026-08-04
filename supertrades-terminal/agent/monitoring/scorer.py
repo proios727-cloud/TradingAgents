@@ -255,13 +255,21 @@ def grade(snap: Snapshot, closed: list[RoundTrip], open_lots: list[RoundTrip]) -
                 "0dte_only", "high", t.label(),
                 f"entered {t.dte_at_entry} DTE — Guardrails.only_0dte_long requires same-day expiry",
                 15.0))
-        if t.entry_premium > allowed * 1.05:
+        aplus_allowed = allowed * G.conviction_aplus_mult
+        if t.entry_premium > aplus_allowed * 1.05:
             v.append(Violation(
                 "sizing", "medium", t.label(),
                 f"${t.entry_premium:.0f} premium vs ~${allowed:.0f} allowed "
-                f"(phase ladder at ${snap.total_value:.0f} balance; "
-                f"balance is snapshot-time, approximate)",
+                f"(${aplus_allowed:.0f} at A+ conviction; phase ladder at "
+                f"${snap.total_value:.0f} balance, snapshot-approximate)",
                 8.0))
+        elif t.entry_premium > allowed * 1.05:
+            v.append(Violation(
+                "sizing_conviction", "info", t.label(),
+                f"${t.entry_premium:.0f} premium is inside the A+ budget "
+                f"(~${aplus_allowed:.0f}) but above base ~${allowed:.0f} — "
+                f"conviction is unverifiable from fills; check the signal ledger",
+                0.0))
         if not _entry_window_ok(t.entry_ts):
             v.append(Violation(
                 "entry_window", "medium", t.label(),

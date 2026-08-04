@@ -55,8 +55,12 @@ entry-confirmation fields:
   below a $1,500 balance (Kickstart), fixed **$100** from $1,500–$4,000
   (Build), then **2.5% of balance** above $4,000 (Scale — 2.5% × $4k = $100,
   seamless handoff), $1,000 hard cap in every phase. Red-day and week-1
-  half-size multipliers apply to the phase budget. One authority:
-  `Guardrails.premium_budget(balance)`.
+  half-size multipliers apply to the phase budget. Fixed budgets are additionally clamped to 15% of balance. **Conviction multiplier:** A+ signals
+  (confidence >= 70 and RVOL >= 1.8) size 1.5x the phase budget; scored-but-low-confidence (B)
+  size 0.5x; unscored is neutral. One authority: `Guardrails.premium_budget(balance)` x
+  `Guardrails.conviction_multiplier(...)`. NOTE: the $2,000 settled-cash floor still denies all
+  AUTOMATED entries below it — the ladder governs manual-trade grading until the account is
+  funded past the floor; lowering that floor is a separate operator decision.
 - **Stop:** −50% premium, never widened. **Target:** +90%, or scale half at
   +1R and trail the runner with 30% peak give-back when `scale_and_trail` is on.
 - **Daily:** −2R halt · 3 straight losses = kill · half-size after a red day ·

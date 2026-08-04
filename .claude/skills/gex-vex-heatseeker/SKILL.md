@@ -175,15 +175,15 @@ moves extend or revert.**
 **Conviction tiering.** Size and exit style follow setup quality, not enthusiasm:
 
 - **A+** — tier-1 ticker, aligned vanna, RVOL ≥ 1.8, flip or air-pocket setup,
-  vendor-confirmed level. Full size, runner allowed.
+  vendor-confirmed level. 1.5x phase budget, runner allowed.
 - **A** — all gates pass, one quality factor missing. Full size, no runner in
   +GEX.
-- **B** — gates pass on a tier-2 name or with divergent vanna. Half size, take
+- **B** — gates pass on a tier-2 name or with divergent vanna. 0.5x phase budget, take
   profit at the first node, no runner.
 - Below B does not trade. There is no C tier, deliberately.
 
 Standing risk rules from the account playbook still bind and are not overridden
-here: the sizing phase ladder ($75/trade under a $1.5k balance, $100 to $4k, then 2.5%, always capped $1,000), −2R daily halt, half-size after a red
+here: the sizing phase ladder ($75/trade under a $1.5k balance, $100 to $4k, then 2.5%, always capped $1,000; A+ conviction sizes 1.5x the phase budget, B 0.5x), −2R daily halt, half-size after a red
 day, never average down, never widen a stop, flat by 15:45 ET on short-dated.
 
 ## Step 7 — Log every signal
