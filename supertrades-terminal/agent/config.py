@@ -9,6 +9,7 @@ these are the risk limits, not tunables.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from datetime import time
 from zoneinfo import ZoneInfo
@@ -125,7 +126,19 @@ GUARDRAILS = Guardrails()
 class RuntimeConfig:
     """Mutable per-run switches. Safe defaults = fully inert (dry run, disarmed)."""
 
-    account_number: str | None = None
+    # The ONE account this agent may trade: the Robinhood "Agentic" cash
+    # account (agentic_allowed=true, options Level 2). Pinned explicitly and
+    # never inferred — preflight() refuses to arm when this is unset or does
+    # not name an agentic_allowed account, because "prefer any agentic account"
+    # is not a safe way for a live order to find its account. Overridable via
+    # ROBINHOOD_ACCOUNT_NUMBER so a second account never needs a code edit.
+    #
+    # Everything open in this account is the agent's to manage — its stop,
+    # target, and 15:45 flatten act on ANY position here, not just ones it
+    # opened. Trade by hand in the margin account (agentic_allowed=false, so
+    # the agent structurally cannot reach it), not in this one.
+    account_number: str | None = os.environ.get(
+        "ROBINHOOD_ACCOUNT_NUMBER", "902341866") or None
     # Master safety switches -----------------------------------------------
     dry_run: bool = True          # True => no live order is ever dispatched
     armed: bool = False           # operator must explicitly arm; even then dry_run gates

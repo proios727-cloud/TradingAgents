@@ -48,6 +48,9 @@ def cmd_status(_args) -> int:
     print(f"  dry_run      : {cfg.dry_run}")
     print(f"  can_place_live: {cfg.can_place_live()}  (False = fully inert)")
     print(f"  entry approval required: {cfg.require_entry_approval}")
+    # The operator's first question before arming is "which account?" — answer
+    # it here rather than making them read config.py.
+    print(f"  account       : {cfg.account_number or '(UNSET — preflight will refuse)'}")
     print("Guardrails (from GO-LIVE.md):")
     print(f"  sizing        : {G.sizing_pct:.1%} of balance, cap ${G.per_trade_cap_usd:,.0f}")
     print(f"  exits         : +{G.target_premium_gain:.0%} target / "
