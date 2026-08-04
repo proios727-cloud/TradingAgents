@@ -30,6 +30,7 @@ from tradingagents.dataflows.config import set_config
 from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
     get_indicators,
+    get_dealer_positioning,
     get_fundamentals,
     get_balance_sheet,
     get_cashflow,
@@ -163,6 +164,8 @@ class TradingAgentsGraph:
                     get_stock_data,
                     # Technical indicators
                     get_indicators,
+                    # Dealer positioning (GEX/VEX) from recorded option chains
+                    get_dealer_positioning,
                 ]
             ),
             "social": ToolNode(
