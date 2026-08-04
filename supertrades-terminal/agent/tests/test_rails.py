@@ -124,7 +124,7 @@ class RiskGovernorRails(unittest.TestCase):
         self.assertFalse(v.allow)
 
     def test_cannot_afford_one_contract(self):
-        # Non-A+ signal in Build phase: budget $100 < $121/contract -> deny.
+        # Non-A+ signal mid-Kickstart: budget $100 < $121/contract -> deny.
         s = good_signal(); s.rvol = 1.5
         v = self._eval(sig=s, acct=account(balance=2500.0, settled=2400.0), ask=1.21)
         self.assertFalse(v.allow)
@@ -147,7 +147,7 @@ class RiskGovernorRails(unittest.TestCase):
         self.assertEqual(G.premium_budget(4000.0), 100.0)
         self.assertEqual(G.premium_budget(200000.0), 1000.0)
 
-    def test_build_phase_fixed_100(self):
+    def test_kickstart_mid_range_fixed_100(self):
         # Mid-Kickstart ($2.5k), non-A+ -> $100 fixed: two $0.45 contracts.
         s = good_signal(); s.rvol = 1.5
         v = self._eval(sig=s, acct=account(balance=2500.0, settled=2400.0), ask=0.45)

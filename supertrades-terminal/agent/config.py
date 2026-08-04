@@ -48,7 +48,7 @@ class Guardrails:
     # 2026-08-04 (its own explicit decision, after guardian review flagged
     # that $2,000 kept Kickstart dormant): below $300 the account has lost
     # ~45% from the kickstart stake and the right behavior is halt + alert,
-    # not smaller bets. The 15% clamp above keeps budgets sane down to it.
+    # not smaller bets. The 20% clamp above keeps budgets sane down to it.
     kickstart_max_pct_of_balance: float = 0.20  # base fixed budget <= 20% of balance
     # (A+ conviction multiplies AFTER the clamp: effective entry <= 30% at 1.5x)
 
