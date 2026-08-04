@@ -106,9 +106,15 @@ The fixed +50% target both **capped** upside and **lagged** the poll (QQQ 8/4: +
   the §3 concentration ceiling).
 - **Scale-out** (`target.scale_out_frac`, multi-contract): bank a slice at the milestone,
   trail the remainder. Single contract → trail only.
-- **Exit timing:** exits go **marketable through the bid** (a resting bid missed the QQQ
-  reversal), and the management cadence **tightens to ~8 min once a position is extended**
-  (past the ratchet arm) so a peak reversal is caught fast.
+- **Exit timing (HARD):** exits go **marketable through the bid** (a resting bid missed the
+  QQQ reversal), and the management cadence **tightens to ~8 min once a position is extended**
+  (past the ratchet arm) so a peak reversal is caught fast. Exit-time rules are
+  **non-discretionary**: **index (SPY/QQQ) positions must be flat by 3:00 ET** — a hard buffer
+  *before* the 3:15 backstop, never ridden to the deadline (late-day gamma/pin/theta). DTE is
+  a first-class exit input (near-expiry theta forces earlier, marketable exits).
+- **Swing rails are HARD:** the give-back trail, daily swing-low stop, and TA+fundamental gate
+  are non-discretionary — a break exits, no "one more day"; and swings exit **≥ 1 trading day
+  before expiry** (no expiry-week theta cliff).
 - **Per-class profile** (materialized from `class_defaults[...].profit_max`), tuned by horizon:
   0dte lock 70% of peak / day lock 60% / **swing lock 50%** / swing_overnight lock 55%.
 - **Weekly / swing overlay (TA + fundamentals):** the swing runner gets the most room, but

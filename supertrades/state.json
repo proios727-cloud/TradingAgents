@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T18:14:00Z",
+  "updated_at": "2026-08-04T18:18:00Z",
   "trading_date": "2026-08-04",
   "rule_version": "v4.3",
   "mode": {
@@ -67,12 +67,14 @@
       "stop_pct": -30,
       "ratchet_pct": 25,
       "hard_exit_et": "15:15",
+      "index_hard_close_et": "15:00",
+      "exit_time_discipline": "HARD (user 8/4 'hard on exit time ... always close before best target time for indexes'). INDEX positions (SPY/QQQ) MUST be flat by index_hard_close_et 15:00 - non-discretionary buffer BEFORE the 15:15 backstop; never ride to the deadline (late-day gamma/pin/theta risk). Non-index 0dte: hard-exit 15:15. No ratchet-keep discretion for indexes into the close.",
       "profit_max": {
         "runner": true,
         "giveback": {"arm_gain_pct": 40, "peak_frac": 0.30},
         "scale_out_frac": 0.5, "scale_out_at_pct": 60,
         "exit_mech": "marketable_through_bid",
-        "note": "Fastest clock: trail tight (lock 70% of peak), price/gamma only. Runner = do NOT hard-cap at +50%; let it run and trail. QQQ 8/4 lesson."
+        "note": "Fastest clock: trail tight (lock 70% of peak), price/gamma only. Runner = do NOT hard-cap at +50%; let it run and trail. QQQ 8/4 lesson. Exit time is HARD - indexes close by 15:00."
       }
     },
     "day_trade": {
@@ -101,7 +103,8 @@
         "scale_out_tiers": [{"at_pct": 75, "frac": 0.33}, {"at_pct": 150, "frac": 0.5}],
         "exit_mech": "limit_at_bid",
         "ta_fundamental_gate": "Weekly horizon: give the runner the MOST room (lock 50% of peak) BUT keep holding ONLY while BOTH hold: (TA) daily trend intact - price > rising MA20 / making higher-highs, no daily reversal candle on volume; (FUNDAMENTAL) growth thesis intact - no earnings miss / guidance cut / negative catalyst. If TA breaks OR fundamentals deteriorate, exit regardless of the give-back %. Trail the stop under the prior daily swing-low.",
-        "note": "~1-3 week swings: widest trail, but gated by TA structure + fundamental quality (get_equity_fundamentals / earnings). This is where growth TA + fundamentals overlay the numeric trail."
+        "enforcement": "HARD (user 8/4 'hard on ... swing rails'). Give-back trail, swing-low stop, and the TA+fundamental gate are non-discretionary - a break exits, no 'give it one more day'. Also hard: exit >= 1 trading day before expiry (no expiry-week theta cliff on swings).",
+        "note": "~1-3 week swings: widest trail, but gated by TA structure + fundamental quality (get_equity_fundamentals / earnings). This is where growth TA + fundamentals overlay the numeric trail. Rails are HARD, not advisory."
       }
     },
     "swing_overnight": {
@@ -176,16 +179,27 @@
         "expiry_reality": "Contract expires 8/5 (Wed). Holding 'into Thursday 8/6' is IMPOSSIBLE without a ROLL to a later INTC expiry - pending user decision (roll-on-strength vs exit-by-8/5)."
       },
       "overnight_swing_gate": {
-        "authorized_by": "user 8/4 13:30 ET - 'can swing intc if scoring permits for overnight hold'",
+        "authorized_by": "user 8/4 - 'can swing intc if scoring permits' + 'weigh expiry theta vs potential huge growth AH/PM'",
         "evaluate_at": "15:35-15:44 ET",
+        "theta_vs_catalyst_weigh": {
+          "principle": "This is a 1-DTE: holding overnight = heavy overnight theta AND it becomes 0DTE tomorrow. Carry it ONLY if an identifiable AH/PM UPSIDE CATALYST plausibly gaps INTC enough to beat the overnight decay. No catalyst + just grinding = theta wins, FLATTEN.",
+          "theta_cost_side": "Estimate overnight decay: at IV ~122%, theta ~-1.25/day - a flat open tomorrow bleeds a large fraction of the option. That is the hurdle the upside must clear.",
+          "catalyst_upside_side": [
+            "EARNINGS CHECKED 8/4: INTC last reported 2026-07-23 (Q2 beat 0.42 vs 0.19); NEXT is 2026-10-22 (unverified). NO earnings catalyst tonight - today's +10% is news/momentum, not a scheduled event. So there is NO binary AH event to justify carry; the upside case is pure momentum-continuation.",
+            "Absent a fresh AH/PM news catalyst, momentum-only continuation rarely beats a 1-DTE's overnight theta -> bias FLATTEN.",
+            "Would only favor hold if INTC is powering into the close (near HOD, strong RVOL, higher highs) AND a fresh catalyst/news is driving it."
+          ],
+          "decision": "HOLD overnight only if (strong-close conditions ALL true) AND a real AH/PM upside catalyst beats the theta hurdle. With no earnings tonight, DEFAULT LEANS FLATTEN unless INTC is exceptionally strong into 15:44."
+        },
         "hold_overnight_requires_ALL": [
           "INTC day_pct still >= +5% AND green vs prior close",
           "INTC last price above intraday VWAP (trend intact)",
           "option mark >= ratchet-arm 2.49 (i.e. >=+25%, in profit) - do NOT carry a red 1-DTE overnight",
-          "no sharp reversal: INTC not down >2% from the day's high in the last 30 min"
+          "no sharp reversal: INTC not down >2% from the day's high in the last 30 min",
+          "theta_vs_catalyst_weigh.decision favors HOLD (identifiable AH/PM upside catalyst beats the overnight theta hurdle; NOT an unwanted earnings gamble)"
         ],
-        "if_all_true": "reclass class -> 'swing_overnight'; set stop to breakeven 1.99 (protect gain); exit plan = sell tomorrow 8/5 by 10:30 ET OR on any -20% from carry mark (0DTE theta), whichever first. Do NOT let it ride to 8/5 expiry.",
-        "if_any_false": "FLATTEN at 15:44 at the bid (same-day scalp default)."
+        "if_all_true": "reclass class -> 'swing_overnight'; set stop to breakeven 1.99 (protect gain); exit plan = sell tomorrow 8/5 by 10:30 ET OR on any -20% from carry mark, whichever first. Never ride to 8/5 expiry.",
+        "if_any_false": "FLATTEN at 15:44 marketable through the bid (theta beats hope on a 1-DTE)."
       },
       "note": "AGENTIC entry 8/4 13:24 ET @1.99 (user 'tiny live', top rvol-screen affordable mover; DTE broken to 1). 1-DTE, IV ~122%, theta -1.19. DEFAULT = same-day scalp flatten 15:44, BUT user authorized OVERNIGHT SWING IF overnight_swing_gate passes at 15:35-15:44 (strong close required). If held, exit 8/5 by 10:30 ET or -20%, never to expiry. ~49% BP. INTC +10.4% $100 breakout. OVERRIDES daily-2/midday/min_dte per user.",
       "last_mark": 2.035,
@@ -269,6 +283,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T18:18Z",
+      "event": "rule",
+      "detail": "Overnight gate now weighs THETA vs AH/PM CATALYST (user). EARNINGS CHECKED: INTC last reported 7/23 (beat), next 10/22 - NO earnings tonight, so no binary AH catalyst; overnight case is momentum-only -> gate DEFAULT LEANS FLATTEN unless INTC is exceptionally strong into 15:44. HARD RULES added (user 'hard on exit time and swing rails', agent agrees): (1) exit-time non-discretionary - INDEX (SPY/QQQ) positions HARD-close by 15:00 ET (buffer before 15:15 backstop), never ride the deadline; DTE is a first-class exit input. (2) SWING rails hard - give-back trail + swing-low stop + TA/fundamental gate non-discretionary, exit >=1 day before expiry. Spec §6b + class_defaults updated."
+    },
     {
       "t": "2026-08-04T18:14Z",
       "event": "rule",
