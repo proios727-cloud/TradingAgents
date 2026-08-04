@@ -33,11 +33,15 @@ def et(h, m):
     return datetime(2026, 7, 20, h, m, tzinfo=MARKET_TZ)
 
 
-ELIGIBLE_ACCOUNT = {"results": [{
+# Real schema: get_accounts carries eligibility (NOT balance); buying power and
+# balance come from get_portfolio.
+ELIGIBLE_ACCOUNT = {"data": {"accounts": [{
     "account_number": "A1", "agentic_allowed": True,
     "option_level": "option_level_2",
-    "portfolio_value": 25000, "settled_cash": 25000,
-}]}
+}]}}
+ELIGIBLE_PORTFOLIO = {"data": {"total_value": "25000",
+                               "buying_power": {"buying_power": "25000"},
+                               "cash": "25000"}}
 
 
 class RecordingTransport:
@@ -237,10 +241,12 @@ class BrokerThroughDispatcher(unittest.TestCase):
 
     # --- reads go direct, strict parsing, shared kill state ---------------
     def test_get_account_reads_direct_and_parses(self):
-        broker, transport, _ = self._broker(
-            INERT, responses={MCP_TOOL_PREFIX + "get_accounts": ELIGIBLE_ACCOUNT})
+        broker, transport, _ = self._broker(INERT, responses={
+            MCP_TOOL_PREFIX + "get_accounts": ELIGIBLE_ACCOUNT,
+            MCP_TOOL_PREFIX + "get_portfolio": ELIGIBLE_PORTFOLIO})
         acct = broker.get_account()
-        self.assertEqual(acct.balance, 25000.0)
+        self.assertEqual(acct.balance, 25000.0)          # from get_portfolio
+        self.assertEqual(acct.settled_cash, 25000.0)     # buying_power.buying_power
         self.assertEqual(transport.calls[0][0], MCP_TOOL_PREFIX + "get_accounts")
 
     def test_get_account_missing_balance_trips_kill(self):
@@ -286,6 +292,7 @@ class BrokerThroughDispatcher(unittest.TestCase):
         # response has no id is an unknown state => kill, never a blank id.
         broker, _, kill = self._broker(ARMED, responses={
             MCP_TOOL_PREFIX + "get_accounts": ELIGIBLE_ACCOUNT,
+            MCP_TOOL_PREFIX + "get_portfolio": ELIGIBLE_PORTFOLIO,
             MCP_TOOL_PREFIX + "place_option_order": {"state": "queued"}})
         with self.assertRaises(McpDispatchError):
             broker.place_order(intent())

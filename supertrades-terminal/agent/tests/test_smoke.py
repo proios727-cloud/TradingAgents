@@ -43,26 +43,29 @@ class RecordingTransport:
         return self.responses.get(full_tool, {"results": []})
 
 
-GOOD_ACCOUNT = {"results": [{
+# Real schema: eligibility on get_accounts, balance/buying-power on get_portfolio,
+# Greeks nested under results[].quote.
+GOOD_ACCOUNT = {"data": {"accounts": [{
     "account_number": "A1", "agentic_allowed": True,
     "option_level": "option_level_2",
-    "portfolio_value": 25000, "settled_cash": 25000,
-}]}
-
+}]}}
+GOOD_PORTFOLIO = {"data": {"total_value": "25000",
+                           "buying_power": {"buying_power": "25000"},
+                           "cash": "25000"}}
 GOOD_INSTRUMENT = {"results": [
     {"id": "i1", "type": "call", "strike_price": "202.5"}]}
 GOOD_QUOTE = {"results": [
-    {"bid_price": "1.18", "ask_price": "1.24", "delta": "0.5"}]}
+    {"quote": {"bid_price": "1.18", "ask_price": "1.24", "delta": "0.5", "gamma": "0.05"}}]}
 BAD_QUOTE_MISSING_DELTA = {"results": [
-    {"bid_price": "1.18", "ask_price": "1.24"}]}
+    {"quote": {"bid_price": "1.18", "ask_price": "1.24"}}]}
 
 
 def _responses_for(watchlist, quote_by_symbol=None):
     quote_by_symbol = quote_by_symbol or {}
     resp = {
         MCP_TOOL_PREFIX + "get_accounts": GOOD_ACCOUNT,
+        MCP_TOOL_PREFIX + "get_portfolio": GOOD_PORTFOLIO,
         MCP_TOOL_PREFIX + "get_option_positions": {"results": []},
-        MCP_TOOL_PREFIX + "get_option_chains": {"results": []},
         MCP_TOOL_PREFIX + "get_option_instruments": GOOD_INSTRUMENT,
         MCP_TOOL_PREFIX + "get_option_quotes": GOOD_QUOTE,
     }
@@ -151,10 +154,12 @@ class OnlyNonMutatingToolsDispatched(unittest.TestCase):
                 f"smoke test must never dispatch a mutating-shaped tool: {name}",
             )
         # And specifically the expected read set — nothing extra snuck in.
-        expected = {"get_accounts", "get_option_positions",
-                    "get_option_chains", "get_option_instruments",
-                    "get_option_quotes", "get_earnings_calendar"}
-        self.assertTrue(called.issubset(expected))
+        # (get_account also reads get_portfolio; the earnings blackout reads
+        # get_earnings_calendar; get_chain goes straight to get_option_instruments.)
+        expected = {"get_accounts", "get_portfolio", "get_option_positions",
+                    "get_option_instruments", "get_option_quotes",
+                    "get_earnings_calendar"}
+        self.assertTrue(called.issubset(expected), called - expected)
 
     def test_build_checks_only_uses_broker_parsed_accessors(self):
         watchlist = ["NVDA"]
