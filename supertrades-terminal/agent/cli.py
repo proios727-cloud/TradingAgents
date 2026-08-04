@@ -3,6 +3,7 @@
     python -m agent.cli status
     python -m agent.cli dry-run [--at 2026-07-20T14:32]
     python -m agent.cli smoke                                # READ-ONLY, hits the real API
+    python -m agent.cli refresh-earnings                     # regenerate the dry-run fixture
     python -m agent.cli arm --confirm "I ARM SUPERTRADES"   # refuses unless eligible
 
 Arming only flips the switches; a live order still requires a wired mcp_call
@@ -17,11 +18,19 @@ from datetime import datetime
 from .approval import ApprovalGate, Preview, deny_all
 from .broker.mcp_dispatch import McpDispatchError, TOKEN_ENV
 from .broker.paper import PaperBroker
+from .broker.robinhood_mcp import RobinhoodMcpBroker
 from .config import GUARDRAILS as G
 from .config import MARKET_TZ, RuntimeConfig
-from .earnings import McpEarningsCalendar
+from .earnings import McpEarningsCalendar, StaticEarningsCalendar
 from .engine import SuperTradesAgent
-from .simulated import SimulatedSignalSource, demo_account, demo_chains
+from .fixture_refresh import FixtureRefreshError, refresh as refresh_fixture
+from .simulated import (
+    EARNINGS_CALENDAR,
+    EARNINGS_CALENDAR_AS_OF,
+    SimulatedSignalSource,
+    demo_account,
+    demo_chains,
+)
 from .smoke import SmokeRefused, format_report, run_smoke
 
 
@@ -54,11 +63,17 @@ def cmd_status(_args) -> int:
 
     # The live calendar is inert without a dispatcher, and inert means "blocks
     # everything" — say so plainly rather than letting it look configured.
+    now = datetime.now(MARKET_TZ)
     live = McpEarningsCalendar()
-    live.blackout(datetime.now(MARKET_TZ))
+    live.blackout(now)
+    fixture = StaticEarningsCalendar(EARNINGS_CALENDAR,
+                                     as_of=EARNINGS_CALENDAR_AS_OF)
+    fixture.blackout(now)
+    age = fixture.age_days(now.astimezone(MARKET_TZ).date())
     print("Earnings feed:")
     print(f"  live calendar : {live.last_error or 'wired'}")
-    print("  dry-run uses the simulated.EARNINGS_CALENDAR fixture instead")
+    print(f"  dry-run fixture: generated {EARNINGS_CALENDAR_AS_OF} ({age}d ago)"
+          f" — {fixture.last_error or 'current'}")
     return 0
 
 
@@ -111,6 +126,36 @@ def cmd_smoke(_args) -> int:
     return code
 
 
+def cmd_refresh_earnings(_args) -> int:
+    # Inert config: this reads the calendar and writes a source file. It never
+    # touches an order path, and the dispatcher refuses mutations anyway.
+    cfg = RuntimeConfig()
+    print("Refreshing the dry-run earnings fixture from the live feed "
+          "(read-only against Robinhood).")
+    try:
+        broker = RobinhoodMcpBroker.live(cfg)
+    except McpDispatchError as e:
+        print(f"Refusing to run: could not construct the live dispatcher.\n  {e}")
+        print(f"Set {TOKEN_ENV} (complete the Robinhood MCP OAuth flow) and retry.")
+        return 2
+
+    today = datetime.now(MARKET_TZ).date()
+    try:
+        reports = refresh_fixture(broker._mcp, today)
+    except FixtureRefreshError as e:
+        print(f"Refused: {e}")
+        return 2
+    except Exception as e:  # noqa: BLE001 — surface the real text, write nothing
+        print(f"Failed: {e!r}\nThe existing fixture is unchanged.")
+        return 1
+
+    print(f"\nWrote {len(reports)} report(s), as_of {today}:")
+    for r in reports:
+        print(f"  {r.symbol:<6} {r.report_date} {r.timing or '(timing unknown)'}")
+    print("\nReview the diff in agent/simulated.py and commit it.")
+    return 0
+
+
 def cmd_arm(args) -> int:
     if args.confirm != "I ARM SUPERTRADES":
         print("Refusing: pass --confirm \"I ARM SUPERTRADES\" to arm.")
@@ -134,6 +179,7 @@ def main(argv=None) -> int:
     dr = sub.add_parser("dry-run"); dr.add_argument("--at", default=None)
     dr.set_defaults(func=cmd_dry_run)
     sub.add_parser("smoke").set_defaults(func=cmd_smoke)
+    sub.add_parser("refresh-earnings").set_defaults(func=cmd_refresh_earnings)
     ar = sub.add_parser("arm"); ar.add_argument("--confirm", default="")
     ar.set_defaults(func=cmd_arm)
     args = ap.parse_args(argv)

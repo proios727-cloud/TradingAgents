@@ -107,23 +107,60 @@ def blackout_from_reports(
 
 
 # --- fixture calendar ----------------------------------------------------
-class StaticEarningsCalendar:
-    """Blackout from a hand-maintained ``{symbol: (date, timing)}`` mapping.
+# How long a generated fixture may be trusted before it stops answering.
+# Reporting season turns over in weeks, so a fixture older than this is
+# quoting a previous cycle: names that have since reported look clear, and
+# names about to report are missing entirely.
+STATIC_FIXTURE_MAX_AGE_DAYS = 21
 
-    Never fails, and so never fails closed — a fixture cannot tell you it is
-    stale. Use it for dry runs; use ``McpEarningsCalendar`` for anything that
-    can place an order.
+
+class StaticEarningsCalendar:
+    """Blackout from a generated ``{symbol: (date, timing)}`` mapping.
+
+    Pass ``as_of`` (the date the mapping was generated) and the fixture gains
+    the one thing a fixture normally cannot do: it can tell you it has gone
+    stale. Past ``max_age_days`` it stops answering and fails closed, exactly
+    like the live calendar does on an unreachable feed — a dry run that would
+    otherwise quote last cycle's dates goes loudly wrong instead of quietly
+    wrong. Without ``as_of`` it never expires, which is what ad-hoc test
+    fixtures want.
+
+    Use this for dry runs; use ``McpEarningsCalendar`` for anything that can
+    place an order.
     """
 
-    def __init__(self, reports: dict[str, tuple[date, str]]):
+    def __init__(
+        self,
+        reports: dict[str, tuple[date, str]],
+        *,
+        as_of: Optional[date] = None,
+        max_age_days: int = STATIC_FIXTURE_MAX_AGE_DAYS,
+    ):
         self._reports = [
             EarningsReport(sym, d, t) for sym, (d, t) in reports.items()
         ]
+        self.as_of = as_of
+        self.max_age_days = max_age_days
+        self.last_error: str = ""
+
+    def age_days(self, today: date) -> Optional[int]:
+        return None if self.as_of is None else (today - self.as_of).days
 
     def blackout(
         self, now: datetime, universe: Sequence[str] = WATCHLIST
     ) -> frozenset[str]:
         today = now.astimezone(MARKET_TZ).date()
+
+        age = self.age_days(today)
+        if age is not None and age > self.max_age_days:
+            self.last_error = (
+                f"earnings fixture is {age} days old (generated "
+                f"{self.as_of}, max {self.max_age_days}) — refresh it with "
+                f"`python -m agent.cli refresh-earnings`"
+            )
+            return frozenset(universe)
+
+        self.last_error = ""
         blocked = blackout_from_reports(
             self._reports, today, GUARDRAILS.earnings_block_sessions
         )
@@ -189,14 +226,7 @@ class McpEarningsCalendar:
         start = today - timedelta(days=window + self._pad)
         span = 2 * (window + self._pad) + 1
         try:
-            # No market-cap filter: filtering server-side could silently drop a
-            # watchlist name and unblock it, which is the one outcome this
-            # module exists to prevent.
-            payload = self._mcp(
-                "get_earnings_calendar",
-                {"start_date": start.isoformat(), "days": span},
-            )
-            reports, unparsable = parse_calendar(payload)
+            reports, unparsable = fetch_window(self._mcp, start, span)
         except Exception as e:  # noqa: BLE001 — any failure must fail closed
             self.last_error = f"earnings calendar fetch failed: {e}"
             self._cache = None
@@ -205,6 +235,22 @@ class McpEarningsCalendar:
         self.last_error = ""
         self._cache = (today, reports, unparsable)
         return reports, unparsable
+
+
+def fetch_window(
+    mcp_call: McpCall, start: date, span_days: int
+) -> tuple[list[EarningsReport], frozenset[str]]:
+    """One raw, uncached ``get_earnings_calendar`` read over a date window.
+
+    Deliberately sends no market-cap filter: filtering server-side could
+    silently drop a watchlist name and unblock it, the one outcome this module
+    exists to prevent. Raises on any failure — callers decide how to fail.
+    """
+    payload = mcp_call(
+        "get_earnings_calendar",
+        {"start_date": start.isoformat(), "days": span_days},
+    )
+    return parse_calendar(payload)
 
 
 def parse_calendar(payload) -> tuple[list[EarningsReport], frozenset[str]]:
