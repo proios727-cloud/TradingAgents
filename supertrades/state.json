@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T18:55:00Z",
+  "updated_at": "2026-08-04T19:04:00Z",
   "risk_posture": {
     "priority": "LOW_DRAWDOWN",
     "set_by": "user 8/4 'keep DD low'",
@@ -189,7 +189,7 @@
       "account": "902341866",
       "qty": 1,
       "entry": 1.99,
-      "hwm": 2.23,
+      "hwm": 2.35,
       "ratchet_engaged": false,
       "never_red": true,
       "class": "day_trade",
@@ -234,8 +234,12 @@
         "delegation": "User 8/4: 'if not sold before close I trust your judgment.' Agent makes the final overnight call at 15:35-15:44 using this gate; with no catalyst tonight the default is LEAN FLATTEN. USER-REQUESTED PING: push the HOLD/FLATTEN decision at the gate regardless of fill."
       },
       "note": "AGENTIC entry 8/4 13:24 ET @1.99 (user 'tiny live', top rvol-screen affordable mover; DTE broken to 1). 1-DTE, IV ~122%, theta -1.19. DEFAULT = same-day scalp flatten 15:44, BUT user authorized OVERNIGHT SWING IF overnight_swing_gate passes at 15:35-15:44 (strong close required). If held, exit 8/5 by 10:30 ET or -20%, never to expiry. ~49% BP. INTC +10.4% $100 breakout. OVERRIDES daily-2/midday/min_dte per user.",
-      "last_mark": 2.23,
+      "last_mark": 2.35,
       "floor_bid": 2.03,
+      "beneficial_exit_discretion": {
+        "authorized_by": "user 8/4 'exit if ratchet or something is also more beneficial'",
+        "rule": "Agent MAY exit early (take profit marketable through bid, always GREEN) at judgment when booking is clearly MORE BENEFICIAL than holding the runner - e.g. a ratchet/milestone lock hit with momentum fading; a sharp spike likely to fade; theta/gap risk into the gate outweighing remaining upside; risk/reward flipped. Not required to wait for the fixed +50% target or the give-back trail. Never-red always holds. PUSH on the resulting fill (counts as a fill ping)."
+      },
       "hwm_note": "14:48 ET check: option mark 2.23 / bid 2.20 = NEW HIGH +12.1%, hwm 2.23. INTC equity 100.90 (+10.9%), VWAP 98.88 -> above VWAP, higher highs = growth score HIGH. HOLD runner. Floor 2.03 intact; no milestone (bid < 2.49); green_lock arms at +20% (mark 2.39) -> then floor +5% (2.09). Cadence 8min. No push (no fill/target/gate)."
     }
   },
