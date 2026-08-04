@@ -7,9 +7,9 @@
     "cadence_min": 30,
     "dnd": true,
     "least_stressful": true,
-    "push_policy": "fills_only",
-    "set_at": "2026-08-04T14:12:00Z",
-    "note": "user-set FILLS-ONLY (8/4 10:12 ET). PUSH the phone ONLY when an order actually FILLS (entry or exit). No setup pings, no per-cycle chatter, no routine status. Halts/system failures are LOGGED to state + chat, not pushed. Revert on request ('fast mode' / 'notifications on').",
+    "push_policy": "fills_or_improvement_ideas",
+    "set_at": "2026-08-04T17:40:00Z",
+    "note": "user-set FILLS or IMPROVEMENT IDEAS (8/4 13:40 ET). PUSH the phone when: (a) an order FILLS, or (b) there's a genuine, high-value improvement idea for the system/strategy (not routine chatter - a real optimization worth acting on). Still NO per-cycle status. Halts/failures logged, not pushed. Revert on request.",
     "surface_new_setups": "OFF in fills-only mode: do not surface or push setups. The loop reconciles + manages rails silently; it only reaches the phone on a fill."
   },
   "dashboard_url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4",
