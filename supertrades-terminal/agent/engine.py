@@ -48,6 +48,7 @@ class CycleResult:
     placed_entries: list[OrderIntent] = field(default_factory=list)
     rejected: list[tuple[str, str]] = field(default_factory=list)  # (symbol, reason)
     previewed_declined: list[str] = field(default_factory=list)    # symbols the human skipped
+    failed_exits: list[tuple[str, str, str]] = field(default_factory=list)  # (symbol, exit_kind, error)
 
 
 class SuperTradesAgent:
@@ -83,14 +84,19 @@ class SuperTradesAgent:
         kd = kill_check(self.kill, now)
         if kd:
             self.day.halted = True
-            self.broker.cancel_all()
+            # Cancelling working orders is best-effort — closing positions is
+            # not. A raise here must never block the flatten below.
+            try:
+                self.broker.cancel_all()
+            except Exception as e:  # noqa: BLE001 — flatten must still run
+                self.log.record("cancel_all_failed", "*", now, error=repr(e))
             res.killed = kd.reason
-            res.exits = self._flatten_all(now, reason=f"kill: {kd.reason}")
+            res.exits, res.failed_exits = self._flatten_all(now, reason=f"kill: {kd.reason}")
             self.log.record("kill", "*", now, reason=kd.reason)
             return res
 
         # 1. Exits always run (even if halted for entries).
-        res.exits = self._manage_exits(now)
+        res.exits, res.failed_exits = self._manage_exits(now)
 
         # 2. Entries — only if not halted.
         if self.day.halted or self.day.day_r <= G.daily_halt_r:
@@ -151,8 +157,9 @@ class SuperTradesAgent:
         return res
 
     # -- helpers ----------------------------------------------------------
-    def _manage_exits(self, now: datetime) -> list[ExitIntent]:
+    def _manage_exits(self, now: datetime) -> tuple[list[ExitIntent], list[tuple[str, str, str]]]:
         out: list[ExitIntent] = []
+        failed: list[tuple[str, str, str]] = []
         live_ids: set[str] = set()
         for pos in self.broker.get_positions():
             # Ratchet the per-position high-water mark before evaluating exits so
@@ -195,7 +202,19 @@ class SuperTradesAgent:
                                     now, exit_kind=ex.kind, approved=approved,
                                     note="advisory only — protective exit placed "
                                          "regardless of operator response")
-                result = self.broker.place_order(intent)
+                # ISOLATION: one position's broker failure must never abort
+                # the loop and leave every later position with no exit this
+                # cycle. Catch here, journal loudly, and keep going — the
+                # kill switch (tripped by the broker itself on a real error)
+                # still halts entries next cycle; this just finishes the pass.
+                try:
+                    result = self.broker.place_order(intent)
+                except Exception as e:  # noqa: BLE001 — isolate per-position
+                    failed.append((ex.position.symbol, ex.kind, repr(e)))
+                    self.log.record("exit_failed", ex.position.symbol, now,
+                                    exit_kind=ex.kind, qty=ex.quantity,
+                                    reason=ex.reason, error=repr(e))
+                    continue
                 # NB: detail key must not be "kind" — that's record()'s first
                 # positional arg (was a latent TypeError on every real exit).
                 self.log.record("exit", ex.position.symbol, now, exit_kind=ex.kind,
@@ -204,15 +223,25 @@ class SuperTradesAgent:
         # Drop peaks for positions no longer open so the map can't leak or
         # resurrect a stale high-water mark on a re-entered symbol.
         self._peaks = {oid: pk for oid, pk in self._peaks.items() if oid in live_ids}
-        return out
+        return out, failed
 
-    def _flatten_all(self, now: datetime, reason: str) -> list[ExitIntent]:
-        out = []
+    def _flatten_all(self, now: datetime, reason: str) -> tuple[list[ExitIntent], list[tuple[str, str, str]]]:
+        out: list[ExitIntent] = []
+        failed: list[tuple[str, str, str]] = []
         for pos in self.broker.get_positions():
             ex = ExitIntent(pos, "flatten", pos.quantity, reason, marketable=True)
             out.append(ex)
-            self.broker.place_order(self._exit_intent(ex))
-        return out
+            # Emergency flatten: ISOLATE each position's attempt so a
+            # persistently-failing one can never block flattening the rest —
+            # including the 15:45 ET force-flatten on the kill path.
+            try:
+                self.broker.place_order(self._exit_intent(ex))
+            except Exception as e:  # noqa: BLE001 — isolate per-position
+                failed.append((ex.position.symbol, ex.kind, repr(e)))
+                self.log.record("flatten_failed", ex.position.symbol, now,
+                                exit_kind=ex.kind, qty=ex.quantity,
+                                reason=ex.reason, error=repr(e))
+        return out, failed
 
     def _entry_intent(self, sig: Signal, contract, qty: int) -> OrderIntent:
         return OrderIntent(
