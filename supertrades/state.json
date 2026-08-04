@@ -1,6 +1,11 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T18:31:00Z",
+  "updated_at": "2026-08-04T18:41:00Z",
+  "risk_posture": {
+    "priority": "LOW_DRAWDOWN",
+    "set_by": "user 8/4 'keep DD low'",
+    "note": "Capital preservation first. Served by: never-red floor (open positions can't go red), floor ratchets UP only, +50% give-back trail (locks ~60% of peak), v4.2 concentration ceilings, -$60 daily halt, and taking profit on real stalls. Balance with 'enough wiggle to reach target, no paperhand' - keep DD low WITHOUT choking runners: floors/trails, not tight noise-stops."
+  },
   "trading_date": "2026-08-04",
   "rule_version": "v4.3",
   "mode": {
@@ -285,6 +290,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T18:41Z",
+      "event": "rule",
+      "detail": "Added TARGET PING (user 'ping me if it hits target before the gate'): if INTC mark >= 2.985 (+50%) before the 15:35-15:44 gate, push once - runner keeps trailing past it. Push policy now: fills + target ping (once) + gate ping. Also set risk_posture=LOW_DRAWDOWN (user 'keep DD low') - served by never-red floor + up-only milestone ratchets + give-back trail + concentration caps + daily halt, balanced against 'enough wiggle/no paperhand'. Live chain trig_01F6xJf7 (14:43)."
+    },
     {
       "t": "2026-08-04T18:29Z",
       "event": "rule",
