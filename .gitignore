@@ -1,3 +1,7 @@
+# Personal financial session data — never commit to this public fork
+/financial-evolution/
+/agent/memory/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -217,3 +221,7 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# SuperTrades agent decision journal (regenerated per run; may contain real trade data)
+decisions.jsonl
+**/decisions.jsonl

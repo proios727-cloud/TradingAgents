@@ -304,6 +304,7 @@ class PlacementGateRails(unittest.TestCase):
                 return {"results": [{"account_number": "A1",
                                      "agentic_allowed": False,
                                      "option_level": "option_level_0",
+                                     "portfolio_value": 5000,
                                      "settled_cash": 5000}]}
             return {"id": "SHOULD-NOT-HAPPEN"}
 
@@ -322,6 +323,7 @@ class PlacementGateRails(unittest.TestCase):
                 return {"results": [{"account_number": "A1",
                                      "agentic_allowed": True,
                                      "option_level": "option_level_2",
+                                     "portfolio_value": 5000,
                                      "settled_cash": 5000}]}
             return {"id": "ORDER-1"}
 

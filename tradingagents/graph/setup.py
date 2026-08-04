@@ -8,6 +8,7 @@ from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
 
 from .conditional_logic import ConditionalLogic
+from .parallel_analysts import REPORT_KEYS, make_isolated_analyst
 
 
 class GraphSetup:
@@ -19,12 +20,23 @@ class GraphSetup:
         deep_thinking_llm: Any,
         tool_nodes: Dict[str, ToolNode],
         conditional_logic: ConditionalLogic,
+        parallel_analysts: bool = True,
+        skip_risk_on_hold: bool = True,
     ):
-        """Initialize with required components."""
+        """Initialize with required components.
+
+        parallel_analysts: fan the analysts out concurrently (they are
+            mutually independent) instead of chaining them through the shared
+            messages channel. Set False to restore the legacy sequential path.
+        skip_risk_on_hold: when the Trader's proposal is HOLD, route straight
+            to the Portfolio Manager — there is no position to risk-debate.
+        """
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
         self.tool_nodes = tool_nodes
         self.conditional_logic = conditional_logic
+        self.parallel_analysts = parallel_analysts
+        self.skip_risk_on_hold = skip_risk_on_hold
 
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]
@@ -91,11 +103,21 @@ class GraphSetup:
 
         # Add analyst nodes to the graph
         for analyst_type, node in analyst_nodes.items():
-            workflow.add_node(f"{analyst_type.capitalize()} Analyst", node)
-            workflow.add_node(
-                f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
-            )
-            workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
+            if self.parallel_analysts:
+                # Self-contained node: runs the analyst<->tools loop locally,
+                # returns only its report key. No tools_/clear nodes needed.
+                workflow.add_node(
+                    f"{analyst_type.capitalize()} Analyst",
+                    make_isolated_analyst(
+                        node, tool_nodes[analyst_type], REPORT_KEYS[analyst_type]
+                    ),
+                )
+            else:
+                workflow.add_node(f"{analyst_type.capitalize()} Analyst", node)
+                workflow.add_node(
+                    f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
+                )
+                workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
 
         # Add other nodes
         workflow.add_node("Bull Researcher", bull_researcher_node)
@@ -108,30 +130,42 @@ class GraphSetup:
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         # Define edges
-        # Start with the first analyst
-        first_analyst = selected_analysts[0]
-        workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
-
-        # Connect analysts in sequence
-        for i, analyst_type in enumerate(selected_analysts):
-            current_analyst = f"{analyst_type.capitalize()} Analyst"
-            current_tools = f"tools_{analyst_type}"
-            current_clear = f"Msg Clear {analyst_type.capitalize()}"
-
-            # Add conditional edges for current analyst
-            workflow.add_conditional_edges(
-                current_analyst,
-                getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
-                [current_tools, current_clear],
+        if self.parallel_analysts:
+            # Fan every analyst out from START in one superstep and join on the
+            # researcher debate. Each analyst runs its ReAct loop against a
+            # local message list (see parallel_analysts.py), so nothing is
+            # written to the shared messages channel and no clear-nodes exist.
+            for analyst_type in selected_analysts:
+                workflow.add_edge(START, f"{analyst_type.capitalize()} Analyst")
+            workflow.add_edge(
+                [f"{a.capitalize()} Analyst" for a in selected_analysts],
+                "Bull Researcher",
             )
-            workflow.add_edge(current_tools, current_analyst)
+        else:
+            # Legacy sequential path over the shared messages channel.
+            first_analyst = selected_analysts[0]
+            workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
 
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
-            if i < len(selected_analysts) - 1:
-                next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
-                workflow.add_edge(current_clear, next_analyst)
-            else:
-                workflow.add_edge(current_clear, "Bull Researcher")
+            # Connect analysts in sequence
+            for i, analyst_type in enumerate(selected_analysts):
+                current_analyst = f"{analyst_type.capitalize()} Analyst"
+                current_tools = f"tools_{analyst_type}"
+                current_clear = f"Msg Clear {analyst_type.capitalize()}"
+
+                # Add conditional edges for current analyst
+                workflow.add_conditional_edges(
+                    current_analyst,
+                    getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
+                    [current_tools, current_clear],
+                )
+                workflow.add_edge(current_tools, current_analyst)
+
+                # Connect to next analyst or to Bull Researcher if this is the last analyst
+                if i < len(selected_analysts) - 1:
+                    next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
+                    workflow.add_edge(current_clear, next_analyst)
+                else:
+                    workflow.add_edge(current_clear, "Bull Researcher")
 
         # Add remaining edges
         workflow.add_conditional_edges(
@@ -151,7 +185,19 @@ class GraphSetup:
             },
         )
         workflow.add_edge("Research Manager", "Trader")
-        workflow.add_edge("Trader", "Aggressive Analyst")
+        if self.skip_risk_on_hold:
+            # A HOLD proposal has no position to risk-debate: go straight to
+            # the Portfolio Manager (it tolerates an empty debate history).
+            workflow.add_conditional_edges(
+                "Trader",
+                self.conditional_logic.route_after_trader,
+                {
+                    "Aggressive Analyst": "Aggressive Analyst",
+                    "Portfolio Manager": "Portfolio Manager",
+                },
+            )
+        else:
+            workflow.add_edge("Trader", "Aggressive Analyst")
         workflow.add_conditional_edges(
             "Aggressive Analyst",
             self.conditional_logic.should_continue_risk_analysis,

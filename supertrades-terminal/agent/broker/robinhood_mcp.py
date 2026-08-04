@@ -13,17 +13,23 @@ Safety design — read carefully:
     real ``mcp_call`` is wired, and the account is ``agentic_allowed`` with
     options Level 2/3. Otherwise it returns a simulated PlaceResult and logs
     the intended call.
-  * This file intentionally ships without a live dispatcher. Providing one is
-    the operator's explicit go-live step.
+  * A real dispatcher now exists in ``mcp_dispatch.py`` (``McpDispatcher`` over
+    the MCP streamable-HTTP endpoint) and is wired via ``RobinhoodMcpBroker.live``
+    — but it stays inert without an OAuth token AND ``armed=True, dry_run=False``.
+    Constructing this broker directly still defaults to no dispatcher.
+  * Fail closed: any MCP error, timeout, or response missing a required field
+    (a balance, a Greek, a fill/quote price, an order id) trips the shared
+    kill switch and raises. Nothing is ever defaulted or fabricated.
 """
 
 from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Callable, Optional
+from typing import Callable, NoReturn, Optional
 
 from ..config import MARKET_TZ, RuntimeConfig
+from ..kill_switch import KillState
 from ..models import (
     AccountState,
     ChainSnapshot,
@@ -32,6 +38,7 @@ from ..models import (
     Position,
 )
 from .base import BrokerAdapter, PlaceResult, ReviewResult
+from .mcp_dispatch import McpDispatchError, live_dispatcher
 
 McpCall = Callable[[str, dict], dict]
 
@@ -42,11 +49,40 @@ class RobinhoodMcpBroker(BrokerAdapter):
         cfg: RuntimeConfig,
         mcp_call: Optional[McpCall] = None,
         *,
+        kill_state: KillState | None = None,
         now_fn: Callable[[], datetime] = lambda: datetime.now(MARKET_TZ),
     ):
         self.cfg = cfg
         self._mcp = mcp_call
+        self.kill = kill_state or KillState()
         self._now = now_fn
+
+    @classmethod
+    def live(
+        cls,
+        cfg: RuntimeConfig,
+        *,
+        kill_state: KillState | None = None,
+        transport: Optional[McpCall] = None,
+        url: Optional[str] = None,
+        token: Optional[str] = None,
+        timeout_seconds: float = 10.0,
+        now_fn: Callable[[], datetime] = lambda: datetime.now(MARKET_TZ),
+    ) -> "RobinhoodMcpBroker":
+        """Broker + real MCP dispatcher sharing ONE kill state. Pass the same
+        ``kill_state`` to the engine so a dispatch failure halts the next
+        cycle. Raises (stays inert) if no OAuth token is configured."""
+        ks = kill_state or KillState()
+        dispatcher = live_dispatcher(cfg, ks, transport=transport, url=url,
+                                     token=token, timeout_seconds=timeout_seconds)
+        return cls(cfg, mcp_call=dispatcher, kill_state=ks, now_fn=now_fn)
+
+    # -- fail closed -------------------------------------------------------
+    def _trip(self, reason: str) -> NoReturn:
+        """Any unparseable/incomplete broker response => kill switch + raise.
+        Never fabricate or default a fill price, a Greek, or a balance."""
+        self.kill.mcp_error = True
+        raise McpDispatchError(reason)
 
     # -- reads ------------------------------------------------------------
     def _require_mcp(self) -> McpCall:
@@ -59,22 +95,31 @@ class RobinhoodMcpBroker(BrokerAdapter):
 
     def get_account(self) -> AccountState:
         data = self._require_mcp()("get_accounts", {})
-        acct = _first_account(data, self.cfg.account_number)
-        return AccountState(
-            account_number=acct.get("account_number", self.cfg.account_number or ""),
-            agentic_allowed=bool(acct.get("agentic_allowed", False)),
-            option_level=acct.get("option_level", "") or "",
-            balance=float(acct.get("portfolio_value", acct.get("balance", 0)) or 0),
-            settled_cash=float(acct.get("settled_cash", acct.get("cash", 0)) or 0),
-            unsettled_cash=float(acct.get("unsettled_funds", 0) or 0),
-        )
+        try:
+            acct = _first_account(data, self.cfg.account_number)
+            if not acct:
+                raise ValueError("no account rows in get_accounts response")
+            return AccountState(
+                account_number=acct.get("account_number", self.cfg.account_number or ""),
+                agentic_allowed=bool(acct.get("agentic_allowed", False)),
+                option_level=acct.get("option_level", "") or "",
+                # Balances are strict — a missing balance is never defaulted.
+                balance=_req_num(acct, ("portfolio_value", "balance"), "account balance"),
+                settled_cash=_req_num(acct, ("settled_cash", "cash"), "settled cash"),
+                unsettled_cash=float(acct.get("unsettled_funds", 0) or 0),
+            )
+        except (KeyError, ValueError, TypeError) as e:
+            self._trip(f"unparseable get_accounts response: {e}")
 
     def get_positions(self) -> list[Position]:
         data = self._require_mcp()(
             "get_option_positions",
             {"account_number": self.cfg.account_number, "nonzero": True},
         )
-        return [_parse_position(p) for p in _rows(data)]
+        try:
+            return [_parse_position(p) for p in _rows(data)]
+        except (KeyError, ValueError, TypeError) as e:
+            self._trip(f"unparseable get_option_positions response: {e}")
 
     def get_chain(self, symbol: str) -> ChainSnapshot:
         mcp = self._require_mcp()
@@ -86,7 +131,10 @@ class RobinhoodMcpBroker(BrokerAdapter):
             "expiration_date": session.isoformat(),
         })):
             q = mcp("get_option_quotes", {"instrument_ids": [inst.get("id")]})
-            contracts.append(_parse_contract(symbol, inst, _rows(q), session))
+            try:
+                contracts.append(_parse_contract(symbol, inst, _rows(q), session))
+            except (KeyError, ValueError, TypeError) as e:
+                self._trip(f"unparseable option instrument/quote for {symbol}: {e}")
         return ChainSnapshot(symbol=symbol, session_date=session, contracts=contracts)
 
     # -- review (always safe: simulate only) ------------------------------
@@ -131,8 +179,13 @@ class RobinhoodMcpBroker(BrokerAdapter):
                                      f"option_level={acct.option_level!r})")
         # All gates passed and operator armed a live dispatcher: dispatch.
         res = self._mcp("place_option_order", params)
+        order_id = (res.get("id") or res.get("order_id")) if isinstance(res, dict) else None
+        if not order_id:
+            # A dispatched order with no id means its state is unknown — that
+            # is a kill, never a fabricated/blank id.
+            self._trip(f"place_option_order returned no order id: {res!r}")
         return PlaceResult(placed=True, dry_run=False,
-                           order_id=res.get("id", ""), detail=res)
+                           order_id=str(order_id), detail=res)
 
     def cancel_all(self) -> None:
         if self._mcp is None or not self.cfg.can_place_live():
@@ -140,7 +193,10 @@ class RobinhoodMcpBroker(BrokerAdapter):
         for o in _rows(self._mcp("get_option_orders", {
             "account_number": self.cfg.account_number, "state": "open",
         })):
-            self._mcp("cancel_option_order", {"order_id": o.get("id")})
+            oid = o.get("id") or o.get("order_id")
+            if not oid:
+                self._trip(f"open order row without an id: {o!r}")
+            self._mcp("cancel_option_order", {"order_id": oid})
 
 
 # --- payload builders (exact MCP schema) --------------------------------
@@ -178,6 +234,26 @@ def _place_params(intent: OrderIntent, account: str | None) -> dict:
 
 
 # --- response parsing helpers -------------------------------------------
+def _req_num(d: dict, keys: tuple[str, ...], ctx: str) -> float:
+    """Strictly extract a required numeric field. Missing/empty => ValueError
+    (the caller trips the kill switch). 0 is a legitimate value; absence is not."""
+    for k in keys:
+        v = d.get(k)
+        if v is not None and v != "":
+            return float(v)
+    raise ValueError(f"missing required field {'/'.join(keys)} ({ctx}) — "
+                     f"refusing to default it")
+
+
+def _req_str(d: dict, keys: tuple[str, ...], ctx: str) -> str:
+    for k in keys:
+        v = d.get(k)
+        if v:
+            return str(v)
+    raise ValueError(f"missing required field {'/'.join(keys)} ({ctx}) — "
+                     f"refusing to default it")
+
+
 def _rows(data) -> list[dict]:
     if isinstance(data, dict):
         return data.get("results") or data.get("data") or []
@@ -194,32 +270,36 @@ def _first_account(data, account_number: str | None) -> dict:
 
 
 def _parse_contract(symbol, inst, quotes, session) -> OptionContract:
-    q = quotes[0] if quotes else {}
-    bid = float(q.get("bid_price", 0) or 0)
-    ask = float(q.get("ask_price", 0) or 0)
+    """Strict: quote prices and the delta Greek are required — a contract with
+    a fabricated 0-bid/0-delta could slip through the spread/delta rails."""
+    if not quotes:
+        raise ValueError(f"no quote returned for instrument {inst.get('id')!r}")
+    q = quotes[0]
     return OptionContract(
-        option_id=inst.get("id", ""),
+        option_id=_req_str(inst, ("id",), "instrument id"),
         symbol=symbol,
-        option_type=inst.get("type", "call"),
-        strike=float(inst.get("strike_price", 0) or 0),
+        option_type=_req_str(inst, ("type",), "option type"),
+        strike=_req_num(inst, ("strike_price",), "strike"),
         expiration=session,
-        bid=bid,
-        ask=ask,
-        delta=float(q.get("delta", 0) or 0),
+        bid=_req_num(q, ("bid_price",), "bid"),
+        ask=_req_num(q, ("ask_price",), "ask"),
+        delta=_req_num(q, ("delta",), "delta Greek"),
+        gamma=float(q.get("gamma", 0) or 0),
     )
 
 
 def _parse_position(p) -> Position:
-    exp = p.get("expiration_date", "")
+    """Strict: entry/mark premiums and expiration are required — defaulting a
+    fill price or an expiry would corrupt every exit decision."""
     return Position(
-        symbol=p.get("chain_symbol", ""),
-        option_id=p.get("option_id", ""),
-        option_type=p.get("type", "call"),
-        strike=float(p.get("strike_price", 0) or 0),
-        expiration=date.fromisoformat(exp) if exp else date.today(),
-        quantity=int(float(p.get("quantity", 0) or 0)),
-        entry_premium=float(p.get("average_price", 0) or 0) / 100.0,
-        current_premium=float(p.get("mark_price", 0) or 0),
+        symbol=_req_str(p, ("chain_symbol",), "underlying symbol"),
+        option_id=_req_str(p, ("option_id",), "option id"),
+        option_type=_req_str(p, ("type",), "option type"),
+        strike=_req_num(p, ("strike_price",), "strike"),
+        expiration=date.fromisoformat(_req_str(p, ("expiration_date",), "expiration")),
+        quantity=int(_req_num(p, ("quantity",), "quantity")),
+        entry_premium=_req_num(p, ("average_price",), "entry premium") / 100.0,
+        current_premium=_req_num(p, ("mark_price",), "mark premium"),
         underlying_stop=0.0,
         underlying_target=0.0,
     )

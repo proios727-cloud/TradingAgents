@@ -30,6 +30,7 @@ from tradingagents.dataflows.config import set_config
 from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
     get_indicators,
+    get_dealer_positioning,
     get_fundamentals,
     get_balance_sheet,
     get_cashflow,
@@ -114,6 +115,8 @@ class TradingAgentsGraph:
             self.deep_thinking_llm,
             self.tool_nodes,
             self.conditional_logic,
+            parallel_analysts=self.config.get("parallel_analysts", True),
+            skip_risk_on_hold=self.config.get("skip_risk_on_hold", True),
         )
 
         self.propagator = Propagator()
@@ -161,6 +164,8 @@ class TradingAgentsGraph:
                     get_stock_data,
                     # Technical indicators
                     get_indicators,
+                    # Dealer positioning (GEX/VEX) from recorded option chains
+                    get_dealer_positioning,
                 ]
             ),
             "social": ToolNode(
