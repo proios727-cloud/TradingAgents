@@ -39,7 +39,7 @@ signals ─▶ contract_selector ─▶ risk_governor ─▶ approval ─▶ bro
 ## Guardrails (all from `GO-LIVE.md`, enforced in `risk_governor` / `exit_manager` / `kill_switch`)
 
 - 0DTE long calls/puts only — no 0DTE chain that day ⇒ skip the name; no spreads, no shares, never a later expiry.
-- Size via the phase ladder `Guardrails.premium_budget` ($75 fixed <$1.5k, $100 <$4k, then `min(2.5% × balance, $1,000)`), ×1.5 on A+ conviction / ×0.5 on B; half-size the day after a red day; week-1 caps at `$500`. Operator-amended 2026-08-04.
+- Size via the phase ladder `Guardrails.premium_budget` ($100 fixed <$4k with a 20%-of-balance clamp, then `min(2.5% × balance, $1,000)`), ×1.5 on A+ conviction (up to $150) / ×0.5 on B; half-size the day after a red day; week-1 caps at `$500`. Operator-amended 2026-08-04.
 - Press rule: only once ≥ +2R is **booked** may later trades size up 2×, funded from that day's profit.
 - Exits: +90% target, −50% stop or thesis break, scale ½ at +1R and trail, **flatten all by 15:45 ET**.
 - Daily −2R halt (entries stop, exits stay live); no entries first 15 min / last 10 min; no earnings names within 3 sessions; never widen a stop, never average down.

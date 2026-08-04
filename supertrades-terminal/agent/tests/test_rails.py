@@ -130,26 +130,25 @@ class RiskGovernorRails(unittest.TestCase):
         self.assertFalse(v.allow)
 
     def test_kickstart_live_at_small_balance(self):
-        # With the floor operator-lowered to $300 the Kickstart phase is
-        # reachable at the real account: $541 settled, A+ signal ->
-        # $112.50 budget -> one $60 contract clears every gate.
+        # Floor at $300 + Kickstart raised to $100 base: at the real $541
+        # account an A+ signal budgets $150 -> two $60 contracts clear.
         v = self._eval(acct=account(balance=541.0, settled=541.0), ask=0.60)
         self.assertTrue(v.allow)
-        self.assertEqual(v.max_contracts, 1)
+        self.assertEqual(v.max_contracts, 2)
 
     def test_kickstart_phase_budget_math(self):
-        # Ladder arithmetic (the part the scorer uses today): $75 fixed below
-        # $1.5k, clamped to 15% of balance so it can't grow as the account
-        # shrinks; $100 in Build; 2.5% from $4k (seamless); $1k cap.
+        # Ladder arithmetic (the part the scorer uses today): $100 fixed
+        # below $4k, clamped to 20% of balance so it can't grow as the
+        # account shrinks; 2.5% from $4k (seamless); $1k cap.
         from agent.config import GUARDRAILS as G
-        self.assertEqual(G.premium_budget(800.0), 75.0)
-        self.assertEqual(G.premium_budget(300.0), 45.0)   # 15% clamp
+        self.assertEqual(G.premium_budget(800.0), 100.0)
+        self.assertEqual(G.premium_budget(300.0), 60.0)   # 20% clamp
         self.assertEqual(G.premium_budget(2500.0), 100.0)
         self.assertEqual(G.premium_budget(4000.0), 100.0)
         self.assertEqual(G.premium_budget(200000.0), 1000.0)
 
     def test_build_phase_fixed_100(self):
-        # $1.5k-$4k, non-A+ -> $100 fixed: two $0.45 contracts, not three.
+        # Mid-Kickstart ($2.5k), non-A+ -> $100 fixed: two $0.45 contracts.
         s = good_signal(); s.rvol = 1.5
         v = self._eval(sig=s, acct=account(balance=2500.0, settled=2400.0), ask=0.45)
         self.assertTrue(v.allow)

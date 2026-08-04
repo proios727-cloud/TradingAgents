@@ -11,7 +11,7 @@ This skill is no longer a standalone system. It is a **preset over the
 It contributes exactly three things — the pullback gate, the session cadence,
 and the watcher integration. Everything else (map building, regime read, setup
 mechanics, contract selection, exits, logging, output block) comes from
-heatseeker, and **risk numbers come from the account playbook** (the sizing phase ladder ($75 under $1.5k balance / $100 to $4k / then 2.5%, capped $1,000; A+ conviction 1.5x, B 0.5x), −50% premium stop, −2R daily halt, flat by
+heatseeker, and **risk numbers come from the account playbook** (the sizing phase ($100 fixed under $4k balance, 20%-of-balance clamp, then 2.5%; capped $1,000; A+ conviction 1.5x = up to $150, B 0.5x), −50% premium stop, −2R daily halt, flat by
 15:45 ET on short-dated, no averaging down). The old preset-specific rules
 (5% sizing, −10% premium stop, +5/+10 scale ladder, 0.30–0.45Δ) are retired —
 they contradicted the account standard and the live data.

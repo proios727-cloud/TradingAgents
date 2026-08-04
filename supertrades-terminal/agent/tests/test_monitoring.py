@@ -99,19 +99,19 @@ class TestGrading(unittest.TestCase):
         self.assertLess(score.adherence, 100.0)
 
     def test_oversize_flagged_against_balance(self):
-        # Kickstart at $1,000 allows $75 base / $112.50 at A+; a $130 premium
+        # Kickstart at $1,000 allows $100 base / $150 at A+; a $170 premium
         # exceeds even the A+ budget -> hard sizing violation.
         orders = [
-            order("o1", "QQQ", "buy", "open", 1.30, ts="2026-07-28T14:30:00Z"),
-            order("o2", "QQQ", "sell", "close", 1.40, ts="2026-07-28T15:00:00Z"),
+            order("o1", "QQQ", "buy", "open", 1.70, ts="2026-07-28T14:30:00Z"),
+            order("o2", "QQQ", "sell", "close", 1.80, ts="2026-07-28T15:00:00Z"),
         ]
         score = score_snapshot(snap(orders, total_value=1000.0))
         self.assertIn("sizing", self._rules(score))
 
     def test_between_base_and_aplus_is_info_only(self):
-        # $90 premium sits between the $75 base and $112.50 A+ budgets ->
+        # $130 premium sits between the $100 base and $150 A+ budgets ->
         # info note (conviction unverifiable from fills), no deduction.
-        orders = [order("o1", "QQQ", "buy", "open", 0.90, ts="2026-07-28T14:30:00Z")]
+        orders = [order("o1", "QQQ", "buy", "open", 1.30, ts="2026-07-28T14:30:00Z")]
         score = score_snapshot(snap(orders, total_value=1000.0))
         self.assertIn("sizing_conviction", self._rules(score))
         self.assertNotIn("sizing", self._rules(score))
@@ -163,14 +163,14 @@ class TestMetricsAndRecs(unittest.TestCase):
 
     def test_low_balance_reports_sizing_phase(self):
         score = score_snapshot(snap([], total_value=800.0))
-        self.assertTrue(any("Sizing phase: fixed $75" in r for r in score.recommendations))
+        self.assertTrue(any("Sizing phase: fixed $100" in r for r in score.recommendations))
 
     def test_kickstart_phase_budget_used_for_grading(self):
-        # $75 base in Kickstart: a $70 entry is clean; $130 breaches even the
-        # A+ budget ($112.50) -> hard violation.
+        # $100 base in Kickstart: a $70 entry is clean; $170 breaches even
+        # the A+ budget ($150) -> hard violation.
         ok = [order("o1", "QQQ", "buy", "open", 0.70, ts="2026-07-28T14:30:00Z")]
         self.assertNotIn("sizing", {v.rule for v in score_snapshot(snap(ok, total_value=800.0)).violations})
-        big = [order("o1", "QQQ", "buy", "open", 1.30, ts="2026-07-28T14:30:00Z")]
+        big = [order("o1", "QQQ", "buy", "open", 1.70, ts="2026-07-28T14:30:00Z")]
         self.assertIn("sizing", {v.rule for v in score_snapshot(snap(big, total_value=800.0)).violations})
 
     def test_sample_size_caveat_always_present_when_thin(self):

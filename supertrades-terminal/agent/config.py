@@ -33,14 +33,15 @@ class Guardrails:
     # --- Sizing (phase ladder; operator-amended 2026-08-04) ---
     # GO-LIVE's flat 2.5% is unsatisfiable at small balances (2.5% of $500 buys
     # no contract), so sizing runs a phase ladder until 2.5% takes over:
-    #   Kickstart  balance < $1,500  -> $75 fixed  (tiny_live's proven cap)
-    #   Build      balance < $4,000  -> $100 fixed
+    #   Kickstart  balance < $4,000  -> $100 fixed ("up to $150 allowed":
+    #              A+ conviction sizes 1.5x = $150; B sizes 0.5x = $50;
+    #              operator-raised from $75 later on 2026-08-04)
     #   Scale      balance >= $4,000 -> 2.5% of balance (2.5% x $4k = $100,
     #              so the handoff is seamless), always capped at $1,000.
     # Red-day / week-1 half-size multipliers apply to the phase budget too.
     sizing_pct: float = 0.025          # % of CURRENT balance once in Scale phase
     per_trade_cap_usd: float = 1000.0  # hard cap per trade, all phases
-    sizing_phases: tuple = ((1500.0, 75.0), (4000.0, 100.0))
+    sizing_phases: tuple = ((4000.0, 100.0),)
     # (upper_balance_bound, fixed_premium_budget); above the last bound -> sizing_pct
     # NOTE: the settled-cash floor (balance_floor_alert_usd) denies ALL
     # automated entries at/below it. Operator-lowered $2,000 -> $300 on
@@ -48,8 +49,8 @@ class Guardrails:
     # that $2,000 kept Kickstart dormant): below $300 the account has lost
     # ~45% from the kickstart stake and the right behavior is halt + alert,
     # not smaller bets. The 15% clamp above keeps budgets sane down to it.
-    kickstart_max_pct_of_balance: float = 0.15  # base fixed budget <= 15% of balance
-    # (A+ conviction multiplies AFTER the clamp: effective entry <= 22.5% at 1.5x)
+    kickstart_max_pct_of_balance: float = 0.20  # base fixed budget <= 20% of balance
+    # (A+ conviction multiplies AFTER the clamp: effective entry <= 30% at 1.5x)
 
     # --- Conviction-tiered sizing (operator-approved 2026-08-04) ---
     # A+ (confidence >= conv_min_confidence AND rvol >= conv_min_rvol — the

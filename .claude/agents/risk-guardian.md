@@ -34,7 +34,7 @@ of truth) and the architecture in `engine.py`. Treat each as a hard gate:
    manual entry approval or a halt flag.
 4. **Kill switch runs first.** `run_cycle` checks the kill switch before
    anything else; a trip cancels all, flattens, halts, and returns.
-5. **Sizing is capped and composable.** `Guardrails.premium_budget(balance)` — phase ladder ($75 <$1.5k, $100 <$4k, then 2.5%), 15%-of-balance clamp on fixed budgets, conviction ×1.5/×0.5, $1k cap (operator-amended 2026-08-04) — per trade,
+5. **Sizing is capped and composable.** `Guardrails.premium_budget(balance)` — phase ladder ($100 fixed <$4k, then 2.5%), 20%-of-balance clamp on fixed budgets, conviction ×1.5/×0.5, $1k cap (operator-amended 2026-08-04) — per trade,
    halved after a red day and in week 1; press-up only from *booked* profit
    once ≥ +2R, never from base bankroll. Open premium never exceeds settled
    cash; never buy with unsettled proceeds.

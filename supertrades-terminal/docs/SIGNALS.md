@@ -51,12 +51,12 @@ entry-confirmation fields:
 
 ## Risk numbers (binding, from Guardrails)
 
-- **Size (phase ladder, operator-amended 2026-08-04):** fixed **$75**/trade
-  below a $1,500 balance (Kickstart), fixed **$100** from $1,500–$4,000
-  (Build), then **2.5% of balance** above $4,000 (Scale — 2.5% × $4k = $100,
-  seamless handoff), $1,000 hard cap in every phase. Red-day and week-1
-  half-size multipliers apply to the phase budget. Fixed budgets are additionally clamped to 15% of balance. **Conviction multiplier:** A+ signals
-  (confidence >= 70 and RVOL >= 1.8) size 1.5x the phase budget; scored-but-low-confidence (B)
+- **Size (phase ladder, operator-amended 2026-08-04; raised same day to "up
+  to $150 allowed"):** fixed **$100**/trade below a $4,000 balance
+  (Kickstart), then **2.5% of balance** (Scale — 2.5% × $4k = $100, seamless
+  handoff), $1,000 hard cap in every phase. Red-day and week-1 half-size
+  multipliers apply to the phase budget. Fixed budgets are additionally clamped to 20% of balance. **Conviction multiplier:** A+ signals
+  (confidence >= 70 and RVOL >= 1.8) size 1.5x the phase budget (= $150 at the $100 Kickstart base); scored-but-low-confidence (B)
   size 0.5x; unscored is neutral. One authority: `Guardrails.premium_budget(balance)` x
   `Guardrails.conviction_multiplier(...)`. The settled-cash floor was operator-lowered
   $2,000 → **$300** on 2026-08-04 (its own explicit decision): automated entries halt
