@@ -65,6 +65,14 @@ class SuperTradesAgent:
         # Positions are rebuilt from broker state each cycle, so the peak that
         # drives the trailing stop must persist here, across cycles.
         self._peaks: dict[str, float] = {}
+        # Ladder-tranche bookkeeping and ownership, also keyed by option_id and
+        # persisted across cycles for the same reason. _owners confirms the
+        # positions THIS engine opened ("engine"); ids it never placed keep the
+        # owner the broker adapter stamped (single-owner rule: the engine only
+        # ever confirms its own, never claims someone else's).
+        self._tranche_s1: set[str] = set()
+        self._tranche_target: set[str] = set()
+        self._owners: dict[str, str] = {}
 
     # -- one cycle --------------------------------------------------------
     def run_cycle(self, now: datetime) -> CycleResult:
@@ -128,6 +136,9 @@ class SuperTradesAgent:
             if result.placed or result.dry_run:
                 res.placed_entries.append(intent)
                 self.day.entries_today += 1
+                self._owners[choice.contract.option_id] = "engine"
+                if sig.is_reentry:
+                    self.day.reentries[sig.symbol] = self.day.reentries.get(sig.symbol, 0) + 1
                 held = held | {sig.symbol}
 
         return res
@@ -145,6 +156,9 @@ class SuperTradesAgent:
                        pos.current_premium)
             self._peaks[pos.option_id] = peak
             pos.peak_premium = peak
+            pos.owner = self._owners.get(pos.option_id, pos.owner)
+            pos.tranche_s1_done = pos.option_id in self._tranche_s1
+            pos.tranche_target_done = pos.option_id in self._tranche_target
             for ex in exit_manager.evaluate(pos, now, self.cfg):
                 out.append(ex)
                 intent = self._exit_intent(ex)
@@ -159,10 +173,22 @@ class SuperTradesAgent:
                                 qty=ex.quantity, reason=ex.reason,
                                 placed=result.placed, dry_run=result.dry_run)
                 if result.placed or result.dry_run:
+                    if ex.kind == "tranche":
+                        # Which tranche this was: the S1 tranche fires first
+                        # and only once, so an un-flagged position taking a
+                        # tranche at 3+ lots is S1; otherwise it's the target
+                        # tranche. Flags persist engine-side across cycles.
+                        if pos.option_id not in self._tranche_s1 and pos.quantity >= 3:
+                            self._tranche_s1.add(pos.option_id)
+                        else:
+                            self._tranche_target.add(pos.option_id)
                     self._book_close(ex, now)
-        # Drop peaks for positions no longer open so the map can't leak or
-        # resurrect a stale high-water mark on a re-entered symbol.
+        # Drop peaks/flags for positions no longer open so the maps can't leak
+        # or resurrect stale state on a re-entered symbol.
         self._peaks = {oid: pk for oid, pk in self._peaks.items() if oid in live_ids}
+        self._tranche_s1 &= live_ids
+        self._tranche_target &= live_ids
+        self._owners = {oid: ow for oid, ow in self._owners.items() if oid in live_ids}
         return out
 
     def _book_close(self, ex: ExitIntent, now: datetime) -> None:
@@ -182,11 +208,16 @@ class SuperTradesAgent:
         self.day.day_r += r_booked
         if r_booked > 0:
             self.day.booked_profit_r += r_booked
-        if ex.kind != "scale":
+        if ex.kind not in ("scale", "tranche"):
+            # Full closes drive the loss streak AND the continuation re-entry
+            # bookkeeping: a profitable close opens the (gated) re-entry window
+            # for the name; a loss closes the name for the session.
             if r < 0:
                 self.kill.consecutive_losses += 1
+                self.day.loss_exit_syms.add(p.symbol)
             else:
                 self.kill.consecutive_losses = 0
+                self.day.profit_exit_at[p.symbol] = now.isoformat()
         if self.day.day_r <= G.daily_halt_r and not self.day.halted:
             self.day.halted = True
             self.log.record("halt", p.symbol, now, day_r=round(self.day.day_r, 2))

@@ -15,9 +15,15 @@ from zoneinfo import ZoneInfo
 
 MARKET_TZ = ZoneInfo("America/New_York")
 
-# Watchlist — scanned every 5 min, 09:30–16:00 ET.
+# Watchlist — scanned every 5 min, 09:30–16:00 ET. Curated 2026-08-04
+# (operator-approved universe; tiers live in docs/SIGNALS.md):
+#   Tier 1 (full maps, tradable every phase): SPY, QQQ, IWM
+#   Tier 2 (full maps, tradable at Scale/A+ size): NVDA, TSLA, META, AAPL, AMD
+#   Tier 3 (affordable movers, scan-grade maps, B-size): SOFI, HOOD
+#   Context-only (never heatseeker blocks): COIN, XOM, CVX, XLE
 WATCHLIST: tuple[str, ...] = (
-    "SPY", "QQQ", "NVDA", "TSLA", "AMD", "META", "COIN", "XOM", "CVX", "XLE",
+    "SPY", "QQQ", "IWM", "NVDA", "TSLA", "AMD", "META", "AAPL",
+    "SOFI", "HOOD", "COIN", "XOM", "CVX", "XLE",
 )
 
 
@@ -93,12 +99,43 @@ class Guardrails:
     scale_half_at_r: float = 1.0       # scale half off at +1R, trail the rest
     force_flatten_et: time = time(15, 45)  # close ALL by 15:45 ET
 
-    # --- Trailing stop on the runner (only active when RuntimeConfig.scale_and_trail) ---
+    # --- Trailing stop on the runner (legacy scale_trail mode only) ---
     # After scaling half at +1R, protect the remainder with a peak-give-back trail
     # instead of a hard full-position target. The trail only ratchets up — it can
     # never widen the fixed -50% premium stop above, which always remains the floor.
     trail_activate_gain: float = 1.0   # arm the trail once the mark is >= +100% (i.e. +1R on the option)
     trail_give_back_pct: float = 0.30  # exit the runner if the mark gives back >= 30% from its peak
+
+    # --- Five-stage peak ladder (operator-approved 2026-08-04; the DEFAULT
+    # exit engine via RuntimeConfig.exit_mode = "ladder") ---
+    # A stage ARMS when the position's PEAK mark touches entry x (1 + arm).
+    # Once armed, the exit line for the remainder is max((1-give) x peak,
+    # (1+floor) x entry) — a ratchet that can only rise (peak only ratchets up,
+    # floors only step up across stages). Exits evaluate the CURRENT mark
+    # against the line; the -50% premium stop stays the absolute floor in
+    # every stage and is never widened. Proven live 2026-08-04 (SPY +64%,
+    # QQQ +56% both protected by earlier revisions of this ladder).
+    ladder_guard_arm: float = 0.25    # +25% touch -> breakeven guard: line = entry
+    ladder_s1_arm: float = 0.45      # +45% touch -> profit-protect
+    ladder_s1_give: float = 0.35     #   line = max(0.65 x peak, 1.05 x entry)
+    ladder_s1_floor: float = 0.05
+    ladder_s15_arm: float = 0.70     # +70% touch -> target-approach guard
+    ladder_s15_give: float = 0.25    #   line = max(0.75 x peak, 1.35 x entry)
+    ladder_s15_floor: float = 0.35
+    ladder_s2_arm: float = 0.90      # +90% (target) touch -> runner
+    ladder_s2_give: float = 0.30     #   line = max(0.70 x peak, 1.60 x entry)
+    ladder_s2_floor: float = 0.60
+
+    # --- Continuation re-entry (operator-approved 2026-08-04) ---
+    # After a PROFITABLE full exit in a name — never after a stop-out — ONE
+    # half-size re-entry may be taken the same session, only once the cooldown
+    # has passed AND the scanner re-fires the setup flagged is_reentry
+    # (validated continuation: reclaim of the exit level or a new session high,
+    # with the usual RVOL/alignment gates). A stop-out closes the name for the
+    # session, full stop — the rule exists to re-join trends, not to revenge.
+    reentry_cooldown_min: int = 15
+    reentry_max_per_name: int = 1
+    reentry_size_mult: float = 0.5
 
     # --- Daily rules ---
     daily_halt_r: float = -2.0         # down 2R on the day -> entries stop (exits stay live)
@@ -162,9 +199,15 @@ class RuntimeConfig:
     # armed — blocking a stop-loss on manual approval would defeat risk control.
     require_exit_approval: bool = False
     week1_half_size: bool = False  # week-1 caps at half size ($500 / half %)
-    # When True, exits scale half at +1R and TRAIL the runner (peak give-back)
-    # instead of a hard +90% full-position target. Mirrors the terminal's
-    # "Auto-scale out at +1R" switch. Default off = historical target behavior.
+    # Exit engine (operator-approved default change 2026-08-04):
+    #   "ladder"      — five-stage peak ladder + lot-aware tranches (the standard)
+    #   "target"      — historical behavior: +90% closes the whole position
+    #   "scale_trail" — legacy switch behavior: scale half at +1R, 30% peak trail
+    # Back-compat: scale_and_trail=True with exit_mode left at its default is
+    # honored as "scale_trail" (callers who set the old switch keep old behavior).
+    exit_mode: str = "ladder"
+    # Legacy alias for exit_mode="scale_trail"; consulted only when exit_mode
+    # is still the default. Prefer exit_mode.
     scale_and_trail: bool = False
     # When True, high-conviction signals select the best delta/gamma combo by
     # estimated return on the expected move (convexity), allowing cheaper OTM

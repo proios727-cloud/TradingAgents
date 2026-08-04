@@ -288,6 +288,10 @@ class ContractSelectorRails(unittest.TestCase):
 
 TRAIL_CFG = RuntimeConfig(account_number="A1", dry_run=True, armed=False,
                           scale_and_trail=True)
+# Historical behavior (+90% closes the whole position), now opt-in: the
+# five-stage ladder became the default exit engine on 2026-08-04.
+TARGET_CFG = RuntimeConfig(account_number="A1", dry_run=True, armed=False,
+                           exit_mode="target")
 
 
 class ExitManagerRails(unittest.TestCase):
@@ -305,7 +309,7 @@ class ExitManagerRails(unittest.TestCase):
         self.assertEqual(outs[0].kind, "stop")
 
     def test_target_at_plus_90(self):
-        outs = exit_manager.evaluate(self._pos(mark=2.30), et(14, 0))
+        outs = exit_manager.evaluate(self._pos(mark=2.30), et(14, 0), TARGET_CFG)
         self.assertEqual(outs[0].kind, "target")
 
     def test_thesis_break(self):
@@ -313,7 +317,7 @@ class ExitManagerRails(unittest.TestCase):
         self.assertEqual(outs[0].kind, "thesis_break")
 
     def test_scale_half_at_1R(self):
-        outs = exit_manager.evaluate(self._pos(mark=2.45, qty=4), et(14, 0))
+        outs = exit_manager.evaluate(self._pos(mark=2.45, qty=4), et(14, 0), TARGET_CFG)
         # +104% but under +90%? 2.45/1.20-1 = +104% -> target actually fires first.
         # Use a mark between +100% and +90%? +90% target dominates; test scale
         # with a mark at exactly +100% but below target by raising entry.
@@ -322,7 +326,7 @@ class ExitManagerRails(unittest.TestCase):
     def test_scale_before_target(self):
         # mark = +100% (>=1R) but target is +90% -> target wins by design order.
         p = self._pos(entry=1.00, mark=2.00, qty=4)
-        self.assertEqual(exit_manager.evaluate(p, et(14, 0))[0].kind, "target")
+        self.assertEqual(exit_manager.evaluate(p, et(14, 0), TARGET_CFG)[0].kind, "target")
 
     # --- Trailing-stop mode (scale_and_trail=True) ----------------------------
 
@@ -354,10 +358,11 @@ class ExitManagerRails(unittest.TestCase):
         p = self._pos(entry=1.00, mark=0.40, qty=2, scaled=True, peak=2.00)
         self.assertEqual(exit_manager.evaluate(p, et(14, 0), TRAIL_CFG)[0].kind, "stop")
 
-    def test_default_mode_never_trails(self):
-        # Same retraced runner in DEFAULT mode: the +90% target governs, not a trail.
+    def test_target_mode_never_trails(self):
+        # Same retraced runner in legacy TARGET mode: the +90% target governs,
+        # not a trail. (The ladder default is pinned in FiveStageLadderRails.)
         p = self._pos(entry=1.00, mark=2.60, qty=2, scaled=True, peak=4.00)
-        self.assertEqual(exit_manager.evaluate(p, et(14, 0))[0].kind, "target")
+        self.assertEqual(exit_manager.evaluate(p, et(14, 0), TARGET_CFG)[0].kind, "target")
 
 
 class KillSwitchRails(unittest.TestCase):
@@ -454,6 +459,213 @@ class EngineRails(unittest.TestCase):
         self.assertNotIn("TSLA", [i.symbol for i in res.placed_entries])
         # PaperBroker fills are simulated — never a live order.
         self.assertTrue(all(pr for pr in [True]))
+
+
+class FiveStageLadderRails(unittest.TestCase):
+    """The default exit engine (operator-approved 2026-08-04): stage arms on
+    peak touches, lines are max(leash x peak, floor x entry) ratchets, exits
+    evaluate the current mark, tranches bank lots into strength, and the last
+    lot always trails. Lines must never move down."""
+
+    def _pos(self, entry=1.00, mark=1.00, qty=1, peak=0.0, owner="engine",
+             t1=False, ttgt=False):
+        return Position("QQQ", "oid", "call", 724.0, SESSION, qty, entry, mark,
+                        722.0, 726.0, peak_premium=peak, owner=owner,
+                        tranche_s1_done=t1, tranche_target_done=ttgt)
+
+    # --- stage lines -----------------------------------------------------
+    def test_stage0_no_line_before_guard_arm(self):
+        # Peak +24%: nothing armed; a fade to entry does NOT exit (stop only).
+        p = self._pos(mark=1.00, peak=1.24)
+        self.assertEqual(exit_manager.evaluate(p, et(14, 0)), [])
+
+    def test_guard_arms_at_25_and_holds_breakeven(self):
+        # Peak +25% arms the guard; a fade to entry exits at breakeven.
+        p = self._pos(mark=1.00, peak=1.25)
+        outs = exit_manager.evaluate(p, et(14, 0))
+        self.assertEqual(outs[0].kind, "guard")
+        # Above entry -> no exit.
+        p2 = self._pos(mark=1.06, peak=1.25)
+        self.assertEqual(exit_manager.evaluate(p2, et(14, 0)), [])
+
+    def test_s1_line_leash_and_floor(self):
+        # Peak +50%: line = max(0.65*1.50, 1.05) = 1.05 (floor binds).
+        p = self._pos(mark=1.04, peak=1.50)
+        outs = exit_manager.evaluate(p, et(14, 0))
+        self.assertEqual(outs[0].kind, "trail")
+        self.assertEqual(exit_manager.evaluate(
+            self._pos(mark=1.06, peak=1.50), et(14, 0)), [])
+        # Peak +65% (still S1): leash overtakes floor: line = 0.65*1.65 = 1.0725.
+        self.assertEqual(exit_manager.evaluate(
+            self._pos(mark=1.07, peak=1.65), et(14, 0))[0].kind, "trail")
+        self.assertEqual(exit_manager.evaluate(
+            self._pos(mark=1.09, peak=1.65), et(14, 0)), [])
+
+    def test_s15_and_runner_lines(self):
+        # Peak +75% (S1.5): line = max(0.75*1.75, 1.35) = 1.35.
+        self.assertEqual(exit_manager.evaluate(
+            self._pos(mark=1.34, peak=1.75), et(14, 0))[0].kind, "trail")
+        # Peak +100% (runner): line = max(0.70*2.00, 1.60) = 1.60.
+        self.assertEqual(exit_manager.evaluate(
+            self._pos(mark=1.59, peak=2.00), et(14, 0))[0].kind, "trail")
+        self.assertEqual(exit_manager.evaluate(
+            self._pos(mark=1.62, peak=2.00), et(14, 0)), [])
+        # Deep runner: peak +300% -> leash governs: 0.70*4.00 = 2.80.
+        self.assertEqual(exit_manager.evaluate(
+            self._pos(mark=2.79, peak=4.00), et(14, 0))[0].kind, "trail")
+
+    def test_line_monotone_as_peak_rises(self):
+        # The armed line never decreases as the peak ratchets up through every
+        # stage boundary (entry=1.00, peaks stepped 1.25 -> 4.00).
+        from agent.exit_manager import ladder_line
+        prev = 0.0
+        peak = 1.25
+        while peak <= 4.00:
+            line, _ = ladder_line(self._pos(mark=peak, peak=peak))
+            self.assertGreaterEqual(line + 1e-9, prev,
+                                    f"line dropped at peak {peak:.2f}")
+            prev = line
+            peak = round(peak + 0.05, 2)
+
+    def test_stop_is_floor_in_every_stage(self):
+        # Even with the runner armed, a -50% mark exits as a STOP.
+        p = self._pos(mark=0.50, peak=2.00)
+        self.assertEqual(exit_manager.evaluate(p, et(14, 0))[0].kind, "stop")
+
+    # --- lot-aware tranches ---------------------------------------------
+    def test_one_lot_never_tranches(self):
+        p = self._pos(mark=2.00, peak=2.00, qty=1)
+        self.assertEqual(exit_manager.evaluate(p, et(14, 0)), [])
+
+    def test_two_lots_bank_one_at_target_touch(self):
+        p = self._pos(mark=1.95, peak=1.95, qty=2)
+        outs = exit_manager.evaluate(p, et(14, 0))
+        self.assertEqual(outs[0].kind, "tranche")
+        self.assertEqual(outs[0].quantity, 1)
+        # Once done, the runner just trails.
+        p2 = self._pos(mark=1.95, peak=1.95, qty=1, ttgt=True)
+        self.assertEqual(exit_manager.evaluate(p2, et(14, 0)), [])
+
+    def test_three_lots_bank_at_s1_then_target(self):
+        p = self._pos(mark=1.50, peak=1.50, qty=3)
+        outs = exit_manager.evaluate(p, et(14, 0))
+        self.assertEqual((outs[0].kind, outs[0].quantity), ("tranche", 1))
+        # S1 tranche done, target touch banks the second lot.
+        p2 = self._pos(mark=1.95, peak=1.95, qty=2, t1=True)
+        outs2 = exit_manager.evaluate(p2, et(14, 0))
+        self.assertEqual((outs2[0].kind, outs2[0].quantity), ("tranche", 1))
+
+    def test_line_breach_beats_tranche(self):
+        # Mark under the armed line -> protect everything, no banking-into-fade.
+        p = self._pos(mark=1.55, peak=2.00, qty=3)   # runner line 1.60
+        outs = exit_manager.evaluate(p, et(14, 0))
+        self.assertEqual(outs[0].kind, "trail")
+        self.assertEqual(outs[0].quantity, 3)
+
+    # --- single-owner rule ----------------------------------------------
+    def test_external_owner_gets_backstops_only(self):
+        # Ladder line breached but the position is external -> no ladder exit...
+        p = self._pos(mark=1.00, peak=2.00, owner="external")
+        self.assertEqual(exit_manager.evaluate(p, et(14, 0)), [])
+        # ...while the hard stop still fires for anyone.
+        p2 = self._pos(mark=0.45, peak=2.00, owner="external")
+        self.assertEqual(exit_manager.evaluate(p2, et(14, 0))[0].kind, "stop")
+        # ...and so does the 15:45 flatten.
+        p3 = self._pos(mark=1.00, peak=2.00, owner="watcher")
+        self.assertEqual(exit_manager.evaluate(p3, et(15, 45))[0].kind, "flatten")
+
+
+class ReentryRails(unittest.TestCase):
+    """Continuation re-entry (operator-approved 2026-08-04): profitable exits
+    only, scanner-validated, one per name, half size, cooldown enforced; a
+    stop-out closes the name for the session."""
+
+    def _eval(self, sig, day, now=None):
+        return risk_governor.evaluate(sig, account(), day, now or et(14, 32),
+                                      1.21, CFG)
+
+    def _day_after_profit(self, sym="NVDA", exited_min_ago=30):
+        day = DayState()
+        exited = et(14, 32 - exited_min_ago) if exited_min_ago <= 32 else et(13, 0)
+        day.profit_exit_at[sym] = exited.isoformat()
+        return day
+
+    def test_unflagged_signal_denied_after_profit_exit(self):
+        v = self._eval(good_signal(), self._day_after_profit())
+        self.assertFalse(v.allow)
+        self.assertTrue(any("re-entry requires" in r for r in v.reasons))
+
+    def test_flagged_reentry_half_size_after_cooldown(self):
+        sig = good_signal()
+        sig.is_reentry = True
+        v = self._eval(sig, self._day_after_profit(exited_min_ago=30))
+        self.assertTrue(v.allow)
+        # A+ conviction 1.5x then 0.5x re-entry = 0.75x of $625 = $468.75 -> 3 lots @ $121.
+        self.assertEqual(v.max_contracts, 3)
+        self.assertTrue(any("re-entry" in r for r in v.reasons))
+
+    def test_cooldown_blocks_fast_flip(self):
+        sig = good_signal()
+        sig.is_reentry = True
+        v = self._eval(sig, self._day_after_profit(exited_min_ago=5))
+        self.assertFalse(v.allow)
+        self.assertTrue(any("cooldown" in r for r in v.reasons))
+
+    def test_per_name_cap(self):
+        sig = good_signal()
+        sig.is_reentry = True
+        day = self._day_after_profit(exited_min_ago=30)
+        day.reentries["NVDA"] = 1
+        v = self._eval(sig, day)
+        self.assertFalse(v.allow)
+        self.assertTrue(any("cap" in r for r in v.reasons))
+
+    def test_stopout_closes_the_name(self):
+        day = DayState()
+        day.loss_exit_syms.add("NVDA")
+        for flagged in (False, True):
+            sig = good_signal()
+            sig.is_reentry = flagged
+            v = self._eval(sig, day)
+            self.assertFalse(v.allow)
+            self.assertTrue(any("stopped out" in r for r in v.reasons))
+
+    def test_reentry_flag_without_exit_denied(self):
+        sig = good_signal()
+        sig.is_reentry = True
+        v = self._eval(sig, DayState())
+        self.assertFalse(v.allow)
+
+
+class MomentumConvexityRails(unittest.TestCase):
+    """Operator standing directive 2026-08-04: momentum-class signals take the
+    best gamma/delta contract by default; reversion keeps the ATM band; the
+    delta floor is never stretched."""
+
+    def _chain(self):
+        return ChainSnapshot("NVDA", SESSION, [
+            OptionContract("atm", "NVDA", "call", 202.5, SESSION, 1.18, 1.24, 0.49, 0.05),
+            OptionContract("cvx", "NVDA", "call", 205.0, SESSION, 0.45, 0.47, 0.34, 0.15),
+        ])
+
+    def test_momentum_class_takes_convex_pick_without_flag(self):
+        sig = good_signal()
+        sig.setup_class = "momentum"
+        choice = contract_selector.select(sig, self._chain(), CFG)
+        self.assertAlmostEqual(choice.contract.strike, 205.0)
+
+    def test_reversion_class_keeps_atm_pick(self):
+        sig = good_signal()
+        sig.setup_class = "reversion"
+        choice = contract_selector.select(sig, self._chain(), CFG)
+        self.assertAlmostEqual(choice.contract.strike, 202.5)
+
+    def test_low_conviction_momentum_falls_back_to_atm(self):
+        sig = good_signal()
+        sig.setup_class = "momentum"
+        sig.confidence = 40          # below conv_min_confidence
+        choice = contract_selector.select(sig, self._chain(), CFG)
+        self.assertAlmostEqual(choice.contract.strike, 202.5)
 
 
 if __name__ == "__main__":
