@@ -19,7 +19,7 @@
     "decision": "user 8/4: focused, refined SuperTrades engine built this session IS the project. Continue from here.",
     "branch": "claude/claude-code-mcp-study-s227lj",
     "source_of_truth": "the supertrades/ directory on this branch (engine/ + state.json + pages/ + supertrades-v3.md). Self-contained, ~3.7k lines, v4.7, 77/77 tests.",
-    "ignore": "PR #14 and the ~10 other claude/* branches are PARALLEL architectures from other sessions (a supertrades-terminal React app + a tradingagents framework restructure, ~20k lines). They do NOT touch this engine. Do NOT merge main/#14 in - it would bury the focused engine. Cherry-pick a single file only if a specific piece is clearly wanted.",
+    "parallel_branches": "PR #14 and the ~10 other claude/* branches are PARALLEL efforts from other sessions (a supertrades-terminal React app, a tradingagents framework restructure, GEX tools, monitoring reports, earnings fixtures - ~20k lines). They coexist fine and some may hold genuinely useful pieces. Branches sitting in the repo are harmless - only competing EXECUTION (triggers on the live account) caused confusion, and that is already fixed (one executor). CHERRY-PICK individual useful pieces (a report, a GEX tool, an earnings fixture) into this engine deliberately, one file at a time; NEVER bulk-merge main/#14 - that would bury the lean engine.",
     "resume": "open this project + this chat -> 'resume SuperTrades' -> read state.json, audit list_triggers (one executor), run premarket AH/PM tune, then the engine-driven cycle.",
     "pr_note": "PR #1 tracks this branch as the engine's record; it is NOT meant to merge into the diverged main."
   },
