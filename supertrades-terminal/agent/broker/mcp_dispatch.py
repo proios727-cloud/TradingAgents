@@ -356,12 +356,17 @@ class RobinhoodMcpHttpTransport:
         never assume every order is ours), quantity, price (compared
         numerically — the API returns both as strings, e.g. "1.00000" /
         "2.08000000"), and ``created_at`` within ``RECONCILIATION_WINDOW_SECONDS``
-        of the attempted placement. There is no ``chain_symbol`` (or any
-        other field) in ``place_option_order``'s own params to match against
-        — its schema identifies the contract solely via an opaque
-        ``option_id`` inside ``legs`` — so the symbol is deliberately not
-        part of this composite rather than inventing a field to smuggle
-        through the wire payload.
+        of the attempted placement.
+
+        Strongest of all is ``option_id``. ``place_option_order`` identifies
+        the contract solely via an opaque ``option_id`` inside ``legs``, and
+        the real order response echoes that same id back under
+        ``legs[].option_id`` — so when both sides carry it, it decides the
+        match outright and a different contract is definitively not ours.
+        Quantity/price/window is the fallback for a response without legs,
+        not the primary key. There is deliberately no ``chain_symbol`` in the
+        mix: it is not in what we send, and matching on it would mean
+        smuggling an extra field through the wire payload.
 
         The match is intentionally BIASED toward "this may be our order":
         any plausible candidate is reported as a possible placement, never
@@ -510,15 +515,47 @@ def _is_plausible_match(
     o, params: dict, attempted_at: datetime, window_start: datetime,
 ) -> bool:
     """Composite match for reconciliation — see ``_reconcile_after_failure``
-    for why there is no ``ref_id``/``chain_symbol`` in the mix."""
+    for why there is no ``ref_id``/``chain_symbol`` in the mix.
+
+    The strongest available discriminator is ``option_id``: we send it inside
+    ``legs`` on every ``place_option_order`` and the real order response echoes
+    it back under ``legs[].option_id``. When BOTH sides expose it, it decides
+    the match outright — a different contract is definitively not our order,
+    even at identical quantity/price/timing. Only when either side is missing
+    it do we fall back to the weaker quantity/price/window composite, so a
+    response shape without legs degrades rather than breaking.
+    """
     if not isinstance(o, dict):
         return False
     if o.get("placed_agent") != "agentic":
         return False
+    ours = _leg_option_ids(params)
+    theirs = _leg_option_ids(o)
+    if ours and theirs:
+        return bool(ours & theirs) and _within_window(
+            o, attempted_at, window_start)
     if not _numeric_match(o.get("quantity"), params.get("quantity")):
         return False
     if not _numeric_match(o.get("price"), params.get("price")):
         return False
+    return _within_window(o, attempted_at, window_start)
+
+
+def _leg_option_ids(d) -> set:
+    """Every ``option_id`` in a payload's ``legs``. Works on both what we SEND
+    (``place_option_order`` params) and what the API RETURNS (order rows) —
+    both nest option_id the same way."""
+    if not isinstance(d, dict):
+        return set()
+    legs = d.get("legs")
+    if not isinstance(legs, list):
+        return set()
+    return {leg["option_id"] for leg in legs
+            if isinstance(leg, dict) and leg.get("option_id")}
+
+
+def _within_window(o, attempted_at: datetime, window_start: datetime) -> bool:
+    """Was this order created close enough to our attempt to be it?"""
     created_at = o.get("created_at")
     if not created_at:
         return False

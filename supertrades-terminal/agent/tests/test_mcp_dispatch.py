@@ -16,6 +16,7 @@ from unittest.mock import patch
 
 from agent.broker.mcp_dispatch import (
     DEFAULT_MCP_URL,
+    _is_plausible_match,
     MCP_TOOL_PREFIX,
     RECONCILIATION_WINDOW_SECONDS,
     McpDispatchError,
@@ -733,6 +734,71 @@ class HttpTransportMutationReconciliation(unittest.TestCase):
         with self.assertRaises(McpDispatchError):
             t(MCP_TOOL_PREFIX + "get_accounts", {})
         self.assertEqual(len(calls), 1)  # no reconciliation attempt at all
+
+
+class ReconciliationOptionIdMatch(unittest.TestCase):
+    """option_id is the strongest discriminator: we send it in legs and the
+    real API echoes it back under legs[].option_id. Verified against a live
+    get_option_orders response."""
+
+    OURS = "fcf1eaae-926f-4e41-b4ca-990db635982c"
+    OTHER = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+    def setUp(self):
+        self.attempted_at = datetime(2026, 8, 4, 19, 15, 31, tzinfo=timezone.utc)
+        self.window_start = self.attempted_at - timedelta(
+            seconds=RECONCILIATION_WINDOW_SECONDS)
+        self.params = {
+            "quantity": "5",
+            "price": "1.21",
+            "legs": [{"option_id": self.OURS, "side": "buy",
+                      "position_effect": "open"}],
+        }
+
+    def _order(self, option_id, **over):
+        o = {
+            "id": "order-1",
+            "placed_agent": "agentic",
+            "quantity": "5.00000",
+            "price": "1.21000000",
+            "created_at": "2026-08-04T19:15:31.195495Z",
+            "legs": [{"option_id": option_id, "side": "buy",
+                      "position_effect": "open"}],
+        }
+        o.update(over)
+        return o
+
+    def _match(self, o):
+        return _is_plausible_match(
+            o, self.params, self.attempted_at, self.window_start)
+
+    def test_same_option_id_matches(self):
+        self.assertTrue(self._match(self._order(self.OURS)))
+
+    def test_different_option_id_never_matches(self):
+        """Even at identical quantity, price and timestamp — a different
+        contract is definitively not our order."""
+        self.assertFalse(self._match(self._order(self.OTHER)))
+
+    def test_option_id_match_still_requires_the_time_window(self):
+        stale = self._order(self.OURS, created_at="2026-08-04T18:00:00Z")
+        self.assertFalse(self._match(stale))
+
+    def test_option_id_match_still_requires_agentic(self):
+        theirs = self._order(self.OURS, placed_agent="user")
+        self.assertFalse(self._match(theirs))
+
+    def test_falls_back_to_composite_when_order_has_no_legs(self):
+        """A response without legs must degrade to the quantity/price/window
+        composite, not break."""
+        o = self._order(self.OURS)
+        del o["legs"]
+        self.assertTrue(self._match(o))
+
+    def test_fallback_composite_still_rejects_wrong_quantity(self):
+        o = self._order(self.OURS, quantity="1.00000")
+        del o["legs"]
+        self.assertFalse(self._match(o))
 
 
 if __name__ == "__main__":
