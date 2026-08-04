@@ -137,10 +137,13 @@ class RealAccountsAndPortfolioParsing(unittest.TestCase):
             "account_number": "A1", "agentic_allowed": True,
             "option_level": "option_level_2",
         }]}
-        legacy_portfolio = {"results": [{
+        # Only the ACCOUNTS envelope is legacy here. get_portfolio has exactly
+        # one real shape ({"data": {...}}), so inventing a legacy variant for
+        # it would test a payload the API never sends.
+        legacy_portfolio = {"data": {
             "total_value": "1000.00",
             "buying_power": {"buying_power": "900.00"},
-        }]}
+        }}
         broker = _broker(account_number="A1", overrides={
             "get_accounts": legacy_accounts,
             "get_portfolio": legacy_portfolio,

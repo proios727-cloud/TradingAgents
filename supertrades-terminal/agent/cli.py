@@ -19,6 +19,7 @@ from .broker.mcp_dispatch import McpDispatchError, TOKEN_ENV
 from .broker.paper import PaperBroker
 from .config import GUARDRAILS as G
 from .config import MARKET_TZ, RuntimeConfig
+from .earnings import McpEarningsCalendar
 from .engine import SuperTradesAgent
 from .simulated import SimulatedSignalSource, demo_account, demo_chains
 from .smoke import SmokeRefused, format_report, run_smoke
@@ -47,7 +48,17 @@ def cmd_status(_args) -> int:
           f"stale >{G.stale_data_seconds:.0f}s / STOP / MCP error")
     print(f"  contract      : Δ {G.entry_delta_min}–{G.entry_delta_max}, "
           f"spread <= {G.max_spread_pct_of_mid:.0%} of mid, 0DTE long only")
+    print(f"  earnings      : blackout ±{G.earnings_block_sessions} sessions "
+          f"around the gap")
     print(f"  watchlist     : {', '.join(__import__('agent').WATCHLIST)}")
+
+    # The live calendar is inert without a dispatcher, and inert means "blocks
+    # everything" — say so plainly rather than letting it look configured.
+    live = McpEarningsCalendar()
+    live.blackout(datetime.now(MARKET_TZ))
+    print("Earnings feed:")
+    print(f"  live calendar : {live.last_error or 'wired'}")
+    print("  dry-run uses the simulated.EARNINGS_CALENDAR fixture instead")
     return 0
 
 

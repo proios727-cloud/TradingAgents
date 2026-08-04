@@ -107,6 +107,7 @@ READ_TOOLS = frozenset({
     "get_option_quotes",
     "get_option_positions",
     "get_option_orders",
+    "get_earnings_calendar",  # feeds the earnings blackout; read-only
     "review_option_order",   # preview/validate only — places nothing
 })
 

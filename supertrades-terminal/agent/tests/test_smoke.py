@@ -43,25 +43,21 @@ class RecordingTransport:
         return self.responses.get(full_tool, {"results": []})
 
 
-GOOD_ACCOUNT = {"results": [{
+# Real schema: eligibility on get_accounts, balance/buying-power on get_portfolio,
+# Greeks nested under results[].quote.
+GOOD_ACCOUNT = {"data": {"accounts": [{
     "account_number": "A1", "agentic_allowed": True,
-    "option_level": "option_level_2", "unsettled_funds": "0.0000",
-}]}
-
-# get_accounts carries identity/permissions only — balances come from
-# get_portfolio, keyed by account_number (see robinhood_mcp.get_account).
-GOOD_PORTFOLIO = {"data": {
-    "total_value": "25000.00",
-    "cash": "25000.00",
-    "buying_power": {"buying_power": "25000.00", "unleveraged_buying_power": "25000.00"},
-}}
-
+    "option_level": "option_level_2",
+}]}}
+GOOD_PORTFOLIO = {"data": {"total_value": "25000",
+                           "buying_power": {"buying_power": "25000"},
+                           "cash": "25000"}}
 GOOD_INSTRUMENT = {"results": [
     {"id": "i1", "type": "call", "strike_price": "202.5"}]}
 GOOD_QUOTE = {"results": [
-    {"bid_price": "1.18", "ask_price": "1.24", "delta": "0.5"}]}
+    {"quote": {"bid_price": "1.18", "ask_price": "1.24", "delta": "0.5", "gamma": "0.05"}}]}
 BAD_QUOTE_MISSING_DELTA = {"results": [
-    {"bid_price": "1.18", "ask_price": "1.24"}]}
+    {"quote": {"bid_price": "1.18", "ask_price": "1.24"}}]}
 
 
 def _responses_for(watchlist, quote_by_symbol=None):
@@ -70,7 +66,6 @@ def _responses_for(watchlist, quote_by_symbol=None):
         MCP_TOOL_PREFIX + "get_accounts": GOOD_ACCOUNT,
         MCP_TOOL_PREFIX + "get_portfolio": GOOD_PORTFOLIO,
         MCP_TOOL_PREFIX + "get_option_positions": {"results": []},
-        MCP_TOOL_PREFIX + "get_option_chains": {"results": []},
         MCP_TOOL_PREFIX + "get_option_instruments": GOOD_INSTRUMENT,
         MCP_TOOL_PREFIX + "get_option_quotes": GOOD_QUOTE,
     }
@@ -159,10 +154,12 @@ class OnlyNonMutatingToolsDispatched(unittest.TestCase):
                 f"smoke test must never dispatch a mutating-shaped tool: {name}",
             )
         # And specifically the expected read set — nothing extra snuck in.
+        # (get_account also reads get_portfolio; the earnings blackout reads
+        # get_earnings_calendar; get_chain goes straight to get_option_instruments.)
         expected = {"get_accounts", "get_portfolio", "get_option_positions",
-                    "get_option_chains", "get_option_instruments",
-                    "get_option_quotes"}
-        self.assertTrue(called.issubset(expected))
+                    "get_option_instruments", "get_option_quotes",
+                    "get_earnings_calendar"}
+        self.assertTrue(called.issubset(expected), called - expected)
 
     def test_build_checks_only_uses_broker_parsed_accessors(self):
         watchlist = ["NVDA"]
@@ -176,6 +173,38 @@ class OnlyNonMutatingToolsDispatched(unittest.TestCase):
         self.assertTrue(any("get_option_chains:NVDA" in n for n in names))
 
 
+class EarningsCheckSurfacesAFailClosedFeed(unittest.TestCase):
+    """A blackout that fell back closed is a legitimate frozenset covering the
+    whole watchlist. It must FAIL the smoke check, not pass quietly — that
+    state means the armed agent would take no trade and merely look idle."""
+
+    def _earnings_result(self, results):
+        return next(r for r in results if "get_earnings_calendar" in r.name)
+
+    def test_reachable_feed_passes_and_reports_the_blackout(self):
+        watchlist = ["NVDA", "MSFT"]
+        resp = _responses_for(watchlist)
+        resp[MCP_TOOL_PREFIX + "get_earnings_calendar"] = {"results": [
+            {"symbol": "MSFT", "report": {"date": "2026-07-29", "timing": "pm"}},
+        ]}
+        results, _ = run_smoke(
+            INERT, transport=RecordingTransport(responses=resp), watchlist=watchlist)
+        check = self._earnings_result(results)
+        self.assertTrue(check.ok, check.error)
+
+    def test_unreachable_feed_fails_the_check(self):
+        watchlist = ["NVDA", "MSFT"]
+        transport = RecordingTransport(
+            responses=_responses_for(watchlist),
+            fail_on={"get_earnings_calendar"},
+        )
+        results, code = run_smoke(INERT, transport=transport, watchlist=watchlist)
+        check = self._earnings_result(results)
+        self.assertFalse(check.ok)
+        self.assertIn("failed closed", check.error)
+        self.assertEqual(code, 1)
+
+
 class MidRunFailureDoesNotAbort(unittest.TestCase):
     def test_one_failed_check_does_not_skip_the_rest(self):
         watchlist = ["NVDA", "TSLA", "AMD"]
@@ -187,7 +216,8 @@ class MidRunFailureDoesNotAbort(unittest.TestCase):
         self.assertEqual(code, 1)
         names = [r.name for r in results]
         # every check ran, including the ones after the failure
-        self.assertEqual(len(results), 2 + len(watchlist))
+        # (account + positions + one per symbol + earnings)
+        self.assertEqual(len(results), 3 + len(watchlist))
         by_name = {r.name: r for r in results}
         failed = [r for r in results if not r.ok]
         self.assertEqual(len(failed), 1)

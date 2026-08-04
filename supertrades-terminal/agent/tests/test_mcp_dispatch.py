@@ -149,9 +149,12 @@ class DispatcherFailClosed(unittest.TestCase):
         self._assert_killed(kill)
 
     def test_unknown_tool_never_dispatched(self):
+        # Any read this agent has no business making. (Not
+        # get_earnings_calendar — that is a legitimate READ_TOOL feeding the
+        # earnings blackout.)
         disp, transport, _ = make(INERT)
         with self.assertRaises(McpDispatchError):
-            disp("get_earnings_calendar", {})
+            disp("get_crypto_positions", {})
         self.assertEqual(transport.calls, [])
 
     def test_exercise_refused_even_when_armed(self):

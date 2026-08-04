@@ -111,7 +111,11 @@ export const STRATEGY_RISK = { 'Squeeze confluence': 0.05, 'Gamma flip break': 0
 // Equity = shares at 0.4% account risk/trade (compounding). Options = 0DTE premium, 5% of CURRENT balance risk/trade, capped at 40% of start ($1k on $2.5k) — 0DTE fill capacity limit. ~1.9x payoff, theta drag.
 // Drawdown governance (options): daily loss limit −2R (stop trading for the day), half-size the day after a losing day until a green day.
 // Press rule: once the day is ≥+2R, later trades size up 2×, extra risk funded only by the day's booked profit, never base bankroll.
-export function genBacktest(seed, days = 90, endPrice = 100, riskF = 0.05) {
+// slip = round-trip slippage + bid/ask spread charged on EVERY trade, in units of
+// risked premium (0DTE spreads are wide and you cross them twice). This is the
+// single biggest reason raw backtests overstate 0DTE returns, so it is modeled
+// explicitly and on by default. shares get a much lighter slippage (penny spreads).
+export function genBacktest(seed, days = 90, endPrice = 100, riskF = 0.05, slip = 0.15) {
   const rnd = mulberry32(seed);
   const rets = [];
   for (let d = 0; d < days; d++) rets.push((rnd() - 0.485) * 0.032);
@@ -153,10 +157,11 @@ export function genBacktest(seed, days = 90, endPrice = 100, riskF = 0.05) {
       if (R === 0) scr++;
       else if (R > 0) { wins++; gw += R; lossStreak = 0; }
       else { gl -= R; lossStreak++; if (lossStreak > maxLossStreak) maxLossStreak = lossStreak; }
-      dE += R * 0.004;
+      dE += (R - 0.03) * 0.004; // shares: light slippage/commission haircut
       let riskU = Math.min(op * riskF, 0.4); // riskF of current balance, capped at 40% of start ($1k) — capacity
       if (dayR >= 2 && dO > 0) riskU = Math.min(riskU * 2, riskU + dO * 0.5); // press winners with house money
-      dO += (R * 1.9 - 0.12) * riskU * size;
+      // 0DTE net = ~1.9x payoff, minus theta drag (0.12), minus round-trip slippage/spread (slip).
+      dO += (R * 1.9 - 0.12 - slip) * riskU * size;
       dayR += R;
       if (dayR <= -2) halted = true; // daily loss limit: stop at −2R on the day
     }
