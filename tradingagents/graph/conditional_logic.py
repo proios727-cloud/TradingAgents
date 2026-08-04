@@ -43,12 +43,20 @@ class ConditionalLogic:
             return "tools_fundamentals"
         return "Msg Clear Fundamentals"
 
+    def route_after_trader(self, state: AgentState) -> str:
+        """Skip the risk debate when the Trader proposes HOLD — there is no
+        position to risk-manage. Anything else goes through the full debate."""
+        plan = (state.get("trader_investment_plan") or "").upper()
+        if "FINAL TRANSACTION PROPOSAL: **HOLD**" in plan:
+            return "Portfolio Manager"
+        return "Aggressive Analyst"
+
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""
 
         if (
             state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
-        ):  # 3 rounds of back-and-forth between 2 agents
+        ):  # each debate round = one Bull + one Bear turn (2 * max_debate_rounds turns total)
             return "Research Manager"
         if state["investment_debate_state"]["current_response"].startswith("Bull"):
             return "Bear Researcher"
