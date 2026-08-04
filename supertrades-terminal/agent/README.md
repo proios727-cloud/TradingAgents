@@ -147,6 +147,26 @@ Claude settings, or one-tap disconnect in the Robinhood app.
 hostile to long premium. An `am` report gaps its own open; a `pm` report gaps the
 next one (Friday `pm` → Monday).
 
+**The live calendar updates itself while trading.** `McpEarningsCalendar`
+refetches once per session date, so an armed agent picks up new and moved
+report dates on its own — there is nothing to maintain on the live path.
+
+The dry-run fixture in `simulated.py` is the part that goes stale, so it now
+says so. It carries an `EARNINGS_CALENDAR_AS_OF` stamp, and past
+`STATIC_FIXTURE_MAX_AGE_DAYS` (21) `StaticEarningsCalendar` stops answering and
+fails closed rather than quoting a previous reporting cycle. Regenerate it from
+the live feed and commit the diff:
+
+```
+python -m agent.cli refresh-earnings
+```
+
+That command is read-only against Robinhood; the only thing it writes is the
+generated block in `agent/simulated.py`. It refuses to write an empty fixture —
+every watchlist name being genuinely report-free is indistinguishable from a
+feed that answered with nothing, and the second would silently erase the
+blackout. `python -m agent.cli status` prints the fixture's age.
+
 `McpEarningsCalendar` **fails closed**: no dispatcher, an unreachable feed, a
 malformed payload, or a row whose date will not parse all block the *entire*
 watchlist rather than nothing. "We could not confirm this name is clear" and
