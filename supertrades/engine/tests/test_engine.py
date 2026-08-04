@@ -817,6 +817,54 @@ class TestProgressiveStopV48(unittest.TestCase):
                          {"progressive_stop", "target"})
 
 
+class TestGreeksIvRvolV49(unittest.TestCase):
+    """v4.9: greek/IV expected-move exits + RVOL-weighted conviction ranking."""
+
+    def test_expected_move_scales_with_iv(self):
+        from supertrades.engine.nodes import expected_move_exits as em
+        lo = em(entry=0.60, iv=0.20, delta=0.45, gamma=0.03, spot=100, dte=1)
+        hi = em(entry=0.60, iv=1.20, delta=0.45, gamma=0.03, spot=100, dte=1)
+        # a higher-IV name has a wider expected move -> a wider (further) target
+        self.assertGreater(hi["target_pct"], lo["target_pct"])
+        # target is a reachable positive %, stop is negative and bounded
+        self.assertGreaterEqual(lo["target_pct"], 15.0)
+        self.assertLessEqual(hi["target_pct"], 250.0)
+        self.assertTrue(-55.0 <= hi["stop_pct"] <= -8.0)
+
+    def test_expected_move_falls_back_without_greeks(self):
+        from supertrades.engine.nodes import expected_move_exits as em
+        r = em(entry=0.60, iv=0.0, delta=0.0, spot=0, dte=1)
+        self.assertEqual((r["target_pct"], r["stop_pct"]), (50.0, -30.0))
+
+    def test_conviction_rewards_delta_rvol_momentum(self):
+        from supertrades.engine.reporter import conviction_score
+        strong = conviction_score({"delta": 0.55, "rvol": 3.0, "underlying_day_pct": 4.0,
+                                    "above_vwap": True, "iv": 0.5})
+        weak = conviction_score({"delta": 0.36, "rvol": 0.8, "underlying_day_pct": 0.2,
+                                 "above_vwap": False, "iv": 1.4})
+        self.assertGreater(strong, weak)
+        # RVOL alone moves the needle: same everything, higher volume scores higher
+        base = {"delta": 0.45, "underlying_day_pct": 2.0, "above_vwap": True, "iv": 0.5}
+        self.assertGreater(conviction_score({**base, "rvol": 3.0}),
+                           conviction_score({**base, "rvol": 1.0}))
+
+    def test_entry_carries_conviction_and_em_exits(self):
+        state = entry_ready_state(load_state())
+        snap = synthetic_snapshot(
+            state, et_time="10:15", bp=1000.0,
+            option_overrides={"cand-nvda": {"ask": 0.60, "delta": 0.42, "gamma": 0.03,
+                                            "spread_pct": 6.0, "oi": 5000, "iv": 0.55}},
+            quote_overrides={"NVDA": {"day_pct": 1.8, "rvol": 2.5}})
+        snap["quotes"]["NVDA"]["last"] = snap["vwap"]["NVDA"] + 1.0
+        entry = run(state, snap)["actions"]["entry"]
+        self.assertIsNotNone(entry)
+        self.assertIn("conviction", entry)
+        self.assertIn("expected_move", entry)
+        # the materialized stop uses the EM-derived level, not a flat -30
+        ps = next(r for r in entry["exit_rules"] if r["type"] == "progressive_stop")
+        self.assertEqual(ps["initial_pct"], entry["expected_move"]["stop_pct"])
+
+
 class TestReliableOpsV4(unittest.TestCase):
     """v4 Layer 2: deterministic clock/flatten/staleness so no cycle silently misses."""
 

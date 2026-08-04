@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import functools
 
+from .nodes import expected_move_exits
+
 AGENTIC_ACCT = "902341866"   # execute here ONLY
 MARGIN_ACCT = "812234458"    # READ-ONLY: alerts, never trade
 
@@ -107,6 +109,26 @@ def high_iv_steer(iv: float | None, iv_rank: float | None = None) -> bool:
     return False
 
 
+def conviction_score(c: dict) -> float:
+    """Rank eligible entries by conviction for a higher base win rate (v4.9).
+
+    Blends delta (win-probability proxy), RVOL (volume conviction), positive momentum +
+    above-VWAP (trend), and an IV-fit penalty (don't overpay for vol). 0..1, higher = stronger.
+    Missing inputs contribute neutrally so a sparse candidate isn't unfairly buried.
+    """
+    delta = c.get("delta") or 0.0
+    rvol = c.get("rvol")
+    day = c.get("underlying_day_pct") or 0.0
+    iv = c.get("iv")
+    s_delta = min(delta / 0.60, 1.0)                       # prob proxy, saturates ~0.60Δ
+    s_rvol = min((rvol if rvol else 1.0) / 3.0, 1.0)       # ~3x average volume = strong
+    s_mom = (min(day / 5.0, 1.0) if day > 0 else 0.0)      # positive momentum only
+    s_vwap = 1.0 if c.get("above_vwap") else 0.0
+    s_iv = 1.0 - min(max((iv or 0.5) - 0.90, 0.0) / 1.6, 1.0)   # penalize rich IV
+    return round(0.35 * s_delta + 0.30 * s_rvol + 0.20 * s_mom
+                 + 0.10 * s_vwap + 0.05 * s_iv, 3)
+
+
 def size_order(cost_per_contract_usd: float, bp: float) -> int:
     """Lots to buy: fill the per-trade cost cap with up to max_lots_per_order, >= 1.
 
@@ -125,7 +147,8 @@ def size_order(cost_per_contract_usd: float, bp: float) -> int:
 
 
 def materialize_exit_rules(class_name: str, qty: int, class_defaults: dict,
-                           is_index: bool = False) -> list[dict]:
+                           is_index: bool = False, target_pct: float | None = None,
+                           stop_pct: float | None = None) -> list[dict]:
     """Stamp exit_rules onto a new position from its class profile (v4.5 auto-materializer).
 
     Single lot -> never-red + loose give-back runner. >= barbell_min_lots -> the barbell:
@@ -134,24 +157,28 @@ def materialize_exit_rules(class_name: str, qty: int, class_defaults: dict,
     Index scalps additionally get the VWAP trend-trail.
     """
     cd = class_defaults.get(class_name, {})
+    # target/stop default to the class flats, but are OVERRIDDEN by IV+greek expected-move
+    # levels when the caller passes them (v4.9) - reachable targets lift win rate, and the
+    # initial stop is vol-appropriate instead of a flat -30%.
+    tgt = target_pct if target_pct is not None else cd.get("target_pct", 50)
+    stp = stop_pct if stop_pct is not None else cd.get("stop_pct", -30)
     # ONE ratcheting-stop equation covers the whole life (initial stop -> ~breakeven by +5%
-    # -> locks growing green -> looser room for big runners), replacing the old
-    # stop + green_lock + loose-trail stack. Minimal drawdown, fewer moving parts.
+    # -> locks growing green -> looser room for big runners). Minimal drawdown, fewer parts.
     rules: list[dict] = [
         {"type": "progressive_stop", "base": 3.25, "slope": 0.35,
-         "initial_pct": cd.get("stop_pct", -30), "mech": "sell_marketable_through_bid"},
+         "initial_pct": stp, "mech": "sell_marketable_through_bid"},
     ]
     barbell = qty >= GUARDRAILS["barbell_min_lots"]
     if barbell:
-        # leg A: bank half at target (locks the day). leg B: strict moonshot trail tightens
+        # leg A: bank half at the (reachable) target. leg B: strict moonshot trail tightens
         # the remainder beyond the progressive stop once it's a big winner.
-        rules.append({"type": "target", "pct": cd.get("target_pct", 50),
+        rules.append({"type": "target", "pct": tgt,
                       "scale_out_frac": 0.5, "mech": "scale_out_lock_day"})
         rules.append({"type": "giveback", "arm_gain_pct": 100, "peak_frac": 0.20,
                       "mech": "strict_moonshot_trail"})
     else:
         # single lot: runner that doesn't cap at target; the progressive stop is the trail.
-        rules.append({"type": "target", "pct": cd.get("target_pct", 50),
+        rules.append({"type": "target", "pct": tgt,
                       "runner": True, "mech": "hold_runner_trail_no_cap"})
     if is_index and class_name == "0dte_scalp":
         trail = cd.get("am_index_trail", {}).get("materialize_rule",
@@ -349,21 +376,28 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
         # the sole eligible option (then it carries the prefer-spread warning through).
         def _rank(a):
             not_high_iv = "high_iv_prefer_debit_spread" not in a.get("warnings", [])
-            return (not_high_iv, by_id[a["id"]].get("delta") or 0.0)
-        pick = max(eligible, key=_rank)
+            return (not_high_iv, conviction_score(by_id[a["id"]]))
+        pick = max(eligible, key=_rank)                      # v4.9: conviction-ranked (see _rank)
         cand = by_id[pick["id"]]
         cost_per = (cand.get("ask") or 0.0) * 100
         qty = size_order(cost_per, bp)                       # v4.5 multi-lot sizing
         sym = pick.get("symbol") or cand.get("symbol")
         is_index = state.get("ticker_classes", {}).get(sym) == "index"
         entry_class = "day_trade"                            # auto momentum entries are day-trades
-        exit_rules = materialize_exit_rules(entry_class, qty, class_defaults, is_index)
+        # v4.9: IV + greek expected-move exits (reachable target, vol-appropriate stop)
+        em = expected_move_exits(entry=cand.get("ask") or 0.0, iv=cand.get("iv") or 0.0,
+                                 delta=cand.get("delta") or 0.0, gamma=cand.get("gamma") or 0.0,
+                                 spot=cand.get("underlying_last") or 0.0,
+                                 dte=cand.get("expiry_days") or 1)
+        exit_rules = materialize_exit_rules(entry_class, qty, class_defaults, is_index,
+                                            target_pct=em["target_pct"], stop_pct=em["stop_pct"])
         actions["entry"] = {"id": pick["id"], "contract": pick["contract"],
                             "qty": qty,
                             "order": "review_then_place_buy_limit",
                             "account": AGENTIC_ACCT,
                             "warnings": pick.get("warnings", []),
                             "class": entry_class, "exit_rules": exit_rules,
+                            "conviction": conviction_score(cand), "expected_move": em,
                             "sizing": f"{qty} lot(s) @ ~${cost_per:.0f}; "
                                       f"barbell={qty >= g['barbell_min_lots']}"}
 

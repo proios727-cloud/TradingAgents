@@ -40,7 +40,7 @@ def synthetic_snapshot(state: dict, *, et_time: str = "10:15",
         last = 100.0 + 5 * i
         pct = round((-2.5 + i * 0.55) % 5 - 2.0, 2)
         quotes[sym] = {"last": last, "prev_close": round(last / (1 + pct / 100), 2),
-                       "day_pct": pct}
+                       "day_pct": pct, "rvol": 1.5}
         vwap[sym] = last - 0.5
     for sym, q in (quote_overrides or {}).items():
         quotes.setdefault(sym, {}).update(q)

@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T21:35:00Z",
+  "updated_at": "2026-08-04T22:05:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -54,8 +54,13 @@
   },
   "performance": {
     "window": "2026-07-21..2026-08-04 (visible log)",
-    "trades_closed": 7, "wins": 3, "losses": 4, "win_rate": 0.43,
-    "gross_pnl_usd": 2, "avg_win_usd": 31.0, "avg_loss_usd": -22.75,
+    "trades_closed": 7,
+    "wins": 3,
+    "losses": 4,
+    "win_rate": 0.43,
+    "gross_pnl_usd": 2,
+    "avg_win_usd": 31.0,
+    "avg_loss_usd": -22.75,
     "expectancy_per_trade_usd": 0.29,
     "read": "8/4 all 3 GREEN (+48/+36/+9). INTC's +9 was cut short by a competing session's hard-exit (would've been ~+35 as a runner) - a CONTRADICTION, not a strategy failure. Wins are clean; earlier edge was erased by 2 oversized losses (NVDA -55%, DIS -42%). Levers: green_lock, cap loss size (marketable stops, no gap), keep runner upside. Goal = raise win rate WITHOUT shrinking winners. Single-executor discipline matters as much as the rails.",
     "recompute": "AUTO via engine/evolution.py::recompute_performance(state.trades) on each close (v4.7)."
@@ -64,18 +69,82 @@
     "north_star": "user 8/4: heavily weight SUCCESS + WIN RATE, with MINIMAL DRAWDOWN. The evolution loop tunes toward this; a tweak is kept only if it raises the score.",
     "equation": "score = 0.45*win_rate*100 + 0.30*expectancy_$ - 0.25*|max_drawdown_$|  (engine/evolution.py::score_objective; weights in OBJECTIVE_WEIGHTS)",
     "resolves_the_tension": "win rate and big wins can conflict; the answer is EXPECTANCY (win_rate x avg_win - loss_rate x avg_loss) raised via green-lock/scale-out WITHOUT shrinking winners, while drawdown is a heavy penalty so you never buy win rate or profit with DD.",
-    "current": {"win_rate": 0.43, "expectancy_per_trade_usd": 0.29, "max_drawdown_usd": -91.0, "score": -3.31},
+    "current": {
+      "win_rate": 0.43,
+      "expectancy_per_trade_usd": 0.29,
+      "max_drawdown_usd": -91.0,
+      "score": -3.31
+    },
     "read": "score is negative because the -$91 cumulative drawdown (4 early losses before the wins) dominates. Priority: cut drawdown (marketable stops, the progressive-stop ratchet, no oversized losses) AND lift win rate (green-lock / scale-out) - both push the score up.",
     "min_dd_mechanisms": "progressive_stop equation (ratchets the stop up once green, ~breakeven by +5%), never-red floor, -$60 daily halt, short-DTE + per-trade concentration caps, no single-name overnight gap."
   },
+  "entry_intelligence": {
+    "why": "user 8/4: 43% win rate + flat -30/+50 was thin & arbitrary; use gamma/delta/IV/RVOL properly.",
+    "conviction_score": "reporter.conviction_score ranks eligible entries: 0.35*delta(win-prob) + 0.30*RVOL(volume conviction) + 0.20*momentum + 0.10*above_VWAP + 0.05*IV-fit. Picks the strongest setup -> higher base win rate.",
+    "expected_move_exits": "nodes.expected_move_exits derives target/stop from IV + greeks: EM = spot*IV*sqrt(hold/252), option move ~ delta*EM + 0.5*gamma*EM^2. Target = a REACHABLE 0.35-sigma fraction (low-IV -> nearer target you hit often; high-IV -> wider), initial stop = 0.4-sigma, clamped [15..200]% / [-45..-8]%. Feeds the progressive_stop initial + the scale-out target. Falls back to flat +50/-30 when greeks missing.",
+    "example": "SPY 0DTE(IV12%) -> target +57%/stop -45%; INTC 1DTE(IV125%) -> +39%/-45% - vol-appropriate, not flat.",
+    "tunable": "target_sigma/stop_sigma/hold_days are evolution hypotheses, tuned toward the objective score."
+  },
   "trades": [
-    {"date": "2026-07-21", "contract": "RIVN 7/24 $19C", "pnl_usd": -4, "pct": -6, "result": "loss", "note": "stop during session-restart outage"},
-    {"date": "2026-07-21", "contract": "QQQ 7/21 $713C", "pnl_usd": -4, "pct": -6, "result": "loss", "note": "0DTE stop"},
-    {"date": "2026-07-23", "contract": "DIS 8/21 $110C", "pnl_usd": -27, "pct": -42, "result": "loss", "note": "stop slipped past -30%"},
-    {"date": "2026-07-24", "contract": "NVDA 7/31 $220C", "pnl_usd": -56, "pct": -55, "result": "loss", "note": "stop slipped past -30% (biggest single loss)"},
-    {"date": "2026-08-04", "contract": "SPY 8/4 $771C", "pnl_usd": 48, "pct": 64, "peak_pct": 70, "result": "win", "note": "clean 0DTE target"},
-    {"date": "2026-08-04", "contract": "QQQ 8/4 $724C", "pnl_usd": 36, "pct": 56, "peak_pct": 123, "result": "win", "note": "peaked +123%, locked on the way down"},
-    {"date": "2026-08-04", "contract": "INTC 8/5 $102C", "pnl_usd": 9, "pct": 4.5, "peak_pct": 18, "result": "win", "note": "cut early by a competing session's hard-exit; would've run to +18%"}
+    {
+      "date": "2026-07-21",
+      "contract": "RIVN 7/24 $19C",
+      "pnl_usd": -4,
+      "pct": -6,
+      "result": "loss",
+      "note": "stop during session-restart outage"
+    },
+    {
+      "date": "2026-07-21",
+      "contract": "QQQ 7/21 $713C",
+      "pnl_usd": -4,
+      "pct": -6,
+      "result": "loss",
+      "note": "0DTE stop"
+    },
+    {
+      "date": "2026-07-23",
+      "contract": "DIS 8/21 $110C",
+      "pnl_usd": -27,
+      "pct": -42,
+      "result": "loss",
+      "note": "stop slipped past -30%"
+    },
+    {
+      "date": "2026-07-24",
+      "contract": "NVDA 7/31 $220C",
+      "pnl_usd": -56,
+      "pct": -55,
+      "result": "loss",
+      "note": "stop slipped past -30% (biggest single loss)"
+    },
+    {
+      "date": "2026-08-04",
+      "contract": "SPY 8/4 $771C",
+      "pnl_usd": 48,
+      "pct": 64,
+      "peak_pct": 70,
+      "result": "win",
+      "note": "clean 0DTE target"
+    },
+    {
+      "date": "2026-08-04",
+      "contract": "QQQ 8/4 $724C",
+      "pnl_usd": 36,
+      "pct": 56,
+      "peak_pct": 123,
+      "result": "win",
+      "note": "peaked +123%, locked on the way down"
+    },
+    {
+      "date": "2026-08-04",
+      "contract": "INTC 8/5 $102C",
+      "pnl_usd": 9,
+      "pct": 4.5,
+      "peak_pct": 18,
+      "result": "win",
+      "note": "cut early by a competing session's hard-exit; would've run to +18%"
+    }
   ],
   "evolution": {
     "mode": "continuous self-tuning (v4.7) - state.json is the memory; small gains compound across sessions. engine/evolution.py: recompute_performance (per close) + reflect (per EOD, deterministic safe-tighten suggestions).",
@@ -89,7 +158,8 @@
     "open_hypotheses": [
       "green_lock arm at +15% vs +20% - does earlier locking raise win rate without clipping runners?",
       "default 2-3 lot sizing when BP allows -> unlock barbell scale-out (needs more BP than ~$200)",
-      "structure/ATR trail vs fixed give-back % - does swing-low trailing capture more of trends?"
+      "structure/ATR trail vs fixed give-back % - does swing-low trailing capture more of trends?",
+      "EM exits: tune target_sigma/stop_sigma/hold_days per class toward the objective score (win rate vs size)."
     ],
     "guardrail": "AUTO-APPLY only SAFE tweaks (tighten risk / fix a proven miss). Loosening risk, raising caps, or structural changes need EXPLICIT user OK. Never silently change a cap. Every applied tweak is a logged, reversible edit."
   },
@@ -103,7 +173,7 @@
     "engine": "BUILT v4.5: reporter.size_order() fills the per-trade cap with up to 3 lots (same risk envelope, enables scale-out); reporter.materialize_exit_rules() auto-stamps leg-A scale-out + leg-B strict giveback (0.20) on any >=2-lot entry (single lot -> never-red runner), index scalps get the VWAP trail. Wired into the entry action (qty + exit_rules). Small live BP (~$200) usually resolves to 1 lot until cheaper contracts / more BP."
   },
   "trading_date": "2026-08-04",
-  "rule_version": "v4.8",
+  "rule_version": "v4.9",
   "mode": {
     "cadence_min": 30,
     "dnd": true,
@@ -118,12 +188,12 @@
     "console": {
       "path": "supertrades/pages/supertrades-console.html",
       "url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4",
-      "favicon": "\u26a1"
+      "favicon": "⚡"
     },
     "index_desk": {
       "path": "supertrades/pages/supertrades-indexes.html",
       "url": "https://claude.ai/code/artifact/ed76be77-02f7-42d1-9eb5-ae50f4159249",
-      "favicon": "\ud83d\udce1",
+      "favicon": "📡",
       "rule": "alert feed accumulates all DND-muted alerts"
     },
     "publish_rule": "edit the repo file, then Artifact publish with BOTH file_path (repo path) AND url (stored above) so the existing URL is kept; republish only when displayed values changed"
@@ -167,10 +237,16 @@
       "target_pct": 50,
       "stop_pct": -30,
       "ratchet_pct": 25,
-      "green_lock": {"arm_pct": 20, "floor_pct": 8},
+      "green_lock": {
+        "arm_pct": 20,
+        "floor_pct": 8
+      },
       "am_index_trail": {
         "applies_to": "morning index scalps (SPY/QQQ entered ~09:40-11:00)",
-        "materialize_rule": {"type": "underlying_vwap_stop", "buffer_pct": 0.1},
+        "materialize_rule": {
+          "type": "underlying_vwap_stop",
+          "buffer_pct": 0.1
+        },
         "note": "USER 8/4 'trailing stop for morning entries on indices'. Trend-trailing stop: hold while the index holds the right side of VWAP (0.1% buffer); exit marketable on a VWAP break. VWAP rises through an uptrend so the stop trails the trend and does NOT cap upside like the fixed +50% target - lets a morning index runner ride the whole move. Composes with green_lock (lock +8% once peak +20%), give-back trail, and the HARD 15:00 index close. Add {type:underlying_vwap_stop,buffer_pct:0.1} to the scalp's exit_rules at entry."
       },
       "hard_exit_et": "15:15",
@@ -178,8 +254,12 @@
       "exit_time_discipline": "HARD (user 8/4 'hard on exit time ... always close before best target time for indexes'). INDEX positions (SPY/QQQ) MUST be flat by index_hard_close_et 15:00 - non-discretionary buffer BEFORE the 15:15 backstop; never ride to the deadline (late-day gamma/pin/theta risk). Non-index 0dte: hard-exit 15:15. No ratchet-keep discretion for indexes into the close.",
       "profit_max": {
         "runner": true,
-        "giveback": {"arm_gain_pct": 40, "peak_frac": 0.30},
-        "scale_out_frac": 0.5, "scale_out_at_pct": 60,
+        "giveback": {
+          "arm_gain_pct": 40,
+          "peak_frac": 0.3
+        },
+        "scale_out_frac": 0.5,
+        "scale_out_at_pct": 60,
         "exit_mech": "marketable_through_bid",
         "note": "Fastest clock: trail tight (lock 70% of peak), price/gamma only. Runner = do NOT hard-cap at +50%; let it run and trail. QQQ 8/4 lesson. Exit time is HARD - indexes close by 15:00."
       }
@@ -188,12 +268,19 @@
       "target_pct": 50,
       "stop_pct": -30,
       "ratchet_pct": 25,
-      "green_lock": {"arm_pct": 20, "floor_pct": 5},
+      "green_lock": {
+        "arm_pct": 20,
+        "floor_pct": 5
+      },
       "flatten_et": "15:45",
       "profit_max": {
         "runner": true,
-        "giveback": {"arm_gain_pct": 50, "peak_frac": 0.40},
-        "scale_out_frac": 0.5, "scale_out_at_pct": 75,
+        "giveback": {
+          "arm_gain_pct": 50,
+          "peak_frac": 0.4
+        },
+        "scale_out_frac": 0.5,
+        "scale_out_at_pct": 75,
         "exit_mech": "marketable_through_bid",
         "note": "1-5 DTE: medium trail (lock 60% of peak), let it breathe more than 0DTE. Price + VWAP structure."
       }
@@ -202,14 +289,29 @@
       "target_pct": 50,
       "stop_pct": -30,
       "ratchet_pct": 25,
-      "green_lock": {"arm_pct": 30, "floor_pct": 10},
+      "green_lock": {
+        "arm_pct": 30,
+        "floor_pct": 10
+      },
       "time_stop": {
         "days_before_expiry": 14
       },
       "profit_max": {
         "runner": true,
-        "giveback": {"arm_gain_pct": 60, "peak_frac": 0.50},
-        "scale_out_tiers": [{"at_pct": 75, "frac": 0.33}, {"at_pct": 150, "frac": 0.5}],
+        "giveback": {
+          "arm_gain_pct": 60,
+          "peak_frac": 0.5
+        },
+        "scale_out_tiers": [
+          {
+            "at_pct": 75,
+            "frac": 0.33
+          },
+          {
+            "at_pct": 150,
+            "frac": 0.5
+          }
+        ],
         "exit_mech": "limit_at_bid",
         "ta_fundamental_gate": "Weekly horizon: give the runner the MOST room (lock 50% of peak) BUT keep holding ONLY while BOTH hold: (TA) daily trend intact - price > rising MA20 / making higher-highs, no daily reversal candle on volume; (FUNDAMENTAL) growth thesis intact - no earnings miss / guidance cut / negative catalyst. If TA breaks OR fundamentals deteriorate, exit regardless of the give-back %. Trail the stop under the prior daily swing-low.",
         "enforcement": "HARD (user 8/4 'hard on ... swing rails'). Give-back trail, swing-low stop, and the TA+fundamental gate are non-discretionary - a break exits, no 'give it one more day'. Also hard: exit >= 1 trading day before expiry (no expiry-week theta cliff on swings).",
@@ -219,10 +321,16 @@
     "swing_overnight": {
       "stop_pct": -30,
       "ratchet_pct": 25,
-      "green_lock": {"arm_pct": 20, "floor_pct": 8},
+      "green_lock": {
+        "arm_pct": 20,
+        "floor_pct": 8
+      },
       "profit_max": {
         "runner": true,
-        "giveback": {"arm_gain_pct": 50, "peak_frac": 0.45},
+        "giveback": {
+          "arm_gain_pct": 50,
+          "peak_frac": 0.45
+        },
         "exit_mech": "marketable_through_bid",
         "note": "1-2 day carry (e.g. INTC overnight): lock 55% of peak, tighter than swing due to gap + 0DTE-tomorrow theta risk."
       }
@@ -234,9 +342,9 @@
     "authorized_by": "user 8/4 13:45 ET - 'build both ... for current session'",
     "engine_ref": "supertrades/engine/reporter.py GUARDRAILS (single gate) + tests/test_engine.py::TestVolAwareAndConcentrationV42",
     "vol_aware_pricing": {
-      "iv_soft_cap": 0.90,
-      "iv_hard_cap": 2.50,
-      "iv_rank_soft_cap": 0.80,
+      "iv_soft_cap": 0.9,
+      "iv_hard_cap": 2.5,
+      "iv_rank_soft_cap": 0.8,
       "note": "IV > soft cap (or iv_rank top-20%) -> FLAG 'overpaying for vol'; prefer a DEBIT SPREAD (sell a higher strike to fund the long, cutting theta) over a naked call; engine de-ranks it vs any lower-IV eligible pick. IV > hard cap -> block (uninvestable premium). Applies to future entries only."
     },
     "short_dte_concentration": {
@@ -245,7 +353,9 @@
       "note": "Hand-placed (manual/agentic) entry with <5 DTE: contract cost must be <= 35% of settled BP. This is the FLOOR UNDER OVERRIDES - it binds even when daily-2 / midday / min_dte are overridden by hand. Engine auto path stays capped tighter at per_trade_bp_frac 0.22. Helper: reporter.short_dte_override_max_usd(bp)."
     },
     "grandfathered": {
-      "positions": ["intc-102c-0805"],
+      "positions": [
+        "intc-102c-0805"
+      ],
       "note": "INTC 8/5 102C (1-DTE, IV ~122%, ~49% BP) predates these rails and would breach both. Per user 'leave open and rails in line for exit' it is NOT force-closed - it keeps its existing exit_rules + overnight_swing_gate. New rails govern the NEXT entry, not this open one."
     }
   },
@@ -286,14 +396,18 @@
     "day_pct": {
       "SPY": 0.68,
       "QQQ": 1.84,
-      "IWM": 0.70,
+      "IWM": 0.7,
       "NVDA": 1.43,
       "AMD": 4.89,
       "INTC": 6.48,
       "TSLA": 0.04,
       "META": -0.87
     },
-    "crossed_2pct": ["QQQ", "AMD", "INTC"],
+    "crossed_2pct": [
+      "QQQ",
+      "AMD",
+      "INTC"
+    ],
     "note": "09:56 ET 8/4: broad RISK-ON, tech/semis lead (QQQ +1.84, INTC +6.5, AMD +4.9, NVDA +1.4). SPY +0.68, IWM +0.70. META -0.9 + TSLA flat lag. QQQ strongly GREEN -> negative-gamma downside GEX gate NOT armed (no index 0DTE fade). Semis already extended (+5-6% gaps) - chasing = day-1/day-3 mistake the v4 governor blocks. Agentic FLAT, BP 541. No entry yet; wait for 9:40+ pullback-with-confirmation, not a gap-chase."
   },
   "gex_map": {},
@@ -315,7 +429,7 @@
         "AMD": 4.89,
         "NVDA": 1.43,
         "QQQ": 1.84,
-        "IWM": 0.70,
+        "IWM": 0.7,
         "SPY": 0.68
       },
       "down": {
@@ -339,6 +453,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T22:05Z",
+      "event": "build",
+      "detail": "v4.9 GREEKS/IV/RVOL ENTRIES + EXPECTED-MOVE EXITS (user: '43% win rate + high stop for only 50% target is thin; use gamma/delta/IV and RVOL'). candidate_entry now surfaces gamma+underlying_last+rvol. reporter.conviction_score ranks entries by delta(win-prob)+RVOL(volume)+momentum+VWAP+IV-fit -> stronger setups -> higher base win rate. nodes.expected_move_exits derives REACHABLE target + vol-appropriate stop from IV+greeks (EM=spot*IV*sqrt(hold/252), opt move ~ delta*EM+0.5*gamma*EM^2), replacing arbitrary flat -30/+50; feeds progressive_stop initial + scale-out target. +6 tests, 87/87, selftest 24/0. v4.8->v4.9."
+    },
     {
       "t": "2026-08-04T21:35Z",
       "event": "build",
@@ -507,7 +626,7 @@
     {
       "t": "2026-07-23T14:01Z",
       "event": "watchlist_prune",
-      "detail": "Standing rule added (rulebook \u00a76): loop+prune watchlist every cycle. Removed DIS 8/21 110C (stopped out same-day, deep OTM delta 0.086, DIS red) from state + RH watchlist ef1b61ef. Remaining: RIVN 8/7 19C (delta 0.34), NVDA 7/31 225C (delta 0.17, on-watch), XLE 7/31 62C (energy theme, armed)."
+      "detail": "Standing rule added (rulebook §6): loop+prune watchlist every cycle. Removed DIS 8/21 110C (stopped out same-day, deep OTM delta 0.086, DIS red) from state + RH watchlist ef1b61ef. Remaining: RIVN 8/7 19C (delta 0.34), NVDA 7/31 225C (delta 0.17, on-watch), XLE 7/31 62C (energy theme, armed)."
     },
     {
       "t": "2026-07-23T14:00Z",
@@ -537,12 +656,12 @@
     {
       "t": "2026-07-21T17:12Z",
       "event": "fill",
-      "detail": "QQQ 713c 0DTE sold by user @ 0.07 (-$4); day realized -$6; churn threshold hit (4 round-trips, ~spread cost est. $8-10 today) \u2014 DND: logged, not pushed"
+      "detail": "QQQ 713c 0DTE sold by user @ 0.07 (-$4); day realized -$6; churn threshold hit (4 round-trips, ~spread cost est. $8-10 today) — DND: logged, not pushed"
     },
     {
       "t": "2026-07-21T19:11Z",
       "event": "fill",
-      "detail": "FIRST AGENTIC EXECUTION: RIVN 7/24 19c stop (breached -36% during session-restart outage) sold @ 0.07 limit-at-bid, filled instantly (-$4, order 6a5fc460, placed_agent=agentic). Day realized -$10. Agentic acct FLAT. IREN put swung +55% to 0.21 (IREN selling off) \u2014 salvage improved, alert-only."
+      "detail": "FIRST AGENTIC EXECUTION: RIVN 7/24 19c stop (breached -36% during session-restart outage) sold @ 0.07 limit-at-bid, filled instantly (-$4, order 6a5fc460, placed_agent=agentic). Day realized -$10. Agentic acct FLAT. IREN put swung +55% to 0.21 (IREN selling off) — salvage improved, alert-only."
     },
     {
       "t": "2026-07-21T20:02Z",

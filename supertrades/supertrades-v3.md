@@ -303,7 +303,24 @@ and gives big runners progressively looser room. It **replaces** the old stop + 
 loose-trail stack in `materialize_exit_rules` (one equation, fewer parts). The barbell adds
 scale-out at target + a strict 0.20 moonshot trail on the runner remainder.
 
+## 10. Greek/IV/RVOL entries + expected-move exits (v4.9)
+Flat +50/−30 is arbitrary — it ignores what the option can do. Now the greeks drive both ends:
+- **Entry quality (`reporter.conviction_score`)** ranks eligible candidates by
+  `0.35·delta + 0.30·RVOL + 0.20·momentum + 0.10·above-VWAP + 0.05·IV-fit` — delta is the
+  win-probability proxy, RVOL the volume conviction — so the *strongest* setup is picked, lifting
+  the base win rate. `candidate_entry` surfaces gamma, spot, and RVOL for this.
+- **Exits (`nodes.expected_move_exits`)** derive the target/stop from IV + greeks:
+  `EM = spot·IV·√(hold/252)`, option move `≈ delta·EM + ½·gamma·EM²`. The scale-out **target is a
+  reachable 0.35σ fraction** (low-IV → a nearer target you hit often → higher win rate; high-IV →
+  wider), and the **initial stop is a vol-scaled 0.4σ**, clamped to sane bounds — e.g. SPY 0DTE
+  (IV 12%) → +57%/−45%, INTC 1-DTE (IV 125%) → +39%/−45%. These feed the `progressive_stop`
+  initial and the scale-out target; it falls back to flat when greeks are missing. The
+  σ/hold knobs are evolution hypotheses tuned toward the objective score.
+
 ## Changelog
+- v4.9 (2026-08-04): GREEK/IV/RVOL ENTRIES + EXPECTED-MOVE EXITS. `conviction_score` ranks entries
+  by delta + RVOL + momentum + VWAP + IV-fit; `expected_move_exits` sets a reachable target and a
+  vol-appropriate stop from IV/delta/gamma, replacing the arbitrary flat +50/−30. +6 tests; 87/87.
 - v4.8 (2026-08-04): OBJECTIVE + PROGRESSIVE-STOP EQUATION. `evolution.max_drawdown_usd` +
   `score_objective` (win-rate/success heavy, drawdown penalized) give the evolution loop a single
   north-star score. `nodes.progressive_stop_pct` is one ratcheting-stop equation (breakeven by

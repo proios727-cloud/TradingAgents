@@ -79,13 +79,17 @@ def option_quotes(results: list) -> dict:
 def assemble_snapshot(state: dict, *, et_time: str, weekday: bool, bp: float,
                       equity_results: list, option_results: list,
                       vwap: dict | None = None, gex: dict | None = None,
-                      prior: dict | None = None) -> dict:
+                      prior: dict | None = None, rvol: dict | None = None) -> dict:
     """Shape live MCP data into the snapshot run_one_cycle consumes.
 
     Account discipline fields (day_realized, entries used, halted) come from state.day
     — the same ledger the loop maintains — so the engine's caps/halt see live counts.
     """
     day = state.get("day", {})
+    quotes = equity_quotes(equity_results)
+    for sym, rv in (rvol or {}).items():           # rvol = today vol / avg daily vol (conviction)
+        if sym in quotes:
+            quotes[sym]["rvol"] = rv
     return {
         "asof_utc": "LIVE", "et_time": et_time, "weekday": weekday,
         "account": {"bp": bp,
@@ -94,7 +98,7 @@ def assemble_snapshot(state: dict, *, et_time: str, weekday: bool, bp: float,
                     "manual_entries_today": day.get("manual_entries_today", 0),
                     "manual_round_trips": day.get("manual_round_trips", 0),
                     "halted": day.get("halted", False)},
-        "quotes": equity_quotes(equity_results),
+        "quotes": quotes,
         "option_quotes": option_quotes(option_results),
         "positions": state.get("positions", {}),
         "candidates": state.get("watchlist", []),

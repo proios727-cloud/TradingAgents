@@ -14,7 +14,8 @@ Snapshot schema (written by the loop's fetch step, see README):
   "asof_utc": str, "et_time": "HH:MM", "weekday": bool,
   "account": {"bp": float, "day_realized": float, "auto_entries_used": int,
                "manual_round_trips": int, "halted": bool},
-  "quotes": {SYM: {"last": float, "prev_close": float, "day_pct": float}},
+  "quotes": {SYM: {"last": float, "prev_close": float, "day_pct": float, "rvol": float}},
+                 # rvol = today's volume / avg daily volume (conviction); optional
   "option_quotes": {ID: {"mark","bid","ask","delta","gamma","oi","volume","spread_pct",
                          "iv","iv_rank"}},   # iv = implied_volatility (abs); iv_rank optional 0-1
   "positions": {ID: {...state.json position fields...}},
@@ -45,6 +46,37 @@ def progressive_stop_pct(peak_pct: float, base: float = 3.25, slope: float = 0.3
     if peak_pct <= 0:
         return initial
     return round(max(initial, peak_pct - (base + slope * peak_pct)), 2)
+
+
+def expected_move_exits(entry: float, *, iv: float, delta: float, spot: float,
+                        dte: float, gamma: float = 0.0, hold_days: float = 0.3,
+                        target_sigma: float = 0.35, stop_sigma: float = 0.4) -> dict:
+    """Vol-appropriate target/stop (% P&L) from IV + greeks, instead of a flat +50/-30.
+
+    EM = spot*IV*sqrt(horizon/252) is the ~1-sigma underlying move over the intraday HOLD
+    horizon (a scalp holds hours, not to expiry — capped by DTE). The option moves
+    ~ delta*EM + 0.5*gamma*EM^2 for that (gamma convexity favors the runner). Target is a
+    reachable sigma-fraction of that move (low-IV name -> nearer target you can hit -> higher
+    win rate; high-IV -> wider), the stop a smaller fraction. Clamped to sane bounds and
+    falling back to flat +50/-30 when greeks are missing, so it never returns nonsense. The
+    sigma / hold_days knobs are evolution hypotheses, tuned toward the objective score.
+    """
+    if not (entry and spot and iv and delta):
+        return {"target_pct": 50.0, "stop_pct": -30.0, "basis": "flat_fallback"}
+    horizon = min(hold_days, max(dte, 0.15))         # scalp hold, never past ~0DTE session
+    em_und = spot * iv * (horizon / 252.0) ** 0.5
+    opt_move = abs(delta) * em_und + 0.5 * gamma * em_und ** 2
+    if opt_move <= 0:
+        return {"target_pct": 50.0, "stop_pct": -30.0, "basis": "flat_fallback"}
+    tp = min(max(target_sigma * opt_move / entry * 100, 15.0), 200.0)   # reachable, bounded
+    sp = min(max(-stop_sigma * opt_move / entry * 100, -45.0), -8.0)    # vol-scaled, bounded
+    return {
+        "target_pct": round(tp, 1),
+        "stop_pct": round(sp, 1),
+        "expected_underlying_move": round(em_und, 2),
+        "expected_option_move": round(opt_move, 2),
+        "basis": f"IV {iv:.0%} · d{delta:.2f} · {target_sigma}s/{stop_sigma}s hold {horizon:.1f}d",
+    }
 
 
 async def ticker_signal(payload: dict, snapshot: dict) -> dict:
@@ -199,9 +231,10 @@ async def candidate_entry(payload: dict, snapshot: dict) -> dict:
         return {"id": cid, "symbol": sym, "missing": True}
     q = snapshot["quotes"].get(sym, {})
     return {"id": cid, "symbol": sym, "contract": payload.get("contract", cid),
-            "ask": oq["ask"], "delta": oq.get("delta"), "oi": oq.get("oi"),
-            "spread_pct": oq.get("spread_pct"),
+            "ask": oq["ask"], "delta": oq.get("delta"), "gamma": oq.get("gamma"),
+            "oi": oq.get("oi"), "spread_pct": oq.get("spread_pct"),
             "iv": oq.get("iv"), "iv_rank": oq.get("iv_rank"),
+            "underlying_last": q.get("last"), "rvol": q.get("rvol"),
             "underlying_day_pct": q.get("day_pct"),
             "above_vwap": (None if snapshot.get("vwap", {}).get(sym) is None
                             else q.get("last", 0) > snapshot["vwap"][sym]),
