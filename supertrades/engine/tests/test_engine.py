@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 
 from supertrades.engine import nodes as nodes_mod
+from supertrades.engine import ops
 from supertrades.engine.discovery import build_nodes, expected_node_count, gex_underlyings
 from supertrades.engine.orchestrator import Node, Orchestrator
 from supertrades.engine.reporter import (AGENTIC_ACCT, GUARDRAILS, MARGIN_ACCT,
@@ -320,6 +321,65 @@ class TestDisciplineGovernorV4(unittest.TestCase):
         self.assertEqual(d["round_trip_brake"], 3)
         self.assertEqual(d["quality_floor"]["delta_min"], 0.35)
         self.assertEqual(d["quality_floor"]["min_dte"], 5)
+
+
+class TestReliableOpsV4(unittest.TestCase):
+    """v4 Layer 2: deterministic clock/flatten/staleness so no cycle silently misses."""
+
+    def test_clock_phase(self):
+        self.assertEqual(ops.clock_phase("08:00"), "closed")
+        self.assertEqual(ops.clock_phase("09:15"), "premarket")
+        self.assertEqual(ops.clock_phase("10:00"), "core")
+        self.assertEqual(ops.clock_phase("12:30"), "midday")
+        self.assertEqual(ops.clock_phase("15:30"), "power_hour")
+        self.assertEqual(ops.clock_phase("16:30"), "closed")
+        self.assertEqual(ops.clock_phase("10:00", weekday=False), "closed")
+
+    def test_rollover_due(self):
+        self.assertTrue(ops.rollover_due("2026-07-24", "2026-07-27"))
+        self.assertFalse(ops.rollover_due("2026-07-27", "2026-07-27"))
+
+    def test_flatten_due_catches_daytrade_and_0dte(self):
+        s = load_state()
+        s["positions"] = {
+            "dt": {"account": AGENTIC_ACCT, "class": "day_trade", "ratchet_engaged": False},
+            "od": {"account": AGENTIC_ACCT, "class": "0dte_scalp", "ratchet_engaged": False},
+            "rt": {"account": AGENTIC_ACCT, "class": "day_trade", "ratchet_engaged": True},
+            "mg": {"account": MARGIN_ACCT, "class": "alert_only", "ratchet_engaged": False},
+        }
+        self.assertEqual(ops.flatten_due(s, "15:00"), [])              # before any stop
+        self.assertEqual(set(ops.flatten_due(s, "15:20")), {"od"})     # 0dte hard-exit 15:15
+        self.assertEqual(set(ops.flatten_due(s, "15:50")), {"od", "dt"})  # + day-trade 15:45
+        self.assertNotIn("rt", ops.flatten_due(s, "15:50"))           # ratchet engaged -> hold
+        self.assertNotIn("mg", ops.flatten_due(s, "15:50"))           # margin never flattened
+
+    def test_stale(self):
+        self.assertTrue(ops.stale("2026-07-27T14:00:00Z", "2026-07-27T14:25:00Z"))
+        self.assertFalse(ops.stale("2026-07-27T14:00:00Z", "2026-07-27T14:05:00Z"))
+        self.assertTrue(ops.stale(None, "2026-07-27T14:00:00Z"))
+
+    def test_cycle_intent_closed_is_noop(self):
+        s = load_state()
+        it = ops.cycle_intent("07:00", True, s["trading_date"], "2026-07-27", s)
+        self.assertEqual(it["actions"], ["no_op"])
+
+    def test_cycle_intent_premarket_rollover(self):
+        s = load_state()
+        it = ops.cycle_intent("09:10", True, "2026-07-24", "2026-07-27", s)
+        self.assertIn("rollover", it["actions"])
+        self.assertIn("build_premarket_plan", it["actions"])
+        self.assertIn("run_cycle", it["actions"])
+
+    def test_cycle_intent_flags_flatten_and_stale(self):
+        s = load_state()
+        s["positions"] = {"dt": {"account": AGENTIC_ACCT, "class": "day_trade",
+                                 "ratchet_engaged": False}}
+        it = ops.cycle_intent("15:50", True, "2026-07-27", "2026-07-27", s,
+                              updated_at="2026-07-27T15:00:00Z",
+                              now="2026-07-27T19:50:00Z")
+        self.assertIn("flatten", it["actions"])
+        self.assertEqual(it["flatten_ids"], ["dt"])
+        self.assertIn("reconcile_broker", it["actions"])
 
 
 if __name__ == "__main__":

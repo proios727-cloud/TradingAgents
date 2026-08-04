@@ -147,9 +147,19 @@
   set trading_date. Then run the premarket plan if before 9:40 ET, else
   proceed straight to the normal cycle. Additionally, prune prior_cycle keys
   for any position the moment it closes intraday.
-- Resilience: hourly heartbeat Routine re-arms the cron from this file if the
-  session restarted (cadence/mode from state.mode; failure-path push per the
-  rebuild procedure above).
+- Resilience (v4 Layer 2 — reliable ops): the self-scheduling wakeup is NOT trusted
+  as the sole timer (it stalled repeatedly on 7/23–7/24 and carried a day-trade over
+  the weekend by missing its 3:45 flatten). Instead:
+  (a) **Concentrated cron** fires the loop at the hours that matter — premarket 8/9 ET,
+      the 9:40 entry window, 10/11 ET, 1 PM, and 6 PM — plus a **dedicated 3:44 PM ET
+      flatten trigger** so a day-trade close can never be missed by a stalled tick.
+  (b) **Every fire computes the same `engine/ops.cycle_intent(...)`** — a deterministic
+      decision on what THIS cycle MUST do (no-op / rollover / premarket plan / flatten /
+      reconcile / run) from the ET clock + state, so no source can skip a required action.
+  (c) **A stale state (>20 min in-hours) forces a full broker reconcile**, never a bare
+      selftest — the mistake that let 3 user positions go untracked for hours on 7/23.
+  Heartbeats still re-arm the cron from this file after a restart (cadence/mode from
+  state.mode; failure-path push per the rebuild procedure above).
 - Delivery: BOTH pages in state.json `pages` (console + index desk) are
   maintained per its publish_rule (edit repo file, publish with file_path AND
   stored url). The index desk's alert feed accumulates every DND-muted alert.
