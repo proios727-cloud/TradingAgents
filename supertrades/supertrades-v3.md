@@ -287,7 +287,28 @@ open hypotheses forward, so small gains compound. `engine/evolution.py` (pure, t
 The loop only *measures and suggests* here; every threshold stays enforced in the single gate
 (`reporter.py`), and every applied tweak is a logged, reversible edit.
 
+## 9. Objective + the progressive-stop equation (v4.8)
+**North star (heavily weighted): success + win rate, with minimal drawdown.**
+`evolution.score_objective` = `0.45·win_rate·100 + 0.30·expectancy_$ − 0.25·|max_drawdown_$|`
+— a tuning is kept only if it raises the score, so you never buy win rate or profit *with*
+drawdown. `max_drawdown_usd` walks the realized-P&L curve (peak-to-trough). The win-rate-vs-
+big-wins tension resolves to **expectancy**: lift win rate via green-lock / scale-out *without*
+shrinking winners, and let the drawdown penalty keep risk honest.
+
+**One ratcheting-stop equation** (`nodes.progressive_stop_pct`, minimal-DD): give-back room
+`R(g) = base + slope·g` grows with the peak gain `g`, and the stop rides at `g − R(g)`, floored
+at the initial −30%. Tuned (`base=3.25, slope=0.35`) so — once green — the stop ratchets up
+immediately, reaches **≈breakeven by +5%** (the "significant move"), then locks a growing green
+and gives big runners progressively looser room. It **replaces** the old stop + green-lock +
+loose-trail stack in `materialize_exit_rules` (one equation, fewer parts). The barbell adds
+scale-out at target + a strict 0.20 moonshot trail on the runner remainder.
+
 ## Changelog
+- v4.8 (2026-08-04): OBJECTIVE + PROGRESSIVE-STOP EQUATION. `evolution.max_drawdown_usd` +
+  `score_objective` (win-rate/success heavy, drawdown penalized) give the evolution loop a single
+  north-star score. `nodes.progressive_stop_pct` is one ratcheting-stop equation (breakeven by
+  ~+5%, tight small-green → looser big-runner) that replaces the stop+green-lock+trail stack in
+  materialization. +6 tests; suite 83/83.
 - v4.7 (2026-08-04): EVOLUTION LOOP — continuous self-tuning. `engine/evolution.py`
   (`recompute_performance` auto-updates the performance block from a structured `state.trades`
   ledger; `reflect` surfaces deterministic, `auto_safe`-tagged improvement candidates each EOD).

@@ -134,26 +134,25 @@ def materialize_exit_rules(class_name: str, qty: int, class_defaults: dict,
     Index scalps additionally get the VWAP trend-trail.
     """
     cd = class_defaults.get(class_name, {})
-    pm = cd.get("profit_max", {})
-    gl = cd.get("green_lock", {"arm_pct": 20, "floor_pct": 5})
+    # ONE ratcheting-stop equation covers the whole life (initial stop -> ~breakeven by +5%
+    # -> locks growing green -> looser room for big runners), replacing the old
+    # stop + green_lock + loose-trail stack. Minimal drawdown, fewer moving parts.
     rules: list[dict] = [
-        {"type": "stop", "pct": cd.get("stop_pct", -30), "mech": "sell_limit_at_bid"},
-        {"type": "green_lock", "arm_pct": gl["arm_pct"], "floor_pct": gl["floor_pct"]},
+        {"type": "progressive_stop", "base": 3.25, "slope": 0.35,
+         "initial_pct": cd.get("stop_pct", -30), "mech": "sell_marketable_through_bid"},
     ]
     barbell = qty >= GUARDRAILS["barbell_min_lots"]
     if barbell:
-        # leg A: bank half at target (day lock). leg B: strict moonshot trail on the rest.
+        # leg A: bank half at target (locks the day). leg B: strict moonshot trail tightens
+        # the remainder beyond the progressive stop once it's a big winner.
         rules.append({"type": "target", "pct": cd.get("target_pct", 50),
                       "scale_out_frac": 0.5, "mech": "scale_out_lock_day"})
         rules.append({"type": "giveback", "arm_gain_pct": 100, "peak_frac": 0.20,
                       "mech": "strict_moonshot_trail"})
     else:
-        # single lot: runner that doesn't cap, loose give-back + never-red underneath
+        # single lot: runner that doesn't cap at target; the progressive stop is the trail.
         rules.append({"type": "target", "pct": cd.get("target_pct", 50),
                       "runner": True, "mech": "hold_runner_trail_no_cap"})
-        gb = pm.get("giveback", {"arm_gain_pct": 50, "peak_frac": 0.40})
-        rules.append({"type": "giveback", "arm_gain_pct": gb["arm_gain_pct"],
-                      "peak_frac": gb["peak_frac"], "mech": "sell_marketable_through_bid"})
     if is_index and class_name == "0dte_scalp":
         trail = cd.get("am_index_trail", {}).get("materialize_rule",
                                                  {"type": "underlying_vwap_stop", "buffer_pct": 0.1})
@@ -238,7 +237,8 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
                 actions["exits"].append(
                     {"id": ex["id"], "contract": ex["contract"], "qty": qty,
                      "order": "sell_limit_at_bid", "why": f"give-back trail: {trip['detail']}"})
-            elif rule in ("stop", "ratchet_stop", "green_lock", "underlying_vwap_stop"):
+            elif rule in ("stop", "ratchet_stop", "green_lock", "underlying_vwap_stop",
+                          "progressive_stop"):
                 actions["exits"].append(
                     {"id": ex["id"], "contract": ex["contract"], "qty": qty,
                      "order": "sell_limit_at_bid", "why": f"{rule}: {trip['detail']}"})

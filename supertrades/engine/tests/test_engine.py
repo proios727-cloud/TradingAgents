@@ -610,7 +610,7 @@ class TestSizingAndMaterializeV45(unittest.TestCase):
         cd = load_state()["class_defaults"]
         rules = materialize_exit_rules("day_trade", 1, cd)
         types = {r["type"] for r in rules}
-        self.assertEqual(types, {"stop", "green_lock", "target", "giveback"})
+        self.assertEqual(types, {"progressive_stop", "target"})   # one stop equation + runner
         target = next(r for r in rules if r["type"] == "target")
         self.assertTrue(target.get("runner"))
         self.assertNotIn("scale_out_frac", target)
@@ -743,6 +743,26 @@ class TestEvolutionV47(unittest.TestCase):
         wr = next((s for s in sugg if s["area"] == "win_rate"), None)
         self.assertTrue(wr is None or wr["auto_safe"] is False)
 
+    def test_max_drawdown_walks_the_equity_curve(self):
+        # losses first (-4,-4,-27,-56) sink equity to -91 before the wins recover it
+        self.assertEqual(evolution.max_drawdown_usd(self.LEDGER), -91.0)
+        # a book that only climbs has zero drawdown
+        self.assertEqual(evolution.max_drawdown_usd(
+            [{"pnl_usd": 10}, {"pnl_usd": 20}]), 0.0)
+
+    def test_objective_weights_win_rate_success_and_penalizes_dd(self):
+        perf = evolution.recompute_performance(self.LEDGER)
+        mdd = evolution.max_drawdown_usd(self.LEDGER)
+        score = evolution.score_objective(perf, mdd)
+        # 0.45*43 + 0.30*0.29 - 0.25*91 = 19.35 + 0.087 - 22.75 ~= -3.31
+        self.assertAlmostEqual(score, -3.31, places=1)
+        # same win rate + expectancy but a shallower drawdown MUST score higher
+        better = evolution.score_objective(perf, -20.0)
+        self.assertGreater(better, score)
+        # and lifting win rate (nothing else changed) MUST score higher
+        lifted = evolution.score_objective({**perf, "win_rate": 0.70}, mdd)
+        self.assertGreater(lifted, score)
+
     def test_reflect_clean_book_is_quiet(self):
         clean = [{"contract": "A", "pnl_usd": 50, "pct": 55, "peak_pct": 60, "result": "win"},
                  {"contract": "B", "pnl_usd": 40, "pct": 50, "peak_pct": 52, "result": "win"}]
@@ -755,6 +775,46 @@ class TestEvolutionV47(unittest.TestCase):
             p = evolution.recompute_performance(state["trades"])
             self.assertEqual(state["performance"]["win_rate"], p["win_rate"])
             self.assertEqual(state["performance"]["trades_closed"], p["trades_closed"])
+
+
+class TestProgressiveStopV48(unittest.TestCase):
+    """v4.8: one ratcheting-stop equation — tight when small-green, loose for big runners."""
+
+    def test_equation_curve(self):
+        from supertrades.engine.nodes import progressive_stop_pct as ps
+        self.assertEqual(ps(0), -30.0)            # not green -> initial stop
+        self.assertEqual(ps(-5), -30.0)           # red -> initial stop
+        self.assertAlmostEqual(ps(5), 0.0, places=1)     # breakeven by ~+5% (the "significant move")
+        self.assertGreater(ps(20), 0)             # locks green past +20%
+        self.assertGreater(ps(100), ps(20))       # monotone up with the peak
+        # big runners get looser room (lock a smaller *fraction* than small greens)... but always higher $
+        self.assertGreater(ps(200), 100)
+
+    def _run(self, entry, hwm, mark, bid):
+        state = copy.deepcopy(load_state())
+        state["positions"] = {"p": {"contract": "INTC 8/5 $102C", "account": AGENTIC_ACCT,
+                                    "qty": 1, "entry": entry, "hwm": hwm, "ratchet_engaged": False,
+                                    "class": "day_trade", "expiry": "2026-08-05",
+                                    "exit_rules": [{"type": "progressive_stop"}]}}
+        state["watchlist"] = []
+        snap = synthetic_snapshot(state, et_time="10:15", bp=500.0)
+        snap["option_quotes"]["p"].update({"mark": mark, "bid": bid})
+        return [e for e in run(state, snap)["actions"]["exits"] if e["id"] == "p"]
+
+    def test_small_green_that_reverses_exits_near_breakeven_not_at_minus30(self):
+        # peaked +5% (2.09), fell back to breakeven-ish -> progressive stop fires (was -30% before)
+        ex = self._run(1.99, 2.09, 1.98, 1.97)
+        self.assertTrue(ex and ex[0]["order"] == "sell_limit_at_bid")
+        self.assertIn("progressive_stop", ex[0]["why"])
+
+    def test_still_green_and_climbing_holds(self):
+        # peaked +18%, only pulled to +12% -> above the ratcheted stop, keep holding
+        self.assertFalse(self._run(1.99, 2.35, 2.23, 2.21))
+
+    def test_materialized_ladder_is_lean(self):
+        cd = load_state()["class_defaults"]
+        self.assertEqual({r["type"] for r in materialize_exit_rules("day_trade", 1, cd)},
+                         {"progressive_stop", "target"})
 
 
 class TestReliableOpsV4(unittest.TestCase):

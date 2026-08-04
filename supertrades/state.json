@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T21:15:00Z",
+  "updated_at": "2026-08-04T21:35:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -60,6 +60,14 @@
     "read": "8/4 all 3 GREEN (+48/+36/+9). INTC's +9 was cut short by a competing session's hard-exit (would've been ~+35 as a runner) - a CONTRADICTION, not a strategy failure. Wins are clean; earlier edge was erased by 2 oversized losses (NVDA -55%, DIS -42%). Levers: green_lock, cap loss size (marketable stops, no gap), keep runner upside. Goal = raise win rate WITHOUT shrinking winners. Single-executor discipline matters as much as the rails.",
     "recompute": "AUTO via engine/evolution.py::recompute_performance(state.trades) on each close (v4.7)."
   },
+  "objective": {
+    "north_star": "user 8/4: heavily weight SUCCESS + WIN RATE, with MINIMAL DRAWDOWN. The evolution loop tunes toward this; a tweak is kept only if it raises the score.",
+    "equation": "score = 0.45*win_rate*100 + 0.30*expectancy_$ - 0.25*|max_drawdown_$|  (engine/evolution.py::score_objective; weights in OBJECTIVE_WEIGHTS)",
+    "resolves_the_tension": "win rate and big wins can conflict; the answer is EXPECTANCY (win_rate x avg_win - loss_rate x avg_loss) raised via green-lock/scale-out WITHOUT shrinking winners, while drawdown is a heavy penalty so you never buy win rate or profit with DD.",
+    "current": {"win_rate": 0.43, "expectancy_per_trade_usd": 0.29, "max_drawdown_usd": -91.0, "score": -3.31},
+    "read": "score is negative because the -$91 cumulative drawdown (4 early losses before the wins) dominates. Priority: cut drawdown (marketable stops, the progressive-stop ratchet, no oversized losses) AND lift win rate (green-lock / scale-out) - both push the score up.",
+    "min_dd_mechanisms": "progressive_stop equation (ratchets the stop up once green, ~breakeven by +5%), never-red floor, -$60 daily halt, short-DTE + per-trade concentration caps, no single-name overnight gap."
+  },
   "trades": [
     {"date": "2026-07-21", "contract": "RIVN 7/24 $19C", "pnl_usd": -4, "pct": -6, "result": "loss", "note": "stop during session-restart outage"},
     {"date": "2026-07-21", "contract": "QQQ 7/21 $713C", "pnl_usd": -4, "pct": -6, "result": "loss", "note": "0DTE stop"},
@@ -95,7 +103,7 @@
     "engine": "BUILT v4.5: reporter.size_order() fills the per-trade cap with up to 3 lots (same risk envelope, enables scale-out); reporter.materialize_exit_rules() auto-stamps leg-A scale-out + leg-B strict giveback (0.20) on any >=2-lot entry (single lot -> never-red runner), index scalps get the VWAP trail. Wired into the entry action (qty + exit_rules). Small live BP (~$200) usually resolves to 1 lot until cheaper contracts / more BP."
   },
   "trading_date": "2026-08-04",
-  "rule_version": "v4.7",
+  "rule_version": "v4.8",
   "mode": {
     "cadence_min": 30,
     "dnd": true,
@@ -331,6 +339,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T21:35Z",
+      "event": "build",
+      "detail": "v4.8 OBJECTIVE + PROGRESSIVE-STOP EQUATION (user: 'add success and win rate heavily weighted with minimal DD' + 'before target once green just ratchet even to original stop if no significant move ~5%, scale out at target then runner trailing stop' + 'execute some sort of equation'). (1) OBJECTIVE: engine/evolution.py max_drawdown_usd + score_objective (0.45*winrate + 0.30*expectancy - 0.25*|DD|); objective block (current score -3.31, dragged by -91 DD). (2) PROGRESSIVE_STOP: one ratcheting-stop equation stop=peak-(base+slope*peak), base3.25/slope0.35 -> breakeven ~+5%, tight small-green (min DD), looser for big runners; REPLACES stop+green_lock+loose-trail in materialize_exit_rules (leaner). Barbell keeps scale-out + strict 0.20 moonshot trail. +6 tests, 83/83, selftest 24/0. v4.7->v4.8."
+    },
     {
       "t": "2026-08-04T21:05Z",
       "event": "build",

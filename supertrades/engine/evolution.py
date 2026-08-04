@@ -38,6 +38,41 @@ def recompute_performance(trades: list[dict]) -> dict:
     }
 
 
+def max_drawdown_usd(trades: list[dict]) -> float:
+    """Largest peak-to-trough drop in the cumulative realized-P&L curve (<= 0).
+
+    Walks the ledger in order; drawdown is how far equity fell below its running peak.
+    Minimal drawdown is a first-class objective, so we measure it explicitly.
+    """
+    eq = peak = mdd = 0.0
+    for t in trades:
+        p = t.get("pnl_usd")
+        if not isinstance(p, (int, float)):
+            continue
+        eq += p
+        peak = max(peak, eq)
+        mdd = min(mdd, eq - peak)
+    return round(mdd, 2)
+
+
+OBJECTIVE_WEIGHTS = {"win_rate": 0.45, "expectancy": 0.30, "drawdown": 0.25}
+
+
+def score_objective(perf: dict, mdd_usd: float, weights: dict | None = None) -> float:
+    """North-star score — SUCCESS + WIN RATE heavily weighted, DRAWDOWN heavily penalized.
+
+    Higher is better. win_rate (0..1, scaled to points) and expectancy ($/trade) reward the
+    system; the absolute drawdown subtracts, so a deep drawdown drags the score negative even
+    at a decent win rate — which is the point: don't buy win rate or profit with drawdown.
+    Used by the evolution loop to rank whether a tuning actually improved the whole objective.
+    """
+    w = weights or OBJECTIVE_WEIGHTS
+    win = perf.get("win_rate", 0.0)
+    exp = perf.get("expectancy_per_trade_usd", 0.0)
+    dd = abs(mdd_usd)
+    return round(w["win_rate"] * win * 100 + w["expectancy"] * exp - w["drawdown"] * dd, 2)
+
+
 def reflect(state: dict) -> list[dict]:
     """Surface concrete, safe improvement candidates from the ledger + recent outcomes.
 

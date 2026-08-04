@@ -32,6 +32,21 @@ WHALE_VOI_MIN = 20.0
 WHALE_PREMIUM_MIN = 1_000_000.0
 
 
+def progressive_stop_pct(peak_pct: float, base: float = 3.25, slope: float = 0.35,
+                         initial: float = -30.0) -> float:
+    """Unified ratcheting stop (% P&L) as a function of the peak gain %.
+
+    room R(g) = base + slope*g is the give-back allowed at peak g; the stop rides at g - R(g),
+    floored at the initial stop. Params (not guardrail thresholds) travel on the exit_rule:
+      - base/slope tuned so breakeven lands near +5% (base=3.25, slope=0.35),
+      - small greens lock tight (low drawdown), big runners get progressively looser room.
+    Monotone up in practice because the caller feeds peak = hwm-based gain.
+    """
+    if peak_pct <= 0:
+        return initial
+    return round(max(initial, peak_pct - (base + slope * peak_pct)), 2)
+
+
 async def ticker_signal(payload: dict, snapshot: dict) -> dict:
     """Signal scan for one ticker: day%, cross/reversal events, vwap side."""
     sym = payload["symbol"]
@@ -126,6 +141,17 @@ async def position_exit(payload: dict, snapshot: dict) -> dict:
                 trips.append({"rule": "green_lock",
                               "detail": f"peak +{peak_pct:.0f}% -> back to +{pct:.0f}% "
                                         f"<= locked +{floor_pct:.0f}%"})
+        elif t == "progressive_stop":
+            # ONE ratcheting-stop equation for the whole life (minimal-DD, user 8/4):
+            # give-back room R = base + slope*peak GROWS with the move, so a small green locks
+            # tight (stop reaches ~breakeven by ~+5%) while a big runner gets looser room.
+            # Floored at the initial stop; monotone up because it's driven by hwm.
+            peak_pct = (hwm - entry) / entry * 100 if entry else 0.0
+            sp = progressive_stop_pct(peak_pct, rule.get("base", 3.25),
+                                      rule.get("slope", 0.35), rule.get("initial_pct", -30.0))
+            if pct <= sp:
+                trips.append({"rule": "progressive_stop",
+                              "detail": f"peak {peak_pct:+.0f}% -> stop {sp:+.1f}%; back to {pct:+.1f}%"})
         elif t == "giveback":
             # trailing profit-lock: once the peak gain clears arm_gain_pct, exit if the
             # position gives back more than peak_frac of that peak gain (QQQ 8/4 lesson —
