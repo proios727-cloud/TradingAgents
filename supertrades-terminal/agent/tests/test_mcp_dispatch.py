@@ -140,9 +140,12 @@ class DispatcherFailClosed(unittest.TestCase):
         self._assert_killed(kill)
 
     def test_unknown_tool_never_dispatched(self):
+        # An equity quote is read-only and harmlessly shaped, but this agent
+        # trades options only and never allowlisted it — unsupported still
+        # means nothing goes to the wire.
         disp, transport, _ = make(INERT)
         with self.assertRaises(McpDispatchError):
-            disp("get_earnings_calendar", {})
+            disp("get_equity_quotes", {})
         self.assertEqual(transport.calls, [])
 
     def test_exercise_refused_even_when_armed(self):

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+from .config import WATCHLIST
+from .earnings import StaticEarningsCalendar
 from .models import (
     AccountState,
     ChainSnapshot,
@@ -16,10 +18,31 @@ from .models import (
     Signal,
 )
 
+# Earnings calendar fixture: symbol -> (report date, "am" | "pm").
+#
+# This is a FIXTURE, not a feed — it cannot tell you it has gone stale, so it
+# belongs to the dry-run path only. Anything that can place an order should use
+# earnings.McpEarningsCalendar instead. Verified against the broker earnings
+# calendar on 2026-07-30; refresh it when the reporting window rolls. A symbol
+# absent from the map is treated as having no scheduled report — the correct
+# answer for names that already reported this cycle (GOOGL, TSLA and INTC, as
+# of this refresh), and why the blackout must be derived rather than hardcoded.
+EARNINGS_CALENDAR: dict[str, tuple[date, str]] = {
+    "MSFT": (date(2026, 7, 29), "pm"),
+    "META": (date(2026, 7, 29), "pm"),
+    "AMZN": (date(2026, 7, 30), "pm"),
+    "AAPL": (date(2026, 7, 30), "pm"),
+    "XOM": (date(2026, 7, 31), "am"),
+    "CVX": (date(2026, 7, 31), "am"),
+    "AMD": (date(2026, 8, 4), "pm"),
+    "NVDA": (date(2026, 8, 26), "pm"),
+}
+
 
 class SimulatedSignalSource:
     def __init__(self, session: date):
         self.session = session
+        self._calendar = StaticEarningsCalendar(EARNINGS_CALENDAR)
 
     def fired_signals(self, now: datetime) -> list[Signal]:
         return [
@@ -34,8 +57,13 @@ class SimulatedSignalSource:
         ]
 
     def earnings_symbols(self, now: datetime) -> frozenset[str]:
-        # Hyperscaler week per data.js EARNINGS — these names are blocked.
-        return frozenset({"GOOGL", "META", "MSFT", "AMZN", "TSLA"})
+        """Names inside the earnings blackout as of ``now``.
+
+        Derived from EARNINGS_CALENDAR rather than hardcoded, so the blackout
+        expires on its own instead of blocking a name forever. See
+        earnings.blackout_from_reports for the window semantics.
+        """
+        return self._calendar.blackout(now, WATCHLIST)
 
 
 def demo_account(account_number: str = "AGENTIC-DEMO") -> AccountState:

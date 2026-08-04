@@ -14,6 +14,7 @@ from agent.approval import ApprovalGate, Preview, deny_all
 from agent.broker.paper import PaperBroker
 from agent.broker.robinhood_mcp import RobinhoodMcpBroker
 from agent.config import MARKET_TZ, RuntimeConfig
+from agent.earnings import McpEarningsCalendar, StaticEarningsCalendar
 from agent.engine import SuperTradesAgent
 from agent.kill_switch import KillState, check as kill_check
 from agent.models import (
@@ -335,11 +336,12 @@ class PlacementGateRails(unittest.TestCase):
 
 
 class EngineRails(unittest.TestCase):
-    def _agent(self, approver):
+    def _agent(self, approver, earnings=None):
         cfg = RuntimeConfig(account_number="A1", dry_run=True, armed=False)
         broker = PaperBroker(demo_account(), demo_chains(SESSION))
         return SuperTradesAgent(cfg, broker, SimulatedSignalSource(SESSION),
-                                approval=ApprovalGate(approver, required=True)), broker
+                                approval=ApprovalGate(approver, required=True),
+                                earnings=earnings), broker
 
     def test_approval_deny_places_nothing(self):
         agent, broker = self._agent(deny_all)
@@ -351,11 +353,35 @@ class EngineRails(unittest.TestCase):
     def test_approval_allow_papers_entries(self):
         agent, broker = self._agent(lambda p: True)
         res = agent.run_cycle(et(14, 32))
-        # NVDA allowed; TSLA blocked by the earnings filter.
+        # Nothing reports near SESSION, so both signals clear the gate.
+        self.assertEqual(
+            sorted(i.symbol for i in res.placed_entries), ["NVDA", "TSLA"]
+        )
+        # PaperBroker fills are simulated — never a live order.
+        self.assertEqual(broker.placed, res.placed_entries)
+
+    def test_earnings_blackout_blocks_the_entry(self):
+        # Pin the mechanism with an explicit calendar rather than leaning on
+        # whichever names the fixture happens to carry: TSLA reports the
+        # session after SESSION, NVDA is months out.
+        cal = StaticEarningsCalendar({
+            "TSLA": (date(2026, 7, 21), "am"),
+            "NVDA": (date(2026, 12, 1), "pm"),
+        })
+        agent, _ = self._agent(lambda p: True, earnings=cal)
+        res = agent.run_cycle(et(14, 32))
         self.assertIn("NVDA", [i.symbol for i in res.placed_entries])
         self.assertNotIn("TSLA", [i.symbol for i in res.placed_entries])
-        # PaperBroker fills are simulated — never a live order.
-        self.assertTrue(all(pr for pr in [True]))
+        self.assertIn(
+            "TSLA", [sym for sym, _reason in res.rejected]
+        )
+
+    def test_live_calendar_overrides_the_fixture(self):
+        # An unwired live calendar knows nothing, so it blocks everything —
+        # and it must win over the signal source's own (permissive) fixture.
+        agent, _ = self._agent(lambda p: True, earnings=McpEarningsCalendar())
+        res = agent.run_cycle(et(14, 32))
+        self.assertEqual(res.placed_entries, [])
 
 
 if __name__ == "__main__":
