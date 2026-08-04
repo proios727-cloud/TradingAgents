@@ -11,12 +11,13 @@ import json
 import os
 import socket
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from agent.broker.mcp_dispatch import (
     DEFAULT_MCP_URL,
     MCP_TOOL_PREFIX,
+    RECONCILIATION_WINDOW_SECONDS,
     McpDispatchError,
     McpDispatcher,
     RobinhoodMcpHttpTransport,
@@ -506,7 +507,11 @@ class HttpTransportDeadlineAndSize(unittest.TestCase):
 
 class HttpTransportMutationReconciliation(unittest.TestCase):
     """Defect B: a transport-level failure on a mutating call must trigger
-    exactly one read-only reconciliation, never a bare "it failed"."""
+    exactly one read-only reconciliation, never a bare "it failed". The real
+    ``get_option_orders`` response never echoes ``ref_id`` back on order rows
+    (verified against the live API), so matching is a composite of
+    ``placed_agent``, quantity, price, and recency — see
+    ``_reconcile_after_failure``."""
 
     def _transport(self):
         return RobinhoodMcpHttpTransport(token="t")
@@ -514,19 +519,23 @@ class HttpTransportMutationReconciliation(unittest.TestCase):
     @patch("urllib.request.urlopen")
     def test_timed_out_place_found_on_reconciliation_is_unknown_not_failed(
             self, mock_urlopen):
+        now = datetime.now(timezone.utc)
         def side_effect(req, timeout=None):
             if mock_urlopen.call_count == 1:
                 raise socket.timeout("timed out")
-            return _FakeHttpResponse([_rpc_body(
-                2, [{"ref_id": "REF-1", "id": "ORDER-9"}])])
+            return _FakeHttpResponse([_rpc_body(2, [{
+                "id": "ORDER-9", "placed_agent": "agentic",
+                "chain_symbol": "NVDA", "quantity": "3.00000",
+                "price": "1.21000000",
+                "created_at": now.isoformat().replace("+00:00", "Z"),
+            }])])
         mock_urlopen.side_effect = side_effect
 
         t = self._transport()
         with self.assertRaises(McpDispatchError) as ctx:
             t(MCP_TOOL_PREFIX + "place_option_order",
-              {"ref_id": "REF-1", "account_number": "A1"})
+              {"quantity": "3", "price": "1.21", "account_number": "A1"})
         msg = str(ctx.exception)
-        self.assertIn("REF-1", msg)
         self.assertIn("UNKNOWN", msg)
         self.assertIn("MAY HAVE BEEN PLACED", msg)
         self.assertIn("ORDER-9", msg)
@@ -544,10 +553,136 @@ class HttpTransportMutationReconciliation(unittest.TestCase):
         t = self._transport()
         with self.assertRaises(McpDispatchError) as ctx:
             t(MCP_TOOL_PREFIX + "place_option_order",
-              {"ref_id": "REF-2", "account_number": "A1"})
+              {"quantity": "1", "price": "2.08", "account_number": "A1"})
         msg = str(ctx.exception)
-        self.assertIn("REF-2", msg)
         self.assertIn("not placed", msg)
+
+    @patch("urllib.request.urlopen")
+    def test_reconciliation_ignores_order_from_a_different_placed_agent(
+            self, mock_urlopen):
+        # Otherwise-matching quantity/price/timing, but placed_agent="user"
+        # — the account genuinely holds human and expiring-option orders
+        # too, and this must NOT be treated as ours.
+        now = datetime.now(timezone.utc)
+        def side_effect(req, timeout=None):
+            if mock_urlopen.call_count == 1:
+                raise socket.timeout("timed out")
+            return _FakeHttpResponse([_rpc_body(2, [{
+                "id": "ORDER-USER", "placed_agent": "user",
+                "chain_symbol": "NVDA", "quantity": "3.00000",
+                "price": "1.21000000",
+                "created_at": now.isoformat().replace("+00:00", "Z"),
+            }])])
+        mock_urlopen.side_effect = side_effect
+
+        t = self._transport()
+        with self.assertRaises(McpDispatchError) as ctx:
+            t(MCP_TOOL_PREFIX + "place_option_order",
+              {"quantity": "3", "price": "1.21", "account_number": "A1"})
+        msg = str(ctx.exception)
+        self.assertIn("not placed", msg)
+        self.assertNotIn("ORDER-USER", msg)
+
+    @patch("urllib.request.urlopen")
+    def test_reconciliation_ignores_order_outside_the_recency_window(
+            self, mock_urlopen):
+        stale = datetime.now(timezone.utc) - timedelta(
+            seconds=RECONCILIATION_WINDOW_SECONDS * 5)
+        def side_effect(req, timeout=None):
+            if mock_urlopen.call_count == 1:
+                raise socket.timeout("timed out")
+            return _FakeHttpResponse([_rpc_body(2, [{
+                "id": "ORDER-STALE", "placed_agent": "agentic",
+                "chain_symbol": "NVDA", "quantity": "3.00000",
+                "price": "1.21000000",
+                "created_at": stale.isoformat().replace("+00:00", "Z"),
+            }])])
+        mock_urlopen.side_effect = side_effect
+
+        t = self._transport()
+        with self.assertRaises(McpDispatchError) as ctx:
+            t(MCP_TOOL_PREFIX + "place_option_order",
+              {"quantity": "3", "price": "1.21", "account_number": "A1"})
+        msg = str(ctx.exception)
+        self.assertIn("not placed", msg)
+        self.assertNotIn("ORDER-STALE", msg)
+
+    @patch("urllib.request.urlopen")
+    def test_numeric_match_works_across_string_and_number_forms(
+            self, mock_urlopen):
+        # Real quantities/prices are numeric strings ("1.00000",
+        # "2.08000000") but must compare equal to plain numeric forms.
+        now = datetime.now(timezone.utc)
+        def side_effect(req, timeout=None):
+            if mock_urlopen.call_count == 1:
+                raise socket.timeout("timed out")
+            return _FakeHttpResponse([_rpc_body(2, [{
+                "id": "ORDER-NUM", "placed_agent": "agentic",
+                "chain_symbol": "INTC", "quantity": "1.00000",
+                "price": "2.08000000",
+                "created_at": now.isoformat().replace("+00:00", "Z"),
+            }])])
+        mock_urlopen.side_effect = side_effect
+
+        t = self._transport()
+        with self.assertRaises(McpDispatchError) as ctx:
+            t(MCP_TOOL_PREFIX + "place_option_order",
+              {"quantity": "1", "price": "2.08", "account_number": "A1"})
+        msg = str(ctx.exception)
+        self.assertIn("MAY HAVE BEEN PLACED", msg)
+        self.assertIn("ORDER-NUM", msg)
+
+    @patch("urllib.request.urlopen")
+    def test_real_data_orders_envelope_parses_for_reconciliation(
+            self, mock_urlopen):
+        # Real shape: {"data": {"orders": [...]}} — not {"data": [...]}.
+        now = datetime.now(timezone.utc)
+        order = {
+            "id": "ORDER-ENV", "chain_symbol": "INTC", "state": "filled",
+            "direction": "credit", "quantity": "1.00000", "price": "2.08000000",
+            "placed_agent": "agentic",
+            "created_at": now.isoformat().replace("+00:00", "Z"),
+        }
+        # Build the raw JSON-RPC body manually since _rpc_body hardcodes
+        # {"results": ...} — this test needs the real {"data": {"orders": []}}.
+        def real_side_effect(req, timeout=None):
+            if mock_urlopen.call_count == 1:
+                raise socket.timeout("timed out")
+            body = json.dumps({
+                "jsonrpc": "2.0", "id": 2,
+                "result": {"structuredContent": {"data": {"orders": [order]}}},
+            }).encode("utf-8")
+            return _FakeHttpResponse([body])
+        mock_urlopen.side_effect = real_side_effect
+
+        t = self._transport()
+        with self.assertRaises(McpDispatchError) as ctx:
+            t(MCP_TOOL_PREFIX + "place_option_order",
+              {"quantity": "1", "price": "2.08", "account_number": "A1"})
+        msg = str(ctx.exception)
+        self.assertIn("MAY HAVE BEEN PLACED", msg)
+        self.assertIn("ORDER-ENV", msg)
+
+    @patch("urllib.request.urlopen")
+    def test_empty_order_list_yields_hedged_not_placed_wording(
+            self, mock_urlopen):
+        def side_effect(req, timeout=None):
+            if mock_urlopen.call_count == 1:
+                raise socket.timeout("timed out")
+            body = json.dumps({
+                "jsonrpc": "2.0", "id": 2,
+                "result": {"structuredContent": {"data": {"orders": []}}},
+            }).encode("utf-8")
+            return _FakeHttpResponse([body])
+        mock_urlopen.side_effect = side_effect
+
+        t = self._transport()
+        with self.assertRaises(McpDispatchError) as ctx:
+            t(MCP_TOOL_PREFIX + "place_option_order",
+              {"quantity": "1", "price": "2.08", "account_number": "A1"})
+        msg = str(ctx.exception)
+        self.assertIn("not placed", msg)
+        self.assertIn("not a guarantee", msg)
 
     @patch("urllib.request.urlopen")
     def test_reconciliation_failure_reported_as_unverifiable_not_failed(
@@ -556,9 +691,8 @@ class HttpTransportMutationReconciliation(unittest.TestCase):
         t = self._transport()
         with self.assertRaises(McpDispatchError) as ctx:
             t(MCP_TOOL_PREFIX + "place_option_order",
-              {"ref_id": "REF-3", "account_number": "A1"})
+              {"quantity": "1", "price": "2.08", "account_number": "A1"})
         msg = str(ctx.exception)
-        self.assertIn("REF-3", msg)
         self.assertIn("UNKNOWN", msg)
         self.assertIn("UNVERIFIABLE", msg)
         # Never claim it failed outright — state is unknown, not negative.
@@ -577,10 +711,14 @@ class HttpTransportMutationReconciliation(unittest.TestCase):
 
         t = self._transport()
         with self.assertRaises(McpDispatchError):
-            t(MCP_TOOL_PREFIX + "place_option_order", {"ref_id": "REF-4"})
+            t(MCP_TOOL_PREFIX + "place_option_order", {"quantity": "1"})
         self.assertEqual(len(bodies), 2)
         self.assertEqual(bodies[0]["params"]["name"], "place_option_order")
         self.assertEqual(bodies[1]["params"]["name"], "get_option_orders")
+        # The reconciliation read is narrowed, not a full-history scan.
+        recon_args = bodies[1]["params"]["arguments"]
+        self.assertEqual(recon_args.get("placed_agent"), "agentic")
+        self.assertIn("created_at_gte", recon_args)
 
     @patch("urllib.request.urlopen")
     def test_non_mutating_read_failure_does_not_reconcile(self, mock_urlopen):

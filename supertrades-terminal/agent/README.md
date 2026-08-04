@@ -123,8 +123,11 @@ Operationally:
   disconnect in the app, and closing positions directly in the app all work
   regardless of what the agent can reach.
 
-What the code does do: a timed-out **mutating** call is reconciled against
-`get_option_orders` by `ref_id` and reported as **unknown state**, never as
+What the code does do: a timed-out **mutating** call is reconciled against a
+narrowed `get_option_orders` window (`placed_agent`/`created_at_gte`) and
+matched on a composite of `placed_agent == "agentic"`, quantity, price, and
+recency — the real API never echoes `ref_id` back on order rows, so that
+can't be the match key — and reported as **unknown state**, never as
 "failed" — a timeout is not proof the order never reached the broker. Failures
 never synthesize a default price, balance, or Greek. And exits are
 advisory-approved, never vetoable, so nothing on the *human* side can hold a

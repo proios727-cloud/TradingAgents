@@ -37,10 +37,15 @@ Safety design — read carefully:
     ``place_option_order``/``cancel_option_order`` fails at the transport
     level (timeout, socket error, unreadable body) Robinhood may already have
     accepted it. Before raising, the transport makes exactly ONE read-only
-    reconciliation call (``get_option_orders``) looking for the order's
-    ``ref_id``. The resulting error always says the state is UNKNOWN/may have
-    been placed (or unverifiable, if reconciliation itself fails) — it never
-    claims the order failed. Reconciliation cannot place, cancel, or retry.
+    reconciliation call (``get_option_orders``), narrowed to a recent window
+    via ``created_at_gte``/``placed_agent``, and looks for a PLAUSIBLE match
+    on ``placed_agent == "agentic"`` + quantity + price + recency — NOT
+    ``ref_id``: the real ``get_option_orders`` response never echoes back the
+    ``ref_id`` an order was placed with, so matching on it always fails (see
+    ``_reconcile_after_failure``). The resulting error always says the state
+    is UNKNOWN/may have been placed (or unverifiable, if reconciliation
+    itself fails) — it never claims the order failed. Reconciliation cannot
+    place, cancel, or retry.
   * **Bounded in time and size.** Every request has an overall wall-clock
     deadline (beyond the per-socket-read timeout) and a maximum response body
     size; exceeding either fails the call the same way any other transport
@@ -56,6 +61,7 @@ import socket
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timedelta, timezone
 from typing import Callable, NoReturn, Optional
 from urllib.parse import urlparse
 
@@ -80,6 +86,17 @@ _EXPECTED_MCP_HOST = (urlparse(DEFAULT_MCP_URL).hostname or "").lower()
 # full option chain response while refusing to buffer an unbounded body.
 _DEFAULT_DEADLINE_MARGIN_SECONDS = 5.0
 _DEFAULT_MAX_RESPONSE_BYTES = 5 * 1024 * 1024  # 5 MiB
+
+# How far back reconciliation looks, and how close a candidate order's
+# ``created_at`` must sit to the failed placement attempt to be considered
+# the same order. There is no ``ref_id`` to match on (see module docstring
+# and ``_reconcile_after_failure``), so this window is what keeps the
+# composite match narrow. 120s comfortably covers this transport's own
+# request budget (socket timeout + ``_DEFAULT_DEADLINE_MARGIN_SECONDS``,
+# ~15s by default) plus broker-side ack/processing latency, while staying
+# tight enough that an unrelated same-symbol order placed minutes later (by
+# the user, or a later agent cycle) is not swept in as a false match.
+RECONCILIATION_WINDOW_SECONDS = 120.0
 
 # Read-only tools (plus the non-mutating order preview): dispatch direct.
 READ_TOOLS = frozenset({
@@ -299,6 +316,9 @@ class RobinhoodMcpHttpTransport:
     def __call__(self, full_tool: str, params: dict) -> dict | list:
         name = (full_tool[len(MCP_TOOL_PREFIX):]
                 if full_tool.startswith(MCP_TOOL_PREFIX) else full_tool)
+        # Captured BEFORE the wire attempt: the anchor for the reconciliation
+        # recency window if this call fails (see _reconcile_after_failure).
+        attempted_at = datetime.now(timezone.utc)
         req, req_id = self._build_request(name, params)
         deadline_at = time.monotonic() + self.overall_deadline
         try:
@@ -306,7 +326,8 @@ class RobinhoodMcpHttpTransport:
         except (urllib.error.URLError, socket.timeout, TimeoutError,
                 OSError, UnicodeDecodeError, McpDispatchError) as e:
             if name in GATED_MUTATIONS:
-                raise self._reconcile_after_failure(name, params, e) from e
+                raise self._reconcile_after_failure(
+                    name, params, e, attempted_at) from e
             raise McpDispatchError(
                 f"MCP HTTP failure calling {name!r}: {e!r}") from e
         msg = self._extract_message(payload, ctype, req_id, name)
@@ -315,16 +336,46 @@ class RobinhoodMcpHttpTransport:
     # -- reconciliation after a mutating transport failure (defect B) -------
     def _reconcile_after_failure(
         self, name: str, params: dict, orig_exc: Exception,
+        attempted_at: datetime,
     ) -> McpDispatchError:
-        """Exactly ONE read-only ``get_option_orders`` lookup for the failed
-        mutation's ``ref_id``/``order_id``. Never places, cancels, or retries
+        """Exactly ONE read-only ``get_option_orders`` lookup for a PLAUSIBLE
+        match to the failed mutation. Never places, cancels, or retries
         anything — a failure here is reported as unverifiable, not as
         "the order failed", because the mutation may well have gone through.
+
+        NOTE: this cannot match on ``ref_id``. ``ref_id`` is still sent with
+        every order (see ``_place_params`` in ``robinhood_mcp.py``) — it is
+        the broker-side idempotency key — but the real ``get_option_orders``
+        response never echoes it back on order rows, so a
+        ``o.get("ref_id") == ref_id`` check always fails and silently
+        defeats this entire safety path. Do NOT re-add ref_id matching here.
+
+        Instead this matches a composite of what IS actually returned:
+        ``placed_agent == "agentic"`` (the account also holds orders placed
+        by the human user and by expiring-option auto-exercise/settlement —
+        never assume every order is ours), quantity, price (compared
+        numerically — the API returns both as strings, e.g. "1.00000" /
+        "2.08000000"), and ``created_at`` within ``RECONCILIATION_WINDOW_SECONDS``
+        of the attempted placement. There is no ``chain_symbol`` (or any
+        other field) in ``place_option_order``'s own params to match against
+        — its schema identifies the contract solely via an opaque
+        ``option_id`` inside ``legs`` — so the symbol is deliberately not
+        part of this composite rather than inventing a field to smuggle
+        through the wire payload.
+
+        The match is intentionally BIASED toward "this may be our order":
+        any plausible candidate is reported as a possible placement, never
+        as a confident one, and "no matching order" is reported only when
+        nothing plausible turns up.
         """
-        ref_id = params.get("ref_id")
-        order_id_param = params.get("order_id")
         account_number = params.get("account_number")
-        read_params = {"account_number": account_number} if account_number else {}
+        window_start = attempted_at - timedelta(seconds=RECONCILIATION_WINDOW_SECONDS)
+        read_params: dict = {"placed_agent": "agentic"}
+        if account_number:
+            read_params["account_number"] = account_number
+        # Narrow the query itself (the real account can hold ~90 orders) —
+        # ISO 8601 UTC, as the API expects for created_at_gte.
+        read_params["created_at_gte"] = window_start.isoformat()
         try:
             req, req_id = self._build_request("get_option_orders", read_params)
             deadline_at = time.monotonic() + self.overall_deadline
@@ -333,32 +384,28 @@ class RobinhoodMcpHttpTransport:
             orders = self._extract_result(msg, "get_option_orders")
         except Exception as recon_exc:  # noqa: BLE001 — report, never re-raise raw
             return McpDispatchError(
-                f"{name} transport failure ({orig_exc!r}) for ref_id="
-                f"{ref_id!r}: order state is UNKNOWN and UNVERIFIABLE — the "
-                f"read-only reconciliation check also failed ({recon_exc!r}). "
-                f"Do NOT treat this as a failed/unplaced order — it may have "
-                f"been placed. Halt and verify manually before retrying.")
+                f"{name} transport failure ({orig_exc!r}): order state is "
+                f"UNKNOWN and UNVERIFIABLE — the read-only reconciliation "
+                f"check also failed ({recon_exc!r}). Do NOT treat this as a "
+                f"failed/unplaced order — it may have been placed. Halt and "
+                f"verify manually before retrying.")
         match = None
         for o in _rows_for_reconciliation(orders):
-            if not isinstance(o, dict):
-                continue
-            if ref_id and o.get("ref_id") == ref_id:
-                match = o
-                break
-            if order_id_param and order_id_param in (o.get("id"), o.get("order_id")):
+            if _is_plausible_match(o, params, attempted_at, window_start):
                 match = o
                 break
         if match is not None:
             oid = match.get("id") or match.get("order_id")
             return McpDispatchError(
                 f"{name} transport failure ({orig_exc!r}): order state is "
-                f"UNKNOWN — reconciliation FOUND a matching order for "
-                f"ref_id={ref_id!r} (order_id={oid!r}). The order MAY HAVE "
+                f"UNKNOWN — reconciliation FOUND a plausibly matching order "
+                f"(order_id={oid!r}, placed_agent='agentic', quantity/price/"
+                f"timing consistent with this attempt). The order MAY HAVE "
                 f"BEEN PLACED even though the call appeared to fail. Do not "
                 f"retry or resubmit; verify and reconcile manually.")
         return McpDispatchError(
-            f"{name} transport failure ({orig_exc!r}) for ref_id={ref_id!r}: "
-            f"read-only reconciliation found no matching order. Treating as "
+            f"{name} transport failure ({orig_exc!r}): read-only "
+            f"reconciliation found no plausibly matching order. Treating as "
             f"not placed, but this is not a guarantee — verify manually "
             f"before assuming so.")
 
@@ -420,10 +467,69 @@ class RobinhoodMcpHttpTransport:
 def _rows_for_reconciliation(data) -> list:
     """Same shape-tolerant row extraction as ``robinhood_mcp._rows``,
     duplicated locally so this module has no upward dependency — reconciling
-    a failed mutation must not need anything but this module's own transport."""
-    if isinstance(data, dict):
-        return data.get("results") or data.get("data") or []
-    return data or []
+    a failed mutation must not need anything but this module's own transport.
+
+    The real ``get_option_orders`` envelope is ``{"data": {"orders": [...]}}``
+    — a dict nested one level under a NAMED key, not a bare list under
+    ``"data"``. ``{"results": [...]}`` and a bare list are also tolerated
+    (older/simpler shapes, and what the tests in this module use)."""
+    if isinstance(data, list):
+        return data
+    if not isinstance(data, dict):
+        return []
+    if "results" in data:
+        return data.get("results") or []
+    inner = data.get("data")
+    if isinstance(inner, list):
+        return inner
+    if isinstance(inner, dict):
+        return inner.get("orders") or []
+    return []
+
+
+def _numeric(value) -> Optional[float]:
+    """Parse a field the real API may return as a numeric string
+    (``"1.00000"``, ``"2.08000000"``) or a native number. ``None``/empty/
+    unparseable => ``None`` — never fabricate a number to force a match."""
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _numeric_match(a, b) -> bool:
+    x, y = _numeric(a), _numeric(b)
+    if x is None or y is None:
+        return False
+    return abs(x - y) < 1e-6
+
+
+def _is_plausible_match(
+    o, params: dict, attempted_at: datetime, window_start: datetime,
+) -> bool:
+    """Composite match for reconciliation — see ``_reconcile_after_failure``
+    for why there is no ``ref_id``/``chain_symbol`` in the mix."""
+    if not isinstance(o, dict):
+        return False
+    if o.get("placed_agent") != "agentic":
+        return False
+    if not _numeric_match(o.get("quantity"), params.get("quantity")):
+        return False
+    if not _numeric_match(o.get("price"), params.get("price")):
+        return False
+    created_at = o.get("created_at")
+    if not created_at:
+        return False
+    try:
+        created = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    return window_start <= created <= attempted_at + timedelta(
+        seconds=RECONCILIATION_WINDOW_SECONDS)
 
 
 def live_dispatcher(
