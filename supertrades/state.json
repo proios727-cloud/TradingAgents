@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T17:47:00Z",
+  "updated_at": "2026-08-04T18:01:00Z",
   "trading_date": "2026-08-04",
   "rule_version": "v4.2",
   "mode": {
@@ -105,16 +105,16 @@
     }
   },
   "day": {
-    "realized_pnl": 48.0,
+    "realized_pnl": 84.0,
     "auto_entries_used": 1,
     "manual_entries_today": 2,
-    "manual_round_trips": 1,
+    "manual_round_trips": 2,
     "entries_today_total": 3,
     "churn_threshold_hit": false,
     "halted": false,
-    "open_pnl_est": 14.5,
-    "note": "LIVE 8/4. User 2 manual 0DTE calls (SPY 771C @0.75, QQQ 724C @0.64). 1:10 ET SPY hit target -> AGENTIC exit @1.23 = +48 (order 6a721cea). 1:24 ET AGENTIC ENTRY (user-directed 'tiny live', rvol screen): INTC 8/5 102C @1.99 (order 6a722065) - 3rd entry, OVERRIDES daily-2 cap + midday + min_dte per explicit user call. Open: QQQ 724C +23%, INTC 102C flat. Realized +48. INTC same-day scalp only (1-DTE, IV 122%, theta -1.19). BP ~203.",
-    "day_pnl_est": 62.5
+    "open_pnl_est": 4.5,
+    "note": "LIVE 8/4. SPY 771C -> +48 (order 6a721cea). QQQ 724C: target (+50%) tripped but at eval it was +123% (mark 1.43); bid evaporated in a fast 0DTE selloff (1.42->1.33->1.15->1.00 in ~2min); chased down and AGENTIC exit filled @1.00 = +36 (+56%, order 6a7228d3 after 2 cancels). Locked the win, did NOT round-trip to zero. Realized now +84. Open: INTC 8/5 102C @1.99, mark 2.035 (+2%). BP ~203.",
+    "day_pnl_est": 88.5
   },
   "positions": {
     "intc-102c-0805": {
@@ -123,7 +123,7 @@
       "account": "902341866",
       "qty": 1,
       "entry": 1.99,
-      "hwm": 1.99,
+      "hwm": 2.035,
       "ratchet_engaged": false,
       "class": "day_trade",
       "expiry": "2026-08-05",
@@ -146,26 +146,8 @@
         "if_any_false": "FLATTEN at 15:44 at the bid (same-day scalp default)."
       },
       "note": "AGENTIC entry 8/4 13:24 ET @1.99 (user 'tiny live', top rvol-screen affordable mover; DTE broken to 1). 1-DTE, IV ~122%, theta -1.19. DEFAULT = same-day scalp flatten 15:44, BUT user authorized OVERNIGHT SWING IF overnight_swing_gate passes at 15:35-15:44 (strong close required). If held, exit 8/5 by 10:30 ET or -20%, never to expiry. ~49% BP. INTC +10.4% $100 breakout. OVERRIDES daily-2/midday/min_dte per user.",
-      "last_mark": 1.99
-    },
-    "qqq-724c-0804": {
-      "contract": "QQQ 8/4 $724C",
-      "option_id": "bd5e89c8-f20a-4df5-90b2-689302e39681",
-      "account": "902341866",
-      "qty": 1,
-      "entry": 0.64,
-      "hwm": 0.785,
-      "ratchet_engaged": false,
-      "class": "0dte_scalp",
-      "expiry": "2026-08-04",
-      "exit_rules": [
-        {"type": "target", "pct": 50, "price": 0.96, "mech": "sell_limit_at_mark"},
-        {"type": "stop", "pct": -30, "price": 0.448, "mech": "sell_limit_at_bid"},
-        {"type": "ratchet", "arm_pct": 25, "arm_price": 0.80, "be_stop_price": 0.64, "mech": "breakeven_stop_after_arm"},
-        {"type": "hard_exit_et", "at": "15:15", "mech": "sell_limit_at_bid"}
-      ],
-      "note": "USER buy 8/4 @0.64 (own signal). 0DTE - hard-exit 15:15. mark 0.785 (+23%), below target 0.96 + ratchet-arm 0.80, above stop 0.448. Manage tight into close.",
-      "last_mark": 0.785
+      "last_mark": 2.035,
+      "hwm_note": "hwm bumped 1.99 -> 2.035 at 13:58 ET; not armed (arm 2.49)"
     }
   },
   "watchlist": [],
@@ -245,6 +227,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T18:01Z",
+      "event": "fill",
+      "detail": "QQQ 8/4 724C EXIT (target rule): sold 1 @1.00 = +36 realized (+56%; order 6a7228d3). Target +50% (0.96) tripped, but at the 13:58 eval the position was already +123% (mark 1.43) and the 0DTE bid collapsed 1.42->1.33->1.15->1.00 in ~2min mid-exit. Chased down through 2 cancel/replaces to lock it; did NOT give it back to zero. Realized day now +84. LESSON/IMPROVEMENT: 20-min poll cadence + resting-at-bid exit is too slow for a fast 0DTE - target drifted from +50% to +123% then crashed. Fix candidate: on 0DTE entry, place a resting GTC sell-limit AT the target (bracket) so it auto-fills without cadence lag, and use marketable/through-bid exits for 0DTE in fast tape. PUSH sent (fill)."
+    },
     {
       "t": "2026-08-04T17:47Z",
       "event": "build",
