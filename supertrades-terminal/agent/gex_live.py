@@ -79,6 +79,57 @@ def log_snapshot(snap: dict) -> None:
         f.write(json.dumps(snap) + "\n")
 
 
+# -- enriched, SCORABLE snapshot (for forward-validation) ------------------
+
+def config_hash() -> str:
+    """Pre-registration stamp: hash of the GEX constants + outcome definition,
+    so a logged sample is tied to one frozen config."""
+    import hashlib
+    from .gex import MULTIPLIER, ONE_PCT
+    from .gex_validate import EntryCfg
+    c = EntryCfg()
+    s = f"gex:{MULTIPLIER}:{ONE_PCT}|exit:{c.stop_pct}:{c.target_pct}"
+    return hashlib.sha256(s.encode()).hexdigest()[:12]
+
+
+def _contract(c: dict) -> dict:
+    """Normalize a quoted ATM contract into the scorable fields."""
+    bid, ask = float(c.get("bid", 0) or 0), float(c.get("ask", 0) or 0)
+    mid = (bid + ask) / 2 if (bid + ask) else float(c.get("mid", 0) or 0)
+    spread = (ask - bid) / mid if mid > 0 else 1.0
+    return {"option_id": c.get("option_id", ""), "strike": c.get("strike", 0),
+            "expiry": c.get("expiry", ""), "delta": c.get("delta", 0),
+            "bid": bid, "ask": ask, "mid": round(mid, 4),
+            "spread_pct": round(spread, 4)}
+
+
+def build_snapshot(symbol: str, spot: float, rows: list[StrikeGex],
+                   call: dict, put: dict, session: str | None = None) -> dict:
+    """A SCORABLE snapshot: the GEX map + gate decision + BOTH ATM contracts
+    (the call a long would buy, the put a short would buy). `call`/`put` are
+    quoted contracts {option_id, strike, expiry, delta, bid, ask} from the RH
+    MCP. gate_dir is the XOR of the two gates (None if neither or both)."""
+    import uuid
+    from zoneinfo import ZoneInfo
+    p = compute_gex(rows, spot)
+    sk = flow_skew(p)
+    long_ok, _ = gex_confirms(p, "long", sk)
+    short_ok, _ = gex_confirms(p, "short", sk)
+    gate = "long" if long_ok and not short_ok else "short" if short_ok and not long_ok else None
+    now = datetime.now(timezone.utc)
+    et = now.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+    return {
+        "snapshot_id": uuid.uuid4().hex[:12],
+        "ts": now.isoformat(), "session": session or et,
+        "symbol": symbol, "spot": spot, "flip": p.flip,
+        "dist_to_flip": round(spot - p.flip, 2), "regime": p.regime,
+        "net_gex_b": round(p.net_gex / 1e9, 3), "skew": round(sk, 3),
+        "long_gate": long_ok, "short_gate": short_ok, "gate_dir": gate,
+        "config_hash": config_hash(),
+        "call": _contract(call), "put": _contract(put),
+    }
+
+
 def main(argv=None) -> int:
     argv = argv or sys.argv[1:]
     if len(argv) < 3:
