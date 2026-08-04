@@ -23,7 +23,8 @@ from . import contract_selector, exit_manager, risk_governor
 from .approval import ApprovalGate, Preview
 from .broker.base import BrokerAdapter
 from .config import GUARDRAILS as G
-from .config import MARKET_TZ, RuntimeConfig
+from .config import MARKET_TZ, WATCHLIST, RuntimeConfig
+from .earnings import EarningsCalendar
 from .decision_log import DecisionLog
 from .kill_switch import KillState, check as kill_check
 from .models import DayState, ExitIntent, OrderIntent, Signal
@@ -53,10 +54,15 @@ class SuperTradesAgent:
         *,
         approval: ApprovalGate | None = None,
         log: DecisionLog | None = None,
+        earnings: EarningsCalendar | None = None,
     ):
         self.cfg = cfg
         self.broker = broker
         self.signals = signals
+        # When wired, the calendar OVERRIDES the signal source's own blackout.
+        # The signal source's version is a fixture; this one is the live feed
+        # and fails closed, so it must win wherever both exist.
+        self.earnings = earnings
         self.approval = approval or ApprovalGate(required=cfg.require_entry_approval)
         self.log = log or DecisionLog()
         self.day = DayState()
@@ -89,7 +95,11 @@ class SuperTradesAgent:
             return res
 
         held = frozenset(p.symbol for p in self.broker.get_positions())
-        earnings = self.signals.earnings_symbols(now)
+        earnings = (
+            self.earnings.blackout(now, WATCHLIST)
+            if self.earnings is not None
+            else self.signals.earnings_symbols(now)
+        )
         account = self.broker.get_account()
 
         for sig in self.signals.fired_signals(now):

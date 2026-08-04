@@ -65,19 +65,44 @@ python3 -m agent.cli dry-run --at 2026-07-20T14:32
 python3 -m unittest agent.tests.test_rails -v
 ```
 
-The dry run reproduces the dashboard: NVDA squeeze → a previewed 202.5-call entry;
-TSLA gamma-flip → **rejected by the earnings filter** (hyperscaler week).
+The dry run reproduces the dashboard: NVDA squeeze and TSLA gamma-flip, each
+previewed as a 0DTE long entry — subject to the earnings blackout below.
 
 ## Going live (human-gated — the agent cannot do these for you)
 
 1. In the Robinhood app: apply for **options Level 2** on the Agentic account; **fund** it (~$2,500 — funding is your hard loss cap).
 2. Connect the MCP: `claude mcp add robinhood-trading --transport http https://agent.robinhood.com/mcp/trading`; complete OAuth. Reads always-allow; order placement ask-every-time.
 3. Wire a real `mcp_call(tool, params)` dispatcher into `RobinhoodMcpBroker` (this repo ships without one).
-4. `python3 -m unittest` green + a dry run with zero errors.
-5. Only then set `armed=True, dry_run=False`. First possible entry 9:45 ET; keep `require_entry_approval=True` for week 1.
+4. Wire the **same** dispatcher into the live earnings calendar and pass it to the engine:
+
+   ```python
+   from agent import McpEarningsCalendar, SuperTradesAgent
+   agent = SuperTradesAgent(cfg, broker, signals,
+                            earnings=McpEarningsCalendar(mcp_call))
+   ```
+
+   Without this the engine falls back to `simulated.EARNINGS_CALENDAR`, a
+   hand-maintained fixture that cannot tell you it has gone stale. Do not arm
+   on the fixture. `python -m agent.cli status` prints which one is in play.
+5. `python3 -m unittest` green + a dry run with zero errors.
+6. Only then set `armed=True, dry_run=False`. First possible entry 9:45 ET; keep `require_entry_approval=True` for week 1.
 
 Kill anytime: say **STOP** (cancel all, flatten, halt), disconnect the connector in
 Claude settings, or one-tap disconnect in the Robinhood app.
+
+## Earnings blackout
+
+`GUARDRAILS.earnings_block_sessions` (3) blocks entries for that many sessions on
+**both** sides of the session carrying a name's earnings gap — before, because a
+0DTE long would be held into the print; after, because the IV crush is just as
+hostile to long premium. An `am` report gaps its own open; a `pm` report gaps the
+next one (Friday `pm` → Monday).
+
+`McpEarningsCalendar` **fails closed**: no dispatcher, an unreachable feed, a
+malformed payload, or a row whose date will not parse all block the *entire*
+watchlist rather than nothing. "We could not confirm this name is clear" and
+"this name has no earnings" must never produce the same answer. Expect the agent
+to stop trading on a feed outage — that is the design, not a bug.
 
 ## What this is not
 
