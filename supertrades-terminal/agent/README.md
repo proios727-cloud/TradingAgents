@@ -17,12 +17,57 @@ handoff's `GO-LIVE.md` enforced in exactly one place.
 One independent component per job; components exchange plain dataclasses and never
 read each other's internals. Guardrails live in **one** place.
 
+One scan cycle, every 5 minutes from 09:30 to 16:00 ET. Read it top to bottom —
+the vertical order is the order things actually happen, and it is deliberate.
+
 ```
-signals ─▶ contract_selector ─▶ risk_governor ─▶ approval ─▶ broker.place_order
-                                    (THE gate)   (preview-    (dry-run / arm /
- exit_manager ─────────────────────────────────  every-order) eligibility gated)
- kill_switch  ── checked first every cycle ──▶ cancel all + flatten + halt
+   ┌── ① KILL CHECK ─ first, every cycle, before anything else ────────────┐
+   │   STOP · MCP error · data stale >10s · 3 straight losses              │
+   │        └─▶ cancel_all (best-effort) ─▶ flatten ALL ─▶ halt ─▶ return  │
+   └──────────────────────────────────────────────────────────────────────┘
+                                    │ not killed
+                                    ▼
+   ┌── ② EXITS ─ run even when halted. Getting out is never gated. ───────┐
+   │   exit_manager: 15:45 flatten · −50% stop · +90% target ·            │
+   │                thesis break · scale ½ at +1R · trail                 │
+   │        └─▶ approval (ADVISORY — cannot veto) ─▶ place_order          │
+   │            each position isolated: one failure never skips the rest  │
+   └──────────────────────────────────────────────────────────────────────┘
+                                    │ halted? ─── yes ──▶ return
+                                    ▼ no
+   ┌── ③ ENTRIES ─ every gate below can say no, and no means no ──────────┐
+   │   signals ─▶ risk_governor   THE single entry gate: sizing, −2R halt,│
+   │              │               earnings, RVOL, windows, settled cash   │
+   │              ▼                                                        │
+   │            contract_selector  0DTE only · Δ0.45–0.55 · spread ≤10%   │
+   │              ▼                                                        │
+   │            broker.review_order  failed review ⇒ BLOCKED (fail closed)│
+   │              ▼                                                        │
+   │            approval  HARD VETO · default approver DENIES             │
+   │              ▼                                                        │
+   │            broker.place_order                                        │
+   └──────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+   ┌── every broker call crosses this boundary ───────────────────────────┐
+   │   mcp_dispatch  refuses non-allowlisted + mutating tools · re-checks │
+   │                 can_place_live() · https-pinned · deadline + size cap│
+   │                 timeout on a mutation ⇒ read-only reconcile by       │
+   │                 legs[].option_id ⇒ report UNKNOWN, never "failed"    │
+   │        ↑ any failure raises ─▶ trips kill_switch ─▶ halts next cycle │
+   └──────────────────────────────────────────────────────────────────────┘
+                                    │
+                              Robinhood MCP
 ```
+
+The asymmetry running through it: **entries fail closed, exits fail open.**
+Anything uncertain on the way in becomes "don't trade". Anything uncertain on
+the way out becomes "get out anyway". Every gate is a veto on entry; none of
+them can block an exit.
+
+`decision_log.py` records every step above as append-only JSONL — previews,
+rejections, approvals, fills, and each distinct failure (`exit_failed`,
+`flatten_failed`, `cancel_all_failed`, `exit_approver_error`).
 
 | File | Responsibility |
 |------|----------------|
@@ -82,6 +127,47 @@ TSLA gamma-flip → **rejected by the earnings filter** (hyperscaler week).
 
 Kill anytime: say **STOP** (cancel all, flatten, halt), disconnect the connector in
 Claude settings, or one-tap disconnect in the Robinhood app.
+
+## Where this runs, and where it must not
+
+**Build and change it anywhere** — a Claude Code session, cloud or local, is fine
+for editing, reviewing, and dry runs. Nothing here can place an order.
+
+**Run it on a machine you control, with you present.** Not in an ephemeral cloud
+container, and not unattended:
+
+- The loop needs to stay alive from 09:45 to 15:45 ET. A session container gets
+  reclaimed; the 15:45 force-flatten is not something to lose to a timeout.
+- The OAuth token lives in that machine's environment. It cannot be carried into
+  a fresh remote session.
+- Per "Credential failure disables exits" below, a token that expires mid-session
+  leaves positions open and the agent blind. Someone has to be there to notice.
+
+What to have open while it runs: the terminal running the loop, the Robinhood app
+(your manual kill path and the only way to close a position the agent can't), and
+the decision journal — a burst of `flatten_failed` means go close positions by
+hand, now.
+
+**One account, one owner.** `get_positions()` returns every option position in the
+account, with no notion of which ones the agent opened. Point it at an account you
+also trade manually and its stop, target, and 15:45 flatten will act on *your*
+positions too. Give it a dedicated account.
+
+## Changing this repo
+
+- `config.py` holds the binding guardrail values. It is deliberately the only
+  place limits live — change a limit there, never by special-casing at a call
+  site. Treat a change to it as a risk decision, not a code change.
+- Guardrails are enforced in exactly one place each (`risk_governor` for entries,
+  `exit_manager` for exits, `kill_switch` for halts). If you find yourself adding
+  a second check somewhere else, that is the bug.
+- `python3 -m unittest` must be green before anything is armed. The 48 rail tests
+  force every guardrail; they are the contract.
+- Parsers are strict on purpose — a missing field raises and trips the kill
+  switch rather than defaulting. Do not "fix" a live schema mismatch by adding a
+  fallback; fix the parser against the real response and add it as a fixture.
+- After any change to broker or dispatcher code, re-run `python3 -m agent.cli
+  smoke` against the live API before arming again.
 
 ## Credential failure disables exits, not just entries
 
