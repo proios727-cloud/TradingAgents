@@ -51,11 +51,12 @@ def synthetic_snapshot(state: dict, *, et_time: str = "10:15",
         option_quotes[pid] = {"mark": round(entry * 1.1, 2), "bid": round(entry, 2),
                               "ask": round(entry * 1.2, 2), "delta": 0.35,
                               "gamma": 0.02, "oi": 1500, "volume": 300,
-                              "spread_pct": 8.0}
+                              "spread_pct": 8.0, "iv": 0.45, "iv_rank": 0.5}
     for row in state.get("watchlist", []):
         option_quotes[row["id"]] = {"mark": 0.55, "bid": 0.50, "ask": 0.60,
                                     "delta": 0.34, "gamma": 0.03, "oi": 2000,
-                                    "volume": 800, "spread_pct": 9.0}
+                                    "volume": 800, "spread_pct": 9.0,
+                                    "iv": 0.45, "iv_rank": 0.5}
     for oid, q in (option_overrides or {}).items():
         option_quotes.setdefault(oid, {}).update(q)
 

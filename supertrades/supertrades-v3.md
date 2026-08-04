@@ -84,6 +84,16 @@
   premium** so the bid/ask can't be 20%+ of the trade. OI ≥ ~500.
 - **No <5-DTE single-name day-trades** (theta-cliff lottos) and **no 0DTE** except a
   single GEX-gated index scalp — 0DTE + churn was the −$115 day. (v4 Layer 1.)
+- **Vol-aware pricing (v4.2):** IV > **90%** (or iv_rank in the top 20% of its year) →
+  flag "overpaying for vol", **prefer a debit spread** (sell a higher strike to fund the
+  long, cutting theta) over a naked call, and the gate **de-ranks** it versus any
+  lower-IV eligible pick. IV > **250%** → hard block (uninvestable premium). Applies to
+  future entries; existing positions keep their rails.
+- **Short-DTE concentration ceiling (v4.2):** any hand-placed (manual/agentic) entry with
+  **< 5 DTE** must cost **≤ 35% of settled BP**. This is the *floor under the overrides* —
+  it binds even when the daily-2 / midday / min-DTE rails are overridden by hand. The
+  engine's auto path stays capped tighter (per-trade ≤ 22% BP). Helper:
+  `reporter.short_dte_override_max_usd(bp)`.
 - Shortest expiry that passes conviction wins; step OUT an expiry rather than
   force a junk contract. Delta-per-dollar breaks ties.
 - Watchlist rules: rows live in state.json; auto-add pool contracts drifting
@@ -169,6 +179,12 @@
   state.json write bumps updated_at.
 
 ## Changelog
+- v4.2 (2026-08-04): VOL-AWARE PRICING + SHORT-DTE CONCENTRATION CEILING, both in the
+  single reporter gate. `candidate_entry` now surfaces IV/iv_rank (fact only). The gate
+  flags IV > 90% (prefer a debit spread), de-ranks high-IV vs lower-IV picks, and hard-blocks
+  IV > 250%; and blocks any < 5-DTE entry costing > 35% BP — a ceiling that binds even under
+  hand overrides (`reporter.short_dte_override_max_usd`). Prompted by the 8/4 INTC 1-DTE
+  (IV ~122%, ~49% BP) taken over-cap; that open position is grandfathered. +7 tests; suite 42/42.
 - v4.0 Layer 1 (2026-07-27): DISCIPLINE GOVERNOR live in engine/reporter.py after the
   7/21–7/24 live run showed frequency (not direction) was the loss driver. Tightened:
   entries ≤ 2/day total (was 1 auto only), per-trade ≤ 25% BP (was 40%), delta ≥ 0.35

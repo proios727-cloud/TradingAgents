@@ -1,8 +1,8 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T17:25:00Z",
+  "updated_at": "2026-08-04T17:47:00Z",
   "trading_date": "2026-08-04",
-  "rule_version": "v4.0",
+  "rule_version": "v4.2",
   "mode": {
     "cadence_min": 30,
     "dnd": true,
@@ -83,6 +83,26 @@
       }
     },
     "alert_only": {}
+  },
+  "governor_v42": {
+    "active": true,
+    "authorized_by": "user 8/4 13:45 ET - 'build both ... for current session'",
+    "engine_ref": "supertrades/engine/reporter.py GUARDRAILS (single gate) + tests/test_engine.py::TestVolAwareAndConcentrationV42",
+    "vol_aware_pricing": {
+      "iv_soft_cap": 0.90,
+      "iv_hard_cap": 2.50,
+      "iv_rank_soft_cap": 0.80,
+      "note": "IV > soft cap (or iv_rank top-20%) -> FLAG 'overpaying for vol'; prefer a DEBIT SPREAD (sell a higher strike to fund the long, cutting theta) over a naked call; engine de-ranks it vs any lower-IV eligible pick. IV > hard cap -> block (uninvestable premium). Applies to future entries only."
+    },
+    "short_dte_concentration": {
+      "short_dte_days": 5,
+      "short_dte_bp_frac_cap": 0.35,
+      "note": "Hand-placed (manual/agentic) entry with <5 DTE: contract cost must be <= 35% of settled BP. This is the FLOOR UNDER OVERRIDES - it binds even when daily-2 / midday / min_dte are overridden by hand. Engine auto path stays capped tighter at per_trade_bp_frac 0.22. Helper: reporter.short_dte_override_max_usd(bp)."
+    },
+    "grandfathered": {
+      "positions": ["intc-102c-0805"],
+      "note": "INTC 8/5 102C (1-DTE, IV ~122%, ~49% BP) predates these rails and would breach both. Per user 'leave open and rails in line for exit' it is NOT force-closed - it keeps its existing exit_rules + overnight_swing_gate. New rails govern the NEXT entry, not this open one."
+    }
   },
   "day": {
     "realized_pnl": 48.0,
@@ -225,6 +245,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T17:47Z",
+      "event": "build",
+      "detail": "v4.2 governor built (user 'build both for current session'): (1) VOL-AWARE PRICING - candidate_entry surfaces IV; reporter flags IV>90% ('overpaying, prefer debit spread'), de-ranks vs lower-IV picks, hard-blocks IV>250%. (2) SHORT-DTE CONCENTRATION CEILING - <5 DTE hand-placed entry cost <=35% BP, binds under overrides (reporter.short_dte_override_max_usd). Single-gate invariant preserved (all thresholds in reporter.py). +7 tests, 42/42 pass, selftest 26 nodes 0 err. rule_version v4.0->v4.2. Open INTC grandfathered (leave open, exits in line per user). Not pushed (build, not a fill)."
+    },
     {
       "t": "2026-08-04T17:31Z",
       "event": "rule",

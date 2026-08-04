@@ -31,6 +31,16 @@ GUARDRAILS = {
     "min_premium_usd": 0.40,            # v4: keeps the bid/ask spread from being 20%+ of the trade
     "min_dte_day_trade": 5,             # v4: no <5-DTE single-name day-trades (theta-cliff lottos)
     "min_oi": 500,
+    # v4.2 (8/4): vol-aware pricing — stop overpaying for premium on high-IV names.
+    "iv_soft_cap": 0.90,                # abs IV above this -> flag 'overpaying for vol',
+                                        #   prefer a debit spread, and de-rank vs lower-IV picks
+    "iv_hard_cap": 2.50,               # abs IV above this -> block (uninvestable premium)
+    "iv_rank_soft_cap": 0.80,          # if fetch supplies iv_rank (0-1): top-20%-of-year -> same steer
+    # v4.2 (8/4): concentration ceiling for short-dated trades. Binds EVEN when the
+    #   daily-2 / midday / min_dte rails are overridden by hand — the floor under overrides.
+    "short_dte_days": 5,                # DTE strictly below this counts as short-dated
+    "short_dte_bp_frac_cap": 0.35,      # short-DTE contract cost must be <= 35% of settled BP
+                                        #   (today's INTC 1-DTE @ ~49% BP would have been trimmed)
     "churn_round_trips": 3,             # v4: churn brake tightened from 4
     "no_entry_before_et": "09:40",
     "midday_skip_et": ("12:00", "14:00"),
@@ -70,6 +80,29 @@ def summarizer(batch) -> dict:
 def _minutes(hhmm: str) -> int:
     h, m = hhmm.split(":")
     return int(h) * 60 + int(m)
+
+
+def short_dte_override_max_usd(bp: float) -> float:
+    """Hard $ ceiling on a *hand-placed* (manual/agentic) entry with <short_dte_days DTE.
+
+    This is the floor under the overrides: when the agent or user overrides the
+    engine's daily-2 / midday / min_dte rails to take a short-dated trade, the
+    contract cost still may not exceed this. The engine's own auto path is capped
+    tighter by per_trade_bp_frac (0.22); this exists so the override path can't
+    concentrate a short-DTE lotto the way the 8/4 INTC 1-DTE did (~49% of BP).
+    """
+    return GUARDRAILS["short_dte_bp_frac_cap"] * bp
+
+
+def high_iv_steer(iv: float | None, iv_rank: float | None = None) -> bool:
+    """True if this contract's vol is rich enough to prefer a debit spread over a
+    naked long (abs IV over soft cap, or iv_rank in the top band when supplied)."""
+    g = GUARDRAILS
+    if iv is not None and iv > g["iv_soft_cap"]:
+        return True
+    if iv_rank is not None and iv_rank > g["iv_rank_soft_cap"]:
+        return True
+    return False
 
 
 def make_final_reporter(state: dict):
@@ -167,6 +200,7 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
     audits = []
     for c in groups["entries"]:
         blocked = list(frozen)
+        warnings: list[str] = []
         if c.get("missing"):
             blocked.append("no_quote")
         else:
@@ -201,18 +235,35 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
                     blocked.append("0dte_blocked")        # v4: no non-index 0DTE autos
                 elif edays < g["min_dte_day_trade"]:
                     blocked.append("min_dte")             # v4: no <5-DTE day-trades
+            # v4.2 vol-aware pricing: block absurd IV, steer rich IV to a spread
+            iv = c.get("iv")
+            if iv is not None and iv > g["iv_hard_cap"]:
+                blocked.append("iv_hard_cap")
+            if high_iv_steer(iv, c.get("iv_rank")):
+                warnings.append("high_iv_prefer_debit_spread")
+            # v4.2 concentration ceiling for short-dated trades (binds under overrides)
+            if edays is not None and edays < g["short_dte_days"] \
+                    and cost > g["short_dte_bp_frac_cap"] * bp:
+                blocked.append("short_dte_concentration")
         audits.append({"id": c.get("id"), "symbol": c.get("symbol"),
-                       "contract": c.get("contract"),
+                       "contract": c.get("contract"), "warnings": warnings,
                        "blocked_by": blocked, "eligible": not blocked})
 
     eligible = [a for a in audits if a["eligible"]]
     if eligible:
         by_id = {c["id"]: c for c in groups["entries"]}
-        pick = max(eligible, key=lambda a: by_id[a["id"]].get("delta") or 0.0)
+        # prefer lower-IV expressions: a non-high-IV candidate outranks any high-IV
+        # one; within a tier, highest delta wins. High-IV is chosen only when it's
+        # the sole eligible option (then it carries the prefer-spread warning through).
+        def _rank(a):
+            not_high_iv = "high_iv_prefer_debit_spread" not in a.get("warnings", [])
+            return (not_high_iv, by_id[a["id"]].get("delta") or 0.0)
+        pick = max(eligible, key=_rank)
         actions["entry"] = {"id": pick["id"], "contract": pick["contract"],
                             "qty": g["max_contracts_per_order"],
                             "order": "review_then_place_buy_limit",
-                            "account": AGENTIC_ACCT}
+                            "account": AGENTIC_ACCT,
+                            "warnings": pick.get("warnings", [])}
 
     # ---- churn guard --------------------------------------------------------
     if (acct.get("manual_round_trips", 0) >= g["churn_round_trips"]
@@ -275,7 +326,10 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
                               "spread_max_pct": g["spread_cap_pct_of_ask"],
                               "premium_min": g["min_premium_usd"],
                               "min_dte": g["min_dte_day_trade"],
-                              "per_trade_bp_frac": g["per_trade_bp_frac"]},
+                              "per_trade_bp_frac": g["per_trade_bp_frac"],
+                              "iv_soft_cap": g["iv_soft_cap"],
+                              "iv_hard_cap": g["iv_hard_cap"],
+                              "short_dte_bp_frac_cap": g["short_dte_bp_frac_cap"]},
             "flags": ([f"entry cap reached ({entries_today}/{g['max_entries_per_day_total']})"]
                       if entries_today >= g["max_entries_per_day_total"] else [])
                      + (["churn brake — round-trips at/over limit"]

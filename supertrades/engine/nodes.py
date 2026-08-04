@@ -15,7 +15,8 @@ Snapshot schema (written by the loop's fetch step, see README):
   "account": {"bp": float, "day_realized": float, "auto_entries_used": int,
                "manual_round_trips": int, "halted": bool},
   "quotes": {SYM: {"last": float, "prev_close": float, "day_pct": float}},
-  "option_quotes": {ID: {"mark","bid","ask","delta","gamma","oi","volume","spread_pct"}},
+  "option_quotes": {ID: {"mark","bid","ask","delta","gamma","oi","volume","spread_pct",
+                         "iv","iv_rank"}},   # iv = implied_volatility (abs); iv_rank optional 0-1
   "positions": {ID: {...state.json position fields...}},
   "candidates": [{"id","contract","symbol","expiry_days"}],
   "gex": {SYM: {"strikes": {K: {"call_oi","call_gamma","put_oi","put_gamma",
@@ -137,6 +138,7 @@ async def candidate_entry(payload: dict, snapshot: dict) -> dict:
     return {"id": cid, "symbol": sym, "contract": payload.get("contract", cid),
             "ask": oq["ask"], "delta": oq.get("delta"), "oi": oq.get("oi"),
             "spread_pct": oq.get("spread_pct"),
+            "iv": oq.get("iv"), "iv_rank": oq.get("iv_rank"),
             "underlying_day_pct": q.get("day_pct"),
             "above_vwap": (None if snapshot.get("vwap", {}).get(sym) is None
                             else q.get("last", 0) > snapshot["vwap"][sym]),

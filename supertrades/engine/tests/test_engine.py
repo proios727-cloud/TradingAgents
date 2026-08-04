@@ -18,7 +18,8 @@ from supertrades.engine import ops
 from supertrades.engine.discovery import build_nodes, expected_node_count, gex_underlyings
 from supertrades.engine.orchestrator import Node, Orchestrator
 from supertrades.engine.reporter import (AGENTIC_ACCT, GUARDRAILS, MARGIN_ACCT,
-                                         make_final_reporter, summarizer)
+                                         high_iv_steer, make_final_reporter,
+                                         short_dte_override_max_usd, summarizer)
 from supertrades.engine.run_cycle import run_one_cycle, synthetic_snapshot
 
 ENGINE_DIR = Path(__file__).resolve().parents[1]
@@ -322,6 +323,81 @@ class TestDisciplineGovernorV4(unittest.TestCase):
         self.assertEqual(d["round_trip_brake"], 3)
         self.assertEqual(d["quality_floor"]["delta_min"], 0.35)
         self.assertEqual(d["quality_floor"]["min_dte"], 5)
+
+
+class TestVolAwareAndConcentrationV42(unittest.TestCase):
+    """v4.2 (8/4): IV-aware pricing steer + short-DTE concentration override ceiling."""
+
+    def _audit(self, report, cid="cand-nvda"):
+        for a in report["guardrail_audit"]["per_candidate"]:
+            if a["id"] == cid:
+                return a
+        raise AssertionError("candidate not audited")
+
+    def test_iv_hard_cap_blocks_uninvestable_premium(self):
+        state = entry_ready_state(load_state())
+        snap = perfect_candidate(state)
+        snap["option_quotes"]["cand-nvda"].update({"iv": 3.0})   # 300% > 250% hard cap
+        self.assertIn("iv_hard_cap", self._audit(run(state, snap))["blocked_by"])
+
+    def test_high_iv_warns_but_does_not_block(self):
+        state = entry_ready_state(load_state())
+        snap = perfect_candidate(state)
+        snap["option_quotes"]["cand-nvda"].update({"iv": 1.22})  # like the 8/4 INTC
+        audit = self._audit(run(state, snap))
+        self.assertIn("high_iv_prefer_debit_spread", audit["warnings"])
+        self.assertNotIn("iv_hard_cap", audit["blocked_by"])
+        self.assertTrue(audit["eligible"])                       # still tradable, just steered
+
+    def test_iv_rank_top_band_also_steers(self):
+        self.assertTrue(high_iv_steer(0.40, iv_rank=0.85))       # low abs IV, but top of year
+        self.assertFalse(high_iv_steer(0.40, iv_rank=0.50))
+        self.assertTrue(high_iv_steer(1.50, iv_rank=None))       # abs IV alone trips it
+
+    def test_selection_prefers_lower_iv_expression(self):
+        """A calmer-IV candidate outranks a higher-delta high-IV one."""
+        state = entry_ready_state(load_state())
+        state["watchlist"] = [{"id": "cand-nvda", "contract": "NVDA 7/31 $225C"},
+                              {"id": "cand-amd", "contract": "AMD 7/31 $180C"}]
+        snap = synthetic_snapshot(
+            state, et_time="10:15", bp=600.0,
+            option_overrides={
+                "cand-nvda": {"ask": 0.60, "delta": 0.55, "spread_pct": 6.0,
+                              "oi": 5000, "iv": 1.30},           # richer delta, hot IV
+                "cand-amd": {"ask": 0.60, "delta": 0.42, "spread_pct": 6.0,
+                             "oi": 5000, "iv": 0.45}},           # lower delta, calm IV
+            quote_overrides={"NVDA": {"day_pct": 1.8}, "AMD": {"day_pct": 1.8}})
+        for s in ("NVDA", "AMD"):
+            snap["vwap"][s] = 100.0
+            snap["quotes"][s]["last"] = 101.0      # above VWAP -> conviction ok
+        report = run(state, snap)
+        self.assertEqual(report["actions"]["entry"]["id"], "cand-amd")
+
+    def test_short_dte_concentration_blocks_oversized_short_dated(self):
+        state = entry_ready_state(load_state())
+        state["watchlist"] = [{"id": "cand-nvda", "contract": "NVDA 7/29 $225C"}]
+        # 3-DTE, cost $200 on $500 BP = 40% > 35% short-DTE ceiling
+        snap = synthetic_snapshot(
+            state, et_time="10:15", bp=500.0,
+            option_overrides={"cand-nvda": {"ask": 2.00, "delta": 0.42,
+                                            "spread_pct": 6.0, "oi": 5000, "iv": 0.5}},
+            quote_overrides={"NVDA": {"day_pct": 1.8}})
+        snap["quotes"]["NVDA"]["last"] = snap["vwap"]["NVDA"] + 1.0
+        report = asyncio.run(run_one_cycle(state, snap, dt.date(2026, 7, 27)))  # 2 DTE
+        self.assertIn("short_dte_concentration",
+                      self._audit(report)["blocked_by"])
+
+    def test_short_dte_override_ceiling_helper(self):
+        self.assertAlmostEqual(short_dte_override_max_usd(402.0), 140.7)   # 35% of BP
+        # today's INTC 1-DTE @ $199 on ~$402 BP would have exceeded this ceiling
+        self.assertGreater(199.0, short_dte_override_max_usd(402.0))
+
+    def test_scorecard_surfaces_new_rails(self):
+        state = load_state()
+        qf = run(state, synthetic_snapshot(state))["console"]["discipline"]["quality_floor"]
+        self.assertEqual(qf["iv_soft_cap"], 0.90)
+        self.assertEqual(qf["iv_hard_cap"], 2.50)
+        self.assertEqual(qf["short_dte_bp_frac_cap"], 0.35)
 
 
 class TestReliableOpsV4(unittest.TestCase):
