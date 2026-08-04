@@ -20,29 +20,41 @@ from .models import (
 
 # Earnings calendar fixture: symbol -> (report date, "am" | "pm").
 #
-# This is a FIXTURE, not a feed — it cannot tell you it has gone stale, so it
-# belongs to the dry-run path only. Anything that can place an order should use
-# earnings.McpEarningsCalendar instead. Verified against the broker earnings
-# calendar on 2026-07-30; refresh it when the reporting window rolls. A symbol
-# absent from the map is treated as having no scheduled report — the correct
-# answer for names that already reported this cycle (GOOGL, TSLA and INTC, as
-# of this refresh), and why the blackout must be derived rather than hardcoded.
+# A FIXTURE, not a feed — the dry-run path only. Anything that can place an
+# order must use earnings.McpEarningsCalendar, which refetches once per
+# session date and so stays current on its own.
+#
+# This block is GENERATED. Refresh it from the live feed with:
+#
+#     python -m agent.cli refresh-earnings
+#
+# and commit the result. Everything between the BEGIN/END markers is rewritten
+# wholesale, so hand-edits there are lost — put anything durable outside them.
+#
+# EARNINGS_CALENDAR_AS_OF is what makes the fixture able to say it has gone
+# stale: past STATIC_FIXTURE_MAX_AGE_DAYS, StaticEarningsCalendar stops
+# answering and fails closed rather than quoting dates from a previous
+# reporting cycle. A symbol absent from the map has no scheduled report.
+# --- BEGIN GENERATED EARNINGS FIXTURE ---
+EARNINGS_CALENDAR_AS_OF = date(2026, 8, 4)
+
 EARNINGS_CALENDAR: dict[str, tuple[date, str]] = {
     "MSFT": (date(2026, 7, 29), "pm"),
     "META": (date(2026, 7, 29), "pm"),
     "AMZN": (date(2026, 7, 30), "pm"),
-    "AAPL": (date(2026, 7, 30), "pm"),
     "XOM": (date(2026, 7, 31), "am"),
-    "CVX": (date(2026, 7, 31), "am"),
     "AMD": (date(2026, 8, 4), "pm"),
     "NVDA": (date(2026, 8, 26), "pm"),
 }
+# --- END GENERATED EARNINGS FIXTURE ---
 
 
 class SimulatedSignalSource:
     def __init__(self, session: date):
         self.session = session
-        self._calendar = StaticEarningsCalendar(EARNINGS_CALENDAR)
+        self._calendar = StaticEarningsCalendar(
+            EARNINGS_CALENDAR, as_of=EARNINGS_CALENDAR_AS_OF
+        )
 
     def fired_signals(self, now: datetime) -> list[Signal]:
         return [
