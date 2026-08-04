@@ -94,6 +94,29 @@
   it binds even when the daily-2 / midday / min-DTE rails are overridden by hand. The
   engine's auto path stays capped tighter (per-trade ≤ 22% BP). Helper:
   `reporter.short_dte_override_max_usd(bp)`.
+
+## 6b. Profit maximization — give-back trail, scale-out, runner (v4.3)
+The fixed +50% target both **capped** upside and **lagged** the poll (QQQ 8/4: +123% peak →
++56% exit). Replace "hard-sell at target" with **let winners run, trail the peak**:
+- **Give-back trail** (`giveback` exit_rule, evaluated in `position_exit`): once peak gain
+  clears `arm_gain_pct`, exit if the position gives back `peak_frac` of the *peak gain*
+  (measured off the persisted high-water mark). Faster clock → tighter trail.
+- **Runner** (`target.runner: true`): do NOT cap at +50% — hold and let the trail capture
+  the peak. Used for override / high-conviction momentum plays (downside already bounded by
+  the §3 concentration ceiling).
+- **Scale-out** (`target.scale_out_frac`, multi-contract): bank a slice at the milestone,
+  trail the remainder. Single contract → trail only.
+- **Exit timing:** exits go **marketable through the bid** (a resting bid missed the QQQ
+  reversal), and the management cadence **tightens to ~8 min once a position is extended**
+  (past the ratchet arm) so a peak reversal is caught fast.
+- **Per-class profile** (materialized from `class_defaults[...].profit_max`), tuned by horizon:
+  0dte lock 70% of peak / day lock 60% / **swing lock 50%** / swing_overnight lock 55%.
+- **Weekly / swing overlay (TA + fundamentals):** the swing runner gets the most room, but
+  keeps holding **only while BOTH** the daily trend is intact (price > rising MA20, higher
+  highs, no reversal-on-volume) **and** the growth thesis is intact (no earnings miss /
+  guidance cut / negative catalyst via `get_equity_fundamentals` + earnings). If TA breaks OR
+  fundamentals deteriorate, exit regardless of the give-back %; trail the stop under the prior
+  daily swing-low.
 - Shortest expiry that passes conviction wins; step OUT an expiry rather than
   force a junk contract. Delta-per-dollar breaks ties.
 - Watchlist rules: rows live in state.json; auto-add pool contracts drifting
@@ -179,6 +202,11 @@
   state.json write bumps updated_at.
 
 ## Changelog
+- v4.3 (2026-08-04): PROFIT-MAX / GIVE-BACK TRAIL. New `giveback` exit_rule + runner
+  (uncap winners) + multi-contract scale-out in the exit engine; per-class profit_max
+  profiles (0dte tight → swing wide) with a TA+fundamental overlay for weekly swings;
+  marketable exits + cadence that tightens to ~8min when extended. Applied live to the
+  INTC runner. Prompted by QQQ 8/4 (+123% peak → +56% exit). +8 tests; suite 50/50.
 - v4.2 (2026-08-04): VOL-AWARE PRICING + SHORT-DTE CONCENTRATION CEILING, both in the
   single reporter gate. `candidate_entry` now surfaces IV/iv_rank (fact only). The gate
   flags IV > 90% (prefer a debit spread), de-ranks high-IV vs lower-IV picks, and hard-blocks

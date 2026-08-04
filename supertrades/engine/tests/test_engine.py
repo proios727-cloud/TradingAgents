@@ -400,6 +400,93 @@ class TestVolAwareAndConcentrationV42(unittest.TestCase):
         self.assertEqual(qf["short_dte_bp_frac_cap"], 0.35)
 
 
+class TestProfitMaxGivebackV43(unittest.TestCase):
+    """v4.3 (8/4): trailing give-back guard + scale-out + runner (uncap winners).
+
+    Prompted by QQQ 8/4: +123% peak round-tripped to +56% exit because the fixed
+    +50% target both capped upside and lagged the poll. Fix = let winners run and
+    trail a give-back stop off the high-water mark; scale out across multiple lots.
+    """
+
+    def _run_pos(self, exit_rules, *, qty=1, entry=0.64, hwm=None, mark=None,
+                 bid=None, ratchet=False, scaled=False, cls="0dte_scalp"):
+        state = copy.deepcopy(load_state())
+        state["positions"] = {
+            "pos-agentic": {"contract": "QQQ 8/4 $724C", "account": AGENTIC_ACCT,
+                            "qty": qty, "entry": entry, "hwm": hwm if hwm else entry,
+                            "ratchet_engaged": ratchet, "scaled_out": scaled,
+                            "class": cls, "expiry": "2026-08-04",
+                            "exit_rules": exit_rules}}
+        state["watchlist"] = []
+        snap = synthetic_snapshot(state, et_time="10:15", bp=500.0)
+        snap["option_quotes"]["pos-agentic"].update(
+            {"mark": mark, "bid": bid if bid is not None else mark})
+        return run(state, snap)
+
+    def _exits(self, report):
+        return [e for e in report["actions"]["exits"] if e["id"] == "pos-agentic"]
+
+    GB = {"type": "giveback", "arm_gain_pct": 40, "peak_frac": 0.30}
+
+    def test_giveback_trails_after_peak(self):
+        # peak 1.43 (+123%), pulled back to 1.15: gave back 0.28 >= 0.30*0.79=0.237 -> exit
+        r = self._run_pos([self.GB], hwm=1.43, mark=1.15, bid=1.14)
+        ex = self._exits(r)
+        self.assertTrue(ex and ex[0]["order"] == "sell_limit_at_bid")
+        self.assertIn("give-back", ex[0]["why"])
+
+    def test_giveback_dormant_below_arm(self):
+        # peak only +30% (< 40% arm): trail not armed, no exit despite a pullback
+        r = self._run_pos([self.GB], hwm=0.83, mark=0.72, bid=0.71)
+        self.assertFalse(self._exits(r))
+
+    def test_giveback_holds_near_peak(self):
+        # still near the high (gave back < 30% of peak): keep holding
+        r = self._run_pos([self.GB], hwm=1.43, mark=1.35, bid=1.34)
+        self.assertFalse(self._exits(r))
+
+    def test_non_0dte_trails_wider(self):
+        # identical retrace: 0.40 peak_frac (day_trade) holds where 0.30 (0dte) would exit
+        rules_wide = [{"type": "giveback", "arm_gain_pct": 40, "peak_frac": 0.40}]
+        wide = self._run_pos(rules_wide, hwm=1.43, mark=1.15, bid=1.14, cls="day_trade")
+        self.assertFalse(self._exits(wide))                       # 0.28 < 0.40*0.79=0.316
+        tight = self._run_pos([self.GB], hwm=1.43, mark=1.15, bid=1.14)
+        self.assertTrue(self._exits(tight))                       # 0.28 >= 0.237
+
+    def test_runner_does_not_cap_at_target(self):
+        rules = [{"type": "target", "pct": 50, "runner": True},
+                 {"type": "giveback", "arm_gain_pct": 40, "peak_frac": 0.30}]
+        # +55% (past target) but still near peak -> HOLD, not sell
+        r = self._run_pos(rules, hwm=1.00, mark=0.99, bid=0.98)
+        self.assertFalse(self._exits(r))
+        self.assertTrue([a for a in r["actions"]["alerts"]
+                         if a.get("rule") == "target_hold_runner"])
+
+    def test_scale_out_banks_slice_and_trails_rest(self):
+        rules = [{"type": "target", "pct": 50, "scale_out_frac": 0.5},
+                 {"type": "giveback", "arm_gain_pct": 40, "peak_frac": 0.30}]
+        r = self._run_pos(rules, qty=3, hwm=1.00, mark=0.99, bid=0.98)
+        ex = self._exits(r)
+        self.assertTrue(ex and ex[0]["qty"] == 1)                 # int(3*0.5)=1 banked
+        upd = [u for u in r["actions"]["state_updates"]
+               if u["id"] == "pos-agentic" and u["set"].get("scaled_out")]
+        self.assertTrue(upd and upd[0]["set"]["qty"] == 2)        # 2 ride the trail
+
+    def test_hwm_persists_for_trail_reference(self):
+        # new high above stored hwm -> state bumps hwm so the trail measures true peak
+        r = self._run_pos([self.GB], hwm=0.64, mark=1.20, bid=1.19)
+        upd = [u for u in r["actions"]["state_updates"]
+               if u["id"] == "pos-agentic" and "hwm" in u["set"]]
+        self.assertTrue(upd and upd[0]["set"]["hwm"] == 1.20)
+
+    def test_class_defaults_carry_profit_max_profiles(self):
+        cd = load_state()["class_defaults"]
+        self.assertEqual(cd["0dte_scalp"]["profit_max"]["giveback"]["peak_frac"], 0.30)
+        self.assertEqual(cd["day_trade"]["profit_max"]["giveback"]["peak_frac"], 0.40)
+        self.assertEqual(cd["swing"]["profit_max"]["giveback"]["peak_frac"], 0.50)
+        self.assertIn("ta_fundamental_gate", cd["swing"]["profit_max"])
+
+
 class TestReliableOpsV4(unittest.TestCase):
     """v4 Layer 2: deterministic clock/flatten/staleness so no cycle silently misses."""
 

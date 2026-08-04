@@ -1,8 +1,8 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T18:01:00Z",
+  "updated_at": "2026-08-04T18:11:00Z",
   "trading_date": "2026-08-04",
-  "rule_version": "v4.2",
+  "rule_version": "v4.3",
   "mode": {
     "cadence_min": 30,
     "dnd": true,
@@ -66,13 +66,27 @@
       "target_pct": 50,
       "stop_pct": -30,
       "ratchet_pct": 25,
-      "hard_exit_et": "15:15"
+      "hard_exit_et": "15:15",
+      "profit_max": {
+        "runner": true,
+        "giveback": {"arm_gain_pct": 40, "peak_frac": 0.30},
+        "scale_out_frac": 0.5, "scale_out_at_pct": 60,
+        "exit_mech": "marketable_through_bid",
+        "note": "Fastest clock: trail tight (lock 70% of peak), price/gamma only. Runner = do NOT hard-cap at +50%; let it run and trail. QQQ 8/4 lesson."
+      }
     },
     "day_trade": {
       "target_pct": 50,
       "stop_pct": -30,
       "ratchet_pct": 25,
-      "flatten_et": "15:45"
+      "flatten_et": "15:45",
+      "profit_max": {
+        "runner": true,
+        "giveback": {"arm_gain_pct": 50, "peak_frac": 0.40},
+        "scale_out_frac": 0.5, "scale_out_at_pct": 75,
+        "exit_mech": "marketable_through_bid",
+        "note": "1-5 DTE: medium trail (lock 60% of peak), let it breathe more than 0DTE. Price + VWAP structure."
+      }
     },
     "swing": {
       "target_pct": 50,
@@ -80,6 +94,24 @@
       "ratchet_pct": 25,
       "time_stop": {
         "days_before_expiry": 14
+      },
+      "profit_max": {
+        "runner": true,
+        "giveback": {"arm_gain_pct": 60, "peak_frac": 0.50},
+        "scale_out_tiers": [{"at_pct": 75, "frac": 0.33}, {"at_pct": 150, "frac": 0.5}],
+        "exit_mech": "limit_at_bid",
+        "ta_fundamental_gate": "Weekly horizon: give the runner the MOST room (lock 50% of peak) BUT keep holding ONLY while BOTH hold: (TA) daily trend intact - price > rising MA20 / making higher-highs, no daily reversal candle on volume; (FUNDAMENTAL) growth thesis intact - no earnings miss / guidance cut / negative catalyst. If TA breaks OR fundamentals deteriorate, exit regardless of the give-back %. Trail the stop under the prior daily swing-low.",
+        "note": "~1-3 week swings: widest trail, but gated by TA structure + fundamental quality (get_equity_fundamentals / earnings). This is where growth TA + fundamentals overlay the numeric trail."
+      }
+    },
+    "swing_overnight": {
+      "stop_pct": -30,
+      "ratchet_pct": 25,
+      "profit_max": {
+        "runner": true,
+        "giveback": {"arm_gain_pct": 50, "peak_frac": 0.45},
+        "exit_mech": "marketable_through_bid",
+        "note": "1-2 day carry (e.g. INTC overnight): lock 55% of peak, tighter than swing due to gap + 0DTE-tomorrow theta risk."
       }
     },
     "alert_only": {}
@@ -128,11 +160,13 @@
       "class": "day_trade",
       "expiry": "2026-08-05",
       "exit_rules": [
-        {"type": "target", "pct": 50, "price": 2.99, "mech": "sell_limit_at_mark"},
+        {"type": "target", "pct": 50, "price": 2.99, "runner": true, "mech": "hold_runner_trail_no_cap"},
         {"type": "stop", "pct": -30, "price": 1.39, "mech": "sell_limit_at_bid"},
         {"type": "ratchet", "arm_pct": 25, "arm_price": 2.49, "be_stop_price": 1.99, "mech": "breakeven_stop_after_arm"},
+        {"type": "giveback", "arm_gain_pct": 50, "peak_frac": 0.40, "mech": "sell_marketable_through_bid"},
         {"type": "flatten_et_conditional", "at": "15:44", "mech": "sell_limit_at_bid_unless_overnight_gate_passes"}
       ],
+      "profit_max_ladder": "day_trade runner (v4.3). entry->+25%: hard stop 1.39. +25%->+50%: breakeven stop 1.99 (ratchet). +50%+: RUNNER - do NOT cap at +50%; trail give-back (arm at peak >=+50%, exit if it gives back 40% of peak gain -> locks ~60% of the peak), MARKETABLE exit through bid (QQQ lesson: resting-at-bid missed the fast reversal). Close: overnight gate 15:35-15:44. Exit timing: management cadence tightens to ~8min once mark >= 2.49 (extended/near trail).",
       "overnight_swing_gate": {
         "authorized_by": "user 8/4 13:30 ET - 'can swing intc if scoring permits for overnight hold'",
         "evaluate_at": "15:35-15:44 ET",
@@ -227,6 +261,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T18:11Z",
+      "event": "build",
+      "detail": "v4.3 PROFIT-MAX / GIVE-BACK TRAIL built (user: 'maximize profits for these situations ... apply differently to non-0dte ... weekly TA+fundamentally ... for cons like intc ... and exit timing'). Engine: new 'giveback' exit_rule (trail off persisted HWM, exit when peak gain retraces peak_frac), 'runner' (target no-cap - let winners run past +50%), multi-contract scale-out, hwm persistence, all in single gate. Per-class profit_max profiles by horizon: 0dte lock70% / day lock60% / swing lock50% / swing_overnight lock55%; swing adds TA (trend>MA20/HH) + fundamental (get_equity_fundamentals/earnings) hold-gate. Exits marketable-through-bid; cadence tightens to ~8min when extended. Applied LIVE to INTC (day_trade runner: stop 1.39 -> BE 1.99 ratchet -> giveback arm+50%/0.40 -> runner -> overnight gate). +8 tests, 50/50, selftest 25 nodes 0 err. rule_version v4.2->v4.3. Not pushed (build)."
+    },
     {
       "t": "2026-08-04T18:01Z",
       "event": "fill",

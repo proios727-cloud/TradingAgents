@@ -144,23 +144,59 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
             continue
         alert_only = (pos.get("account") != AGENTIC_ACCT
                       or pos.get("class") == "alert_only")
+        qty = pos.get("qty", 1)
+        rules = {r["type"]: r for r in pos.get("exit_rules", [])}
         for trip in ex.get("trips", []):
             rule = trip["rule"]
             if rule == "ratchet_arm":
                 actions["state_updates"].append(
                     {"id": ex["id"], "set": {"ratchet_engaged": True, "hwm": ex["hwm"]},
                      "why": f"breakeven ratchet armed: {trip['detail']}"})
-            elif not alert_only and rule == "target":
-                actions["exits"].append({"id": ex["id"], "contract": ex["contract"],
-                                         "order": "sell_limit_at_mark",
-                                         "why": f"target: {trip['detail']}"})
-            elif not alert_only and rule in ("stop", "ratchet_stop"):
-                actions["exits"].append({"id": ex["id"], "contract": ex["contract"],
-                                         "order": "sell_limit_at_bid",
-                                         "why": f"{rule}: {trip['detail']}"})
+            elif alert_only:
+                actions["alerts"].append({"id": ex["id"], "contract": ex["contract"],
+                                          "rule": rule, "detail": trip["detail"]})
+            elif rule == "target":
+                trule = rules.get("target", {})
+                frac = trule.get("scale_out_frac")
+                # multi-contract: bank a slice at target, let the rest run under the trail
+                if frac and qty > 1 and not pos.get("scaled_out"):
+                    sell_qty = max(1, int(qty * frac))
+                    actions["exits"].append(
+                        {"id": ex["id"], "contract": ex["contract"], "qty": sell_qty,
+                         "order": "sell_limit_at_mark",
+                         "why": f"scale-out {sell_qty}/{qty} at target: {trip['detail']}"})
+                    actions["state_updates"].append(
+                        {"id": ex["id"], "set": {"scaled_out": True, "qty": qty - sell_qty},
+                         "why": "banked scale-out slice; remainder trails give-back guard"})
+                # runner (used for override/high-conviction plays): DON'T cap at +50% —
+                # hold and let the trailing give-back guard capture the peak instead
+                elif trule.get("runner"):
+                    actions["alerts"].append(
+                        {"id": ex["id"], "contract": ex["contract"], "rule": "target_hold_runner",
+                         "detail": f"{trip['detail']} — holding under give-back trail (runner)"})
+                else:
+                    actions["exits"].append(
+                        {"id": ex["id"], "contract": ex["contract"], "qty": qty,
+                         "order": "sell_limit_at_mark", "why": f"target: {trip['detail']}"})
+            elif rule == "giveback":
+                actions["exits"].append(
+                    {"id": ex["id"], "contract": ex["contract"], "qty": qty,
+                     "order": "sell_limit_at_bid", "why": f"give-back trail: {trip['detail']}"})
+            elif rule in ("stop", "ratchet_stop"):
+                actions["exits"].append(
+                    {"id": ex["id"], "contract": ex["contract"], "qty": qty,
+                     "order": "sell_limit_at_bid", "why": f"{rule}: {trip['detail']}"})
             else:
                 actions["alerts"].append({"id": ex["id"], "contract": ex["contract"],
                                           "rule": rule, "detail": trip["detail"]})
+        # persist the peak so the give-back trail measures from a true high-water mark
+        stored_hwm = pos.get("hwm", pos.get("entry", 0.0))
+        if (not alert_only and ex.get("hwm") and ex["hwm"] > stored_hwm
+                and not any(u["id"] == ex["id"] and "hwm" in u.get("set", {})
+                            for u in actions["state_updates"])):
+            actions["state_updates"].append(
+                {"id": ex["id"], "set": {"hwm": ex["hwm"]},
+                 "why": "peak high-water mark advanced (give-back trail reference)"})
         # class session time stops (clock rules live here, not in nodes)
         cd = class_defaults.get(pos.get("class"), {})
         stop_at = cd.get("hard_exit_et") or cd.get("flatten_et")

@@ -116,6 +116,18 @@ async def position_exit(payload: dict, snapshot: dict) -> dict:
         elif t == "ratchet" and not pos.get("ratchet_engaged") \
                 and (hwm - entry) / entry * 100 >= rule["arm_pct"]:
             trips.append({"rule": "ratchet_arm", "detail": f"HWM +{(hwm-entry)/entry*100:.0f}%"})
+        elif t == "giveback":
+            # trailing profit-lock: once the peak gain clears arm_gain_pct, exit if the
+            # position gives back more than peak_frac of that peak gain (QQQ 8/4 lesson —
+            # +123% peak round-tripped toward the exit before the poll caught it).
+            peak_gain = hwm - entry
+            armed = entry and peak_gain > 0 \
+                and peak_gain / entry * 100 >= rule["arm_gain_pct"]
+            if armed and (hwm - mark) >= rule["peak_frac"] * peak_gain:
+                locked = (mark - entry) / entry * 100
+                trips.append({"rule": "giveback",
+                              "detail": f"gave back {rule['peak_frac']*100:.0f}% of peak "
+                                        f"+{peak_gain/entry*100:.0f}% -> lock +{locked:.0f}%"})
         elif t == "alert_bid_floor" and oq["bid"] <= rule["bid"]:
             trips.append({"rule": t, "detail": f"bid {oq['bid']} <= {rule['bid']}"})
         elif t == "alert_swing":
