@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T17:10:00Z",
+  "updated_at": "2026-08-04T17:25:00Z",
   "trading_date": "2026-08-04",
   "rule_version": "v4.0",
   "mode": {
@@ -86,16 +86,36 @@
   },
   "day": {
     "realized_pnl": 48.0,
-    "auto_entries_used": 0,
+    "auto_entries_used": 1,
     "manual_entries_today": 2,
     "manual_round_trips": 1,
+    "entries_today_total": 3,
     "churn_threshold_hit": false,
     "halted": false,
     "open_pnl_est": 14.5,
-    "note": "LIVE 8/4. User opened TWO 0DTE calls manually (own signals): SPY 8/4 771C @0.75 (12:51 ET), QQQ 8/4 724C @0.64 (13:06 ET). 1:10 ET reconcile: SPY hit +50% target (+70% mark) -> AGENTIC target exit sold 1 @1.23, realized +48 (order 6a721cea, placed_agent=agentic). QQQ 724C still open +23%, managing to 3:15 hard-exit. Realized +48, open +14.5, day +62.5. No halt.",
+    "note": "LIVE 8/4. User 2 manual 0DTE calls (SPY 771C @0.75, QQQ 724C @0.64). 1:10 ET SPY hit target -> AGENTIC exit @1.23 = +48 (order 6a721cea). 1:24 ET AGENTIC ENTRY (user-directed 'tiny live', rvol screen): INTC 8/5 102C @1.99 (order 6a722065) - 3rd entry, OVERRIDES daily-2 cap + midday + min_dte per explicit user call. Open: QQQ 724C +23%, INTC 102C flat. Realized +48. INTC same-day scalp only (1-DTE, IV 122%, theta -1.19). BP ~203.",
     "day_pnl_est": 62.5
   },
   "positions": {
+    "intc-102c-0805": {
+      "contract": "INTC 8/5 $102C",
+      "option_id": "fcf1eaae-926f-4e41-b4ca-990db635982c",
+      "account": "902341866",
+      "qty": 1,
+      "entry": 1.99,
+      "hwm": 1.99,
+      "ratchet_engaged": false,
+      "class": "day_trade",
+      "expiry": "2026-08-05",
+      "exit_rules": [
+        {"type": "target", "pct": 50, "price": 2.99, "mech": "sell_limit_at_mark"},
+        {"type": "stop", "pct": -30, "price": 1.39, "mech": "sell_limit_at_bid"},
+        {"type": "ratchet", "arm_pct": 25, "arm_price": 2.49, "be_stop_price": 1.99, "mech": "breakeven_stop_after_arm"},
+        {"type": "flatten_et", "at": "15:44", "mech": "sell_limit_at_bid_unless_ratchet"}
+      ],
+      "note": "AGENTIC entry 8/4 13:24 ET @1.99 (user-directed 'tiny live', top rvol-screen affordable mover; DTE broken to 1 per user). 1-DTE, IV ~122%, theta -1.19 - SAME-DAY SCALP ONLY, flatten 15:44, do NOT hold into 8/5 expiry. ~49% of BP. INTC +10.4% $100 breakout. OVERRIDES: 3rd entry (past daily-2), midday, min_dte, delta ok 0.41.",
+      "last_mark": 1.99
+    },
     "qqq-724c-0804": {
       "contract": "QQQ 8/4 $724C",
       "option_id": "bd5e89c8-f20a-4df5-90b2-689302e39681",
@@ -193,6 +213,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T17:25Z",
+      "event": "fill",
+      "detail": "AGENTIC ENTRY (user-directed 'tiny live' + rvol screen): INTC 8/5 102C bought 1 @1.99 FILLED (order 6a722065, placed_agent=agentic, cost $199). Top affordable mover on rvol screen (INTC +10.4%, $100 breakout; AMD/QQQ higher-rvol but unaffordable/held). DTE broken to 1 per user ('if scores high break dte') to fit delta 0.41 <=$2.00 (IV ~122%). Rails: tgt 2.99/stop 1.39/arm 2.49/flatten 15:44. SAME-DAY SCALP - no overnight (theta -1.19, 0DTE tomorrow). OVERRIDES daily-2 cap (3rd entry), midday, min_dte - explicit user call. Relayed to RH watchlist. PUSH sent (fill). BP ~203."
+    },
     {
       "t": "2026-08-04T17:10Z",
       "event": "fill",
