@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T20:45:00Z",
+  "updated_at": "2026-08-04T21:05:00Z",
   "eod_wrap": {
     "date": "2026-08-04",
     "status": "CLOSED - market closed 16:00 ET; account FLAT, no overnight positions, no pending management triggers",
@@ -22,10 +22,35 @@
   "performance": {
     "window": "2026-07-21..2026-08-04 (visible log)",
     "trades_closed": 7, "wins": 3, "losses": 4, "win_rate": 0.43,
-    "gross_pnl_usd": 2, "avg_win_usd": 31.0, "avg_loss_usd": -22.8,
-    "expectancy_per_trade_usd": 0.3,
-    "read": "8/4 all 3 GREEN (+48/+36/+9). INTC's +9 was cut short by a competing session's hard-exit (would've been ~+35 as a runner) - a CONTRADICTION, not a strategy failure. Wins are clean; earlier edge was erased by 2 oversized losses (NVDA -55%, DIS -42%). Levers (v4.4): green_lock, cap loss size (marketable stops, no gap), keep runner upside. Goal = raise win rate WITHOUT shrinking winners. NOTE: single-executor discipline (one session) matters as much as the rails - competing triggers cost real upside today.",
-    "recompute": "on each close from the journal; wire an auto-updater next."
+    "gross_pnl_usd": 2, "avg_win_usd": 31.0, "avg_loss_usd": -22.75,
+    "expectancy_per_trade_usd": 0.29,
+    "read": "8/4 all 3 GREEN (+48/+36/+9). INTC's +9 was cut short by a competing session's hard-exit (would've been ~+35 as a runner) - a CONTRADICTION, not a strategy failure. Wins are clean; earlier edge was erased by 2 oversized losses (NVDA -55%, DIS -42%). Levers: green_lock, cap loss size (marketable stops, no gap), keep runner upside. Goal = raise win rate WITHOUT shrinking winners. Single-executor discipline matters as much as the rails.",
+    "recompute": "AUTO via engine/evolution.py::recompute_performance(state.trades) on each close (v4.7)."
+  },
+  "trades": [
+    {"date": "2026-07-21", "contract": "RIVN 7/24 $19C", "pnl_usd": -4, "pct": -6, "result": "loss", "note": "stop during session-restart outage"},
+    {"date": "2026-07-21", "contract": "QQQ 7/21 $713C", "pnl_usd": -4, "pct": -6, "result": "loss", "note": "0DTE stop"},
+    {"date": "2026-07-23", "contract": "DIS 8/21 $110C", "pnl_usd": -27, "pct": -42, "result": "loss", "note": "stop slipped past -30%"},
+    {"date": "2026-07-24", "contract": "NVDA 7/31 $220C", "pnl_usd": -56, "pct": -55, "result": "loss", "note": "stop slipped past -30% (biggest single loss)"},
+    {"date": "2026-08-04", "contract": "SPY 8/4 $771C", "pnl_usd": 48, "pct": 64, "peak_pct": 70, "result": "win", "note": "clean 0DTE target"},
+    {"date": "2026-08-04", "contract": "QQQ 8/4 $724C", "pnl_usd": 36, "pct": 56, "peak_pct": 123, "result": "win", "note": "peaked +123%, locked on the way down"},
+    {"date": "2026-08-04", "contract": "INTC 8/5 $102C", "pnl_usd": 9, "pct": 4.5, "peak_pct": 18, "result": "win", "note": "cut early by a competing session's hard-exit; would've run to +18%"}
+  ],
+  "evolution": {
+    "mode": "continuous self-tuning (v4.7) - state.json is the memory; small gains compound across sessions. engine/evolution.py: recompute_performance (per close) + reflect (per EOD, deterministic safe-tighten suggestions).",
+    "cadence": {
+      "per_cycle": "engine updates hwm/floor/ratchet/P&L; each fill appended to trades[] + log",
+      "per_close": "recompute_performance(trades) -> performance block (auto)",
+      "per_eod_backward": "reflect(state) -> AUTO-APPLY auto_safe tweaks (tighten risk / fix a proven miss), log each; carry non-safe ideas as open_hypotheses for user OK",
+      "per_premarket_forward_AHPM": "TUNE for the upcoming session from AFTER-HOURS + PRE-MARKET: pull overnight movers/gaps + get_earnings_calendar/get_earnings_results; refresh watchlist candidates (rvol + IV-aware); flag gap risk + catalysts; tune rails to expected conditions (e.g. widen the IV steer on a high-vol open, tighten stops into a gappy tape); stage the engine-driven cycle so the open is ready",
+      "per_session_start": "read state, audit list_triggers (ONE executor), adopt latest rails + open_hypotheses"
+    },
+    "open_hypotheses": [
+      "green_lock arm at +15% vs +20% - does earlier locking raise win rate without clipping runners?",
+      "default 2-3 lot sizing when BP allows -> unlock barbell scale-out (needs more BP than ~$200)",
+      "structure/ATR trail vs fixed give-back % - does swing-low trailing capture more of trends?"
+    ],
+    "guardrail": "AUTO-APPLY only SAFE tweaks (tighten risk / fix a proven miss). Loosening risk, raising caps, or structural changes need EXPLICIT user OK. Never silently change a cap. Every applied tweak is a logged, reversible edit."
   },
   "barbell_runner_strategy": {
     "authorized_by": "user 8/4: 'lock win early = my scale-out to make sure I'm profit on the day for sure, but let some continue for 1000% growth with a strict trailing stop'",
@@ -37,7 +62,7 @@
     "engine": "BUILT v4.5: reporter.size_order() fills the per-trade cap with up to 3 lots (same risk envelope, enables scale-out); reporter.materialize_exit_rules() auto-stamps leg-A scale-out + leg-B strict giveback (0.20) on any >=2-lot entry (single lot -> never-red runner), index scalps get the VWAP trail. Wired into the entry action (qty + exit_rules). Small live BP (~$200) usually resolves to 1 lot until cheaper contracts / more BP."
   },
   "trading_date": "2026-08-04",
-  "rule_version": "v4.6",
+  "rule_version": "v4.7",
   "mode": {
     "cadence_min": 30,
     "dnd": true,
@@ -273,6 +298,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T21:05Z",
+      "event": "build",
+      "detail": "v4.7 EVOLUTION LOOP - continuous self-tuning (user 'have the json keep updating thru the whole workflow, constantly evolving/improving small things, tuned for the upcoming session based on AH&PM'). Built engine/evolution.py: recompute_performance (auto win-rate/expectancy from a structured state.trades ledger) + reflect (deterministic per-EOD improvement candidates tagged auto_safe: risk-tighten/proven-miss auto-apply+log, loosening/structural needs user OK). Added the trades[] ledger (7 closes backfilled) + evolution block with BOTH cadences: per-EOD BACKWARD (learn from closes) + per-premarket FORWARD (tune for the open from after-hours + pre-market movers/gaps/earnings, refresh watchlist, tune rails to the tape). Open hypotheses tracked. +5 tests, 77/77, selftest 24/0. v4.6->v4.7. Never silently changes a cap; every tweak logged/reversible."
+    },
     {
       "t": "2026-08-04T19:24Z",
       "event": "build",

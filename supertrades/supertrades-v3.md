@@ -265,7 +265,34 @@ checks fire, and `guardrail_audit.per_candidate` says why. Nodes never place ord
 `list_triggers` at session start and delete any competing account-trader. A rival session's
 0DTE hard-exit flattened the INTC runner early on 8/4 — a coordination failure, not a rules one.
 
+## 8. Evolution loop — keep it tuned, improve small things (v4.7)
+`state.json` is the memory; every session reads it, updates it, and carries the ledger +
+open hypotheses forward, so small gains compound. `engine/evolution.py` (pure, tested):
+- **Per close — `recompute_performance(state.trades)`** rolls the structured trade ledger
+  into win-rate / avg-win / avg-loss / expectancy. No more hand-kept stats.
+- **Per EOD, backward — `reflect(state)`** surfaces concrete, *deterministic* improvement
+  candidates from the day vs the rails (oversized losses → tighten the stop; winners that
+  round-tripped → green-lock earlier; low win rate + positive expectancy → scale-out sooner;
+  a competing-trigger exit → audit triggers). Each is tagged `auto_safe`: **risk-tightening
+  and proven-miss fixes auto-apply and log; anything that loosens risk or is structural waits
+  for explicit user OK.** Never silently changes a cap.
+- **Per premarket, forward (AH & PM)** — before the next session, tune from **after-hours +
+  pre-market**: pull overnight movers/gaps + earnings (`get_earnings_calendar` /
+  `get_earnings_results`), refresh the watchlist (rvol + IV-aware), flag gap risk and
+  catalysts, tune rails to the expected tape (widen the IV steer on a high-vol open, tighten
+  stops into a gappy one), and stage the engine-driven cycle so the open is ready.
+- **Per session start** — read state, audit `list_triggers` (one executor), adopt the latest
+  rails + open hypotheses.
+
+The loop only *measures and suggests* here; every threshold stays enforced in the single gate
+(`reporter.py`), and every applied tweak is a logged, reversible edit.
+
 ## Changelog
+- v4.7 (2026-08-04): EVOLUTION LOOP — continuous self-tuning. `engine/evolution.py`
+  (`recompute_performance` auto-updates the performance block from a structured `state.trades`
+  ledger; `reflect` surfaces deterministic, `auto_safe`-tagged improvement candidates each EOD).
+  Adds the backward (learn-from-closes) + forward (premarket AH/PM tune) cadences and an
+  `evolution` block with open hypotheses. +5 tests; suite 77/77.
 - v4.6 (2026-08-04): EXECUTION LAYER — engine-driven entries. `engine/live.py` shapes live
   Robinhood MCP outputs into the engine snapshot (`equity_quotes`/`option_quotes`/
   `assemble_snapshot`, computing day% + spread%); documented fetch→assemble→decide→execute loop

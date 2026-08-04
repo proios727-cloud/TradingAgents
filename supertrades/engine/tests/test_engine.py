@@ -23,6 +23,7 @@ from supertrades.engine.reporter import (AGENTIC_ACCT, GUARDRAILS, MARGIN_ACCT,
                                          size_order, summarizer)
 from supertrades.engine.run_cycle import run_one_cycle, synthetic_snapshot
 from supertrades.engine import live
+from supertrades.engine import evolution
 
 ENGINE_DIR = Path(__file__).resolve().parents[1]
 STATE_PATH = ENGINE_DIR.parents[0] / "state.json"
@@ -697,6 +698,63 @@ class TestLiveExecutionBridgeV46(unittest.TestCase):
         self.assertEqual(report["meta"]["node_count"], expected_node_count(state))
         self.assertIn("kpis", report["console"])
         self.assertEqual(report["console"]["kpis"]["buying_power"], 500.0)
+
+
+class TestEvolutionV47(unittest.TestCase):
+    """v4.7: the self-tuning loop — recompute performance + surface safe improvements."""
+
+    LEDGER = [
+        {"contract": "RIVN 7/24 $19C", "pnl_usd": -4, "pct": -6, "result": "loss"},
+        {"contract": "QQQ 7/21 $713C", "pnl_usd": -4, "pct": -6, "result": "loss"},
+        {"contract": "DIS 8/21 $110C", "pnl_usd": -27, "pct": -42, "result": "loss",
+         "note": "stop slipped past -30%"},
+        {"contract": "NVDA 7/31 $220C", "pnl_usd": -56, "pct": -55, "result": "loss",
+         "note": "stop slipped past -30%"},
+        {"contract": "SPY 8/4 $771C", "pnl_usd": 48, "pct": 64, "peak_pct": 70, "result": "win"},
+        {"contract": "QQQ 8/4 $724C", "pnl_usd": 36, "pct": 56, "peak_pct": 123, "result": "win"},
+        {"contract": "INTC 8/5 $102C", "pnl_usd": 9, "pct": 4.5, "peak_pct": 18, "result": "win",
+         "note": "cut early by a competing session's hard-exit"},
+    ]
+
+    def test_recompute_performance_from_ledger(self):
+        p = evolution.recompute_performance(self.LEDGER)
+        self.assertEqual(p["trades_closed"], 7)
+        self.assertEqual((p["wins"], p["losses"]), (3, 4))
+        self.assertEqual(p["win_rate"], 0.43)
+        self.assertEqual(p["gross_pnl_usd"], 2)
+        self.assertEqual(p["avg_win_usd"], 31.0)
+        self.assertEqual(p["avg_loss_usd"], -22.75)
+        self.assertAlmostEqual(p["expectancy_per_trade_usd"], 0.29, places=2)
+
+    def test_recompute_ignores_open_and_empty(self):
+        self.assertEqual(evolution.recompute_performance([])["trades_closed"], 0)
+        mixed = self.LEDGER + [{"contract": "OPEN", "pnl_usd": None}]
+        self.assertEqual(evolution.recompute_performance(mixed)["trades_closed"], 7)
+
+    def test_reflect_surfaces_the_real_lessons(self):
+        sugg = evolution.reflect({"trades": self.LEDGER})
+        areas = {s["area"] for s in sugg}
+        self.assertIn("loss_control", areas)   # DIS -42, NVDA -55 past the stop
+        self.assertIn("give_back", areas)      # QQQ +123% -> +56%
+        self.assertIn("execution", areas)      # INTC competing-trigger exit
+        # risk-tightening suggestions are auto-safe; win-rate/sizing is not
+        loss = next(s for s in sugg if s["area"] == "loss_control")
+        self.assertTrue(loss["auto_safe"])
+        wr = next((s for s in sugg if s["area"] == "win_rate"), None)
+        self.assertTrue(wr is None or wr["auto_safe"] is False)
+
+    def test_reflect_clean_book_is_quiet(self):
+        clean = [{"contract": "A", "pnl_usd": 50, "pct": 55, "peak_pct": 60, "result": "win"},
+                 {"contract": "B", "pnl_usd": 40, "pct": 50, "peak_pct": 52, "result": "win"}]
+        self.assertEqual(evolution.reflect({"trades": clean}), [])
+
+    def test_performance_block_matches_recompute(self):
+        # state.performance is kept consistent with the ledger via recompute
+        state = load_state()
+        if state.get("trades"):
+            p = evolution.recompute_performance(state["trades"])
+            self.assertEqual(state["performance"]["win_rate"], p["win_rate"])
+            self.assertEqual(state["performance"]["trades_closed"], p["trades_closed"])
 
 
 class TestReliableOpsV4(unittest.TestCase):
