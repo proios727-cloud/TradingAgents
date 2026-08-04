@@ -126,14 +126,16 @@ def evaluate(
     budget = min(G.premium_budget(account.balance) * mult, cap)
     # Press rule: only once >= +2R is booked, later trades may size up,
     # funded strictly by the day's booked profit (never base bankroll).
-    # The pressed TOTAL is capped at press_multiplier x the base phase
-    # budget AND the per-trade cap — the cap is hard, press included
-    # (operator-approved 2026-08-04 after guardian review).
+    # Press applies to the MULTIPLIED budget and re-applies the (possibly
+    # week-1-halved) cap — so conviction/red-day/week-1/re-entry halvings
+    # survive pressing instead of being silently restored (guardian finding
+    # 2026-08-04; the $1k absolute cap remains hard via ``cap``).
     if day.booked_profit_r >= G.press_min_booked_r and day.entries_today > 0:
         extra = min(budget * (G.press_multiplier - 1.0), day.booked_profit_r * budget)
         budget = min(budget + extra,
-                     G.press_multiplier * G.premium_budget(account.balance),
-                     G.per_trade_cap_usd)
+                     G.press_multiplier * budget,                       # never > 2x current size
+                     G.press_multiplier * G.premium_budget(account.balance),  # never > 2x base phase budget
+                     cap)
         reasons.append("press rule: sized up from booked profit (capped)")
 
     if ask_premium <= 0:

@@ -668,5 +668,139 @@ class MomentumConvexityRails(unittest.TestCase):
         self.assertAlmostEqual(choice.contract.strike, 202.5)
 
 
+class GuardianFollowupRails(unittest.TestCase):
+    """Pins for the 2026-08-04 guardian findings: engine exit dispatch must
+    survive and book correctly, press must not restore halvings, arms fire at
+    exact boundaries, scratches are neither wins nor losses, the convexity
+    off-switch works, and all three exit modes are explicitly pinned."""
+
+    class _NoSignals:
+        def fired_signals(self, now):
+            return []
+
+        def earnings_symbols(self, now):
+            return frozenset()
+
+    def _engine_with_position(self, qty=3, entry=1.00):
+        import tempfile
+        from agent.decision_log import DecisionLog
+        pos = Position("NVDA", "oid1", "call", 202.5, SESSION, qty, entry, entry,
+                       201.75, 202.90)
+        broker = PaperBroker(account(), positions=[pos])
+        cfg = RuntimeConfig(account_number="A1", dry_run=True, armed=False)
+        log = DecisionLog(tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False).name)
+        agent = SuperTradesAgent(cfg, broker, self._NoSignals(), log=log)
+        return agent, broker, pos
+
+    def test_default_exit_mode_is_ladder(self):
+        self.assertEqual(RuntimeConfig().exit_mode, "ladder")
+
+    def test_explicit_scale_trail_mode(self):
+        st = RuntimeConfig(exit_mode="scale_trail")
+        p = Position("NVDA", "oid", "call", 202.5, SESSION, 4, 1.00, 2.00,
+                     201.75, 202.90)
+        outs = exit_manager.evaluate(p, et(14, 0), st)
+        self.assertEqual((outs[0].kind, outs[0].quantity), ("scale", 2))
+
+    def test_engine_exit_dispatch_full_ramp_and_fade(self):
+        # The guardian blocker: a dispatched exit must not crash the cycle,
+        # must book R against ORIGINAL lots, must set tranche flags (no
+        # re-fire), and a full close must open the re-entry window.
+        agent, broker, pos = self._engine_with_position(qty=3, entry=1.00)
+        pos.current_premium = 1.50            # +50% -> S1 arm: tranche 1 of 3
+        res1 = agent.run_cycle(et(14, 0))
+        self.assertEqual([e.kind for e in res1.exits], ["tranche"])
+        self.assertEqual(pos.quantity, 2)     # paper fill reduced the lot count
+        self.assertAlmostEqual(agent.day.day_r, 1.0 / 3.0, places=3)
+
+        res2 = agent.run_cycle(et(14, 5))     # same mark: no tranche re-fire
+        self.assertEqual(res2.exits, [])
+
+        pos.current_premium = 1.95            # target touch: tranche 1 of 2
+        res3 = agent.run_cycle(et(14, 10))
+        self.assertEqual([e.kind for e in res3.exits], ["tranche"])
+        self.assertEqual(pos.quantity, 1)
+        self.assertAlmostEqual(agent.day.day_r, (1.0 + 1.9) / 3.0, places=3)
+
+        pos.current_premium = 1.55            # under runner line 1.60 -> trail all
+        res4 = agent.run_cycle(et(14, 15))
+        self.assertEqual([e.kind for e in res4.exits], ["trail"])
+        self.assertEqual(pos.quantity, 0)
+        # Total booked R == true position R (1.0 + 1.9 + 1.1)/3 = 1.333R —
+        # the over-booking bug booked 2.38R here.
+        self.assertAlmostEqual(agent.day.day_r, 4.0 / 3.0, places=3)
+        # Profitable full close opened the re-entry window, streak clean.
+        self.assertIn("NVDA", agent.day.profit_exit_at)
+        self.assertEqual(agent.kill.consecutive_losses, 0)
+
+    def test_engine_survives_two_stopped_positions(self):
+        # Second guardian repro: position B's stop must still dispatch after
+        # position A's exit is processed in the same cycle.
+        pa = Position("NVDA", "oidA", "call", 202.5, SESSION, 1, 1.00, 0.40,
+                      201.75, 202.90)
+        pb = Position("META", "oidB", "call", 500.0, SESSION, 1, 1.00, 0.40,
+                      495.0, 505.0)
+        import tempfile
+        from agent.decision_log import DecisionLog
+        broker = PaperBroker(account(), positions=[pa, pb])
+        cfg = RuntimeConfig(account_number="A1", dry_run=True, armed=False)
+        log = DecisionLog(tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False).name)
+        agent = SuperTradesAgent(cfg, broker, self._NoSignals(), log=log)
+        res = agent.run_cycle(et(14, 0))
+        self.assertEqual([e.kind for e in res.exits], ["stop", "stop"])
+        self.assertEqual(agent.kill.consecutive_losses, 2)
+        self.assertEqual(len(agent.day.loss_exit_syms), 2)
+
+    def test_scratch_is_neither_win_nor_loss(self):
+        agent, broker, pos = self._engine_with_position(qty=1, entry=1.00)
+        agent.kill.consecutive_losses = 2
+        ex = ExitIntent(pos, "stop", 1, "scratch")   # mark == entry -> r == 0
+        agent._book_close(ex, et(14, 0))
+        self.assertEqual(agent.kill.consecutive_losses, 2)   # unchanged
+        self.assertNotIn("NVDA", agent.day.profit_exit_at)
+        self.assertNotIn("NVDA", agent.day.loss_exit_syms)
+
+    def test_arm_fires_at_exact_boundary(self):
+        # Peak exactly 1.45 x entry must arm profit-protect (ULP finding).
+        p = Position("QQQ", "oid", "call", 724.0, SESSION, 1, 1.00, 1.04,
+                     722.0, 726.0, peak_premium=1.45)
+        outs = exit_manager.evaluate(p, et(14, 0))
+        self.assertEqual(outs[0].kind, "trail")   # line 1.05 > mark 1.04
+
+    def test_press_respects_week1_cap(self):
+        cfg = RuntimeConfig(account_number="A1", dry_run=True, armed=False,
+                            week1_half_size=True)
+        day = DayState(booked_profit_r=2.5, entries_today=1)
+        v = risk_governor.evaluate(good_signal(), account(), day, et(14, 32),
+                                   1.21, cfg)
+        self.assertTrue(v.allow)
+        # A+ 1.5 x week-1 0.5 = $468.75; pressed total must respect the $500
+        # week-1 cap (the bug restored it to $937.50).
+        self.assertAlmostEqual(v.premium_budget, 500.0)
+
+    def test_press_does_not_restore_reentry_half(self):
+        day = DayState(booked_profit_r=2.5, entries_today=1)
+        day.profit_exit_at["NVDA"] = et(14, 0).isoformat()
+        sig = good_signal()
+        sig.is_reentry = True
+        v = risk_governor.evaluate(sig, account(), day, et(14, 32), 1.21, CFG)
+        self.assertTrue(v.allow)
+        # Halved A+ budget $468.75, pressed to at most 2x the HALVED budget:
+        # $937.50 — press scales the multiplied budget, never the base.
+        self.assertAlmostEqual(v.premium_budget, 937.5)
+
+    def test_convexity_false_is_hard_off(self):
+        off = RuntimeConfig(account_number="A1", dry_run=True, armed=False,
+                            convexity_selection=False)
+        chain = ChainSnapshot("NVDA", SESSION, [
+            OptionContract("atm", "NVDA", "call", 202.5, SESSION, 1.18, 1.24, 0.49, 0.05),
+            OptionContract("cvx", "NVDA", "call", 205.0, SESSION, 0.45, 0.47, 0.34, 0.15),
+        ])
+        sig = good_signal()
+        sig.setup_class = "momentum"
+        choice = contract_selector.select(sig, chain, off)
+        self.assertAlmostEqual(choice.contract.strike, 202.5)
+
+
 if __name__ == "__main__":
     unittest.main()

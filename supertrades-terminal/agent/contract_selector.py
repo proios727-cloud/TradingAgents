@@ -106,7 +106,13 @@ def select(
         # No 0DTE chain that day -> skip the name (never substitute later expiry).
         return ContractChoice(None, "no 0DTE chain for this name today")
 
-    want_convexity = (signal.setup_class == "momentum") or bool(cfg and cfg.convexity_selection)
+    # Tri-state switch: False = hard off; True = on for any conviction-cleared
+    # signal; None (default) = auto, momentum-class signals only.
+    if cfg is not None and cfg.convexity_selection is False:
+        want_convexity = False
+    else:
+        want_convexity = (signal.setup_class == "momentum") or bool(
+            cfg and cfg.convexity_selection)
     if want_convexity:
         convex = _convexity_pick(signal, zero_dte)
         if convex is not None:

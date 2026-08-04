@@ -21,9 +21,10 @@ MARKET_TZ = ZoneInfo("America/New_York")
 #   Tier 2 (full maps, tradable at Scale/A+ size): NVDA, TSLA, META, AAPL, AMD
 #   Tier 3 (affordable movers, scan-grade maps, B-size): SOFI, HOOD
 #   Context-only (never heatseeker blocks): COIN, XOM, CVX, XLE
+#   Situational (macro-catalyst days only; skill-gated): TLT, GLD
 WATCHLIST: tuple[str, ...] = (
     "SPY", "QQQ", "IWM", "NVDA", "TSLA", "AMD", "META", "AAPL",
-    "SOFI", "HOOD", "COIN", "XOM", "CVX", "XLE",
+    "SOFI", "HOOD", "TLT", "GLD", "COIN", "XOM", "CVX", "XLE",
 )
 
 
@@ -209,10 +210,13 @@ class RuntimeConfig:
     # Legacy alias for exit_mode="scale_trail"; consulted only when exit_mode
     # is still the default. Prefer exit_mode.
     scale_and_trail: bool = False
-    # When True, high-conviction signals select the best delta/gamma combo by
-    # estimated return on the expected move (convexity), allowing cheaper OTM
-    # contracts down to the delta floor. Default off = plain ~0.50-delta pick.
-    convexity_selection: bool = False
+    # Convexity contract selection (best delta/gamma combo by estimated return
+    # on the expected move, down to the 0.30 delta floor). Tri-state:
+    #   None  (default) — AUTO: engages for momentum-class signals only
+    #           (operator standing directive 2026-08-04)
+    #   True  — engage for any signal that clears the conv_* conviction bars
+    #   False — hard off: plain ~0.50-delta pick always (the off switch works)
+    convexity_selection: bool | None = None
     broker: str = "robinhood"      # 'robinhood' | 'paper'
 
     def can_place_live(self) -> bool:

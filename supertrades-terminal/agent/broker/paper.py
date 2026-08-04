@@ -44,6 +44,13 @@ class PaperBroker(BrokerAdapter):
         else:
             self._account.settled_cash += cost  # settles T+1 in reality; instant here
             self._account.open_premium = max(0.0, self._account.open_premium - cost)
+            # Instant fill also reduces the position — without this, engine
+            # cycles would re-see full quantity after every close and the
+            # exit path could never be exercised end-to-end in tests.
+            for p in self._positions:
+                if p.option_id == intent.option_id and p.quantity > 0:
+                    p.quantity = max(0, p.quantity - intent.quantity)
+                    break
         return PlaceResult(placed=False, dry_run=True,
                            order_id=f"paper-{len(self.placed)}",
                            detail={"filled_at": intent.limit_price})

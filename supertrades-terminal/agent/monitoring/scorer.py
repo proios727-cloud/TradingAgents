@@ -388,9 +388,9 @@ def recommend(snap: Snapshot, closed: list[RoundTrip], open_lots: list[RoundTrip
         recs.append(
             f"Winners are being cut at {metrics['avg_win_pct']:+.0%} on average vs the "
             f"+{G.target_premium_gain:.0%} target (n={len(wins)}). If that's deliberate "
-            f"momentum-fade selling it's fine; if it's nerves, RuntimeConfig.scale_and_trail "
-            f"(half off at +1R, trail the rest) captures the same early profit without "
-            f"capping the runner.")
+            f"momentum-fade selling it's fine; if it's nerves, the five-stage ladder "
+            f"(exit_mode='ladder', the default) banks tranches into strength and "
+            f"trails the runner without capping it.")
 
     if n and metrics["win_rate"] >= 0.5 and metrics["avg_r"] < 0.5:
         recs.append(

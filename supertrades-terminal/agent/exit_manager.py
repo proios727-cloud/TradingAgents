@@ -57,6 +57,14 @@ def _resolve_mode(cfg: RuntimeConfig | None) -> str:
     return mode
 
 
+_ARM_EPS = 1e-9   # arm on price, with an epsilon: a peak at exactly the arm
+                  # level must arm (ratio math loses one ULP — guardian finding)
+
+
+def _armed(peak: float, entry: float, arm: float) -> bool:
+    return peak + _ARM_EPS >= entry * (1.0 + arm)
+
+
 def ladder_line(position: Position) -> tuple[float, str]:
     """The armed exit line for ``position`` under the five-stage ladder, and
     the stage name that set it. (0.0, "") when no stage has armed. The line is
@@ -66,24 +74,23 @@ def ladder_line(position: Position) -> tuple[float, str]:
     if entry <= 0:
         return 0.0, ""
     peak = position.effective_peak
-    peak_gain = (peak - entry) / entry
-    if peak_gain >= G.ladder_s2_arm:
+    if _armed(peak, entry, G.ladder_s2_arm):
         return (max((1.0 - G.ladder_s2_give) * peak,
                     (1.0 + G.ladder_s2_floor) * entry), "runner")
-    if peak_gain >= G.ladder_s15_arm:
+    if _armed(peak, entry, G.ladder_s15_arm):
         return (max((1.0 - G.ladder_s15_give) * peak,
                     (1.0 + G.ladder_s15_floor) * entry), "target-approach")
-    if peak_gain >= G.ladder_s1_arm:
+    if _armed(peak, entry, G.ladder_s1_arm):
         return (max((1.0 - G.ladder_s1_give) * peak,
                     (1.0 + G.ladder_s1_floor) * entry), "profit-protect")
-    if peak_gain >= G.ladder_guard_arm:
+    if _armed(peak, entry, G.ladder_guard_arm):
         return entry, "breakeven-guard"
     return 0.0, ""
 
 
 def _ladder_exits(p: Position) -> list[ExitIntent]:
     entry = p.entry_premium
-    peak_gain = ((p.effective_peak - entry) / entry) if entry > 0 else 0.0
+    peak = p.effective_peak
 
     # Armed line first: if the CURRENT mark is at/under it, protect everything
     # that remains. (Peaks/arms may ratchet on wick highs upstream; the exit
@@ -97,15 +104,17 @@ def _ladder_exits(p: Position) -> list[ExitIntent]:
                            marketable=True)]
 
     # Tranches bank profit into strength on arm TOUCHES, one lot at a time,
-    # and never touch the last lot — it always trails.
-    if p.quantity >= 3 and not p.tranche_s1_done and peak_gain >= G.ladder_s1_arm:
+    # and never touch the last lot — it always trails. Marketable (sell at
+    # bid): a banking exit must FILL, not rest — a resting tranche is how a
+    # book oversells or blocks its own protective exit (guardian finding).
+    if p.quantity >= 3 and not p.tranche_s1_done and _armed(peak, entry, G.ladder_s1_arm):
         return [ExitIntent(p, "tranche", 1,
                            f"+{G.ladder_s1_arm:.0%} arm touched — bank one lot, "
-                           f"trail the rest")]
-    if p.quantity >= 2 and not p.tranche_target_done and peak_gain >= G.ladder_s2_arm:
+                           f"trail the rest", marketable=True)]
+    if p.quantity >= 2 and not p.tranche_target_done and _armed(peak, entry, G.ladder_s2_arm):
         return [ExitIntent(p, "tranche", 1,
                            f"target +{G.ladder_s2_arm:.0%} touched — bank one lot, "
-                           f"runner trails")]
+                           f"runner trails", marketable=True)]
     return []
 
 
