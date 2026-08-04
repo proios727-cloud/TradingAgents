@@ -25,9 +25,11 @@
   via get_accounts when in doubt — never from cached copies.
 - Single-leg long calls/puts only. No spreads, shorts, or averaging down.
 
-## 3. Risk limits (single home for all constants)
-- Max 1 auto-entry/day · 1 contract/order · never below $30 remaining BP.
-- Per-trade contract cost ≤ 40% of settled BP. **Settled BP = the buying_power
+## 3. Risk limits (single home for all constants) — v4 discipline governor
+- Max 1 auto-entry/day AND **max 2 TOTAL entries/day** (auto + manual, tracked via
+  reconcile; alert on the 3rd — the loop can't block a manual order but flags it
+  loudly and refuses to assist past the cap) · 1 contract/order · never below $30 BP.
+- Per-trade contract cost ≤ **25%** of settled BP (v4, was 40%). **Settled BP = the buying_power
   figure get_portfolio returns, nothing else** — never add pending settlement
   or unconfirmed deposits to it. "Settlement-suppressed" means BP < $80; the
   suppression lifts automatically on any BP read ≥ $80. state.json
@@ -35,7 +37,9 @@
   settles_on ≤ today.
 - Daily halt: day P&L (realized + open) ≤ −$60 → entries stop, exits stay live,
   one push.
-- Churn guard: ≥ 4 manual round-trips/day → push with spread-cost estimate.
+- Churn brake: ≥ **3** manual round-trips/day → push with spread-cost estimate (v4, was 4).
+  The dominant loss driver in the live run was frequency, not direction — this brake +
+  the entry cap + the quality floors (§6) are v4 Layer 1, enforced in engine/reporter.py.
 - Exit rails (defaults, materialized per position in state.json with the rule
   version): target +50%, stop −30%, breakeven ratchet arms at +25% HWM.
 
@@ -74,9 +78,12 @@
 - Time-of-day: prefer 9:40–11:00 ET and 3:00–3:30 ET; skip 12:00–14:00 ET
   unless day-move > 3%. No auto-entries 9:30–9:40 ET.
 
-## 6. Contract selection
-- Delta 0.30–0.50 preferred, 0.25 floor for entries (0.08 floor for watchlist
-  rows). Spread ≤ 10% of ask, hard. OI ≥ ~500.
+## 6. Contract selection — v4 quality floors
+- Delta 0.30–0.50 preferred, **0.35 floor** for entries (v4, was 0.25; 0.08 for
+  watchlist rows). Spread ≤ **12%** of ask, hard, **paired with a $0.40 minimum
+  premium** so the bid/ask can't be 20%+ of the trade. OI ≥ ~500.
+- **No <5-DTE single-name day-trades** (theta-cliff lottos) and **no 0DTE** except a
+  single GEX-gated index scalp — 0DTE + churn was the −$115 day. (v4 Layer 1.)
 - Shortest expiry that passes conviction wins; step OUT an expiry rather than
   force a junk contract. Delta-per-dollar breaks ties.
 - Watchlist rules: rows live in state.json; auto-add pool contracts drifting
@@ -152,6 +159,14 @@
   state.json write bumps updated_at.
 
 ## Changelog
+- v4.0 Layer 1 (2026-07-27): DISCIPLINE GOVERNOR live in engine/reporter.py after the
+  7/21–7/24 live run showed frequency (not direction) was the loss driver. Tightened:
+  entries ≤ 2/day total (was 1 auto only), per-trade ≤ 25% BP (was 40%), delta ≥ 0.35
+  (was 0.25), spread ≤ 12% + premium ≥ $0.40, no <5-DTE day-trades, no non-index 0DTE,
+  churn brake at 3 (was 4). Adds a per-cycle discipline scorecard to the console. Nodes
+  never generate entries — the loop is a discipline+risk layer over the user's own signals.
+  9 new tests; suite 23/23. Layers 2 (reliable ops) + 3 (Obsidian journal + backtest)
+  proposed in supertrades-v4-proposal.md, not yet built.
 - v3.2 (2026-07-23): per-cycle loop rewritten from serial pipeline to fan-out /
   layered fan-in (`supertrades/engine/`): independent nodes propose, a single
   reporter gate decides. No guardrail values changed; snapshot fetch stays on

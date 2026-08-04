@@ -18,15 +18,18 @@ MARGIN_ACCT = "812234458"    # READ-ONLY: alerts, never trade
 
 GUARDRAILS = {
     "daily_halt_usd": -60.0,            # day P&L (realized + open) at/below -> halt
-    "max_auto_entries_per_day": 1,
+    "max_auto_entries_per_day": 1,      # engine-initiated auto entries
+    "max_entries_per_day_total": 2,     # v4 governor: auto + manual combined; alert on the 3rd
     "max_contracts_per_order": 1,
     "bp_floor_usd": 30.0,               # never leave less than this after entry
-    "per_trade_bp_frac": 0.40,          # contract cost <= 40% of settled BP
+    "per_trade_bp_frac": 0.25,          # v4: contract cost <= 25% of settled BP (was 40%)
     "settlement_suppressed_below_bp": 80.0,
-    "entry_delta_floor": 0.25,
-    "spread_cap_pct_of_ask": 10.0,      # hard
+    "entry_delta_floor": 0.35,          # v4: raised from 0.25 (quality of expression)
+    "spread_cap_pct_of_ask": 12.0,      # v4: paired with the premium floor below
+    "min_premium_usd": 0.40,            # v4: keeps the bid/ask spread from being 20%+ of the trade
+    "min_dte_day_trade": 5,             # v4: no <5-DTE single-name day-trades (theta-cliff lottos)
     "min_oi": 500,
-    "churn_round_trips": 4,
+    "churn_round_trips": 3,             # v4: churn brake tightened from 4
     "no_entry_before_et": "09:40",
     "midday_skip_et": ("12:00", "14:00"),
     "midday_skip_override_day_pct": 3.0,
@@ -141,11 +144,15 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
     held_syms = {p["contract"].split()[0] for p in positions.values()
                  if p.get("account") == AGENTIC_ACCT}
 
+    entries_today = acct.get("auto_entries_used", 0) + acct.get("manual_entries_today", 0)
+
     frozen = []                       # global freezes: apply to every candidate
     if halted:
         frozen.append("daily_halt")
     if acct.get("auto_entries_used", 0) >= g["max_auto_entries_per_day"]:
         frozen.append("max_auto_entries_used")
+    if entries_today >= g["max_entries_per_day_total"]:   # v4 governor
+        frozen.append("daily_entry_cap")
     if bp < g["settlement_suppressed_below_bp"]:
         frozen.append("settlement_suppressed")
     if not snapshot.get("weekday", True):
@@ -172,6 +179,8 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
                 blocked.append("spread_cap")
             if c.get("oi") is not None and c["oi"] < g["min_oi"]:
                 blocked.append("oi_floor")
+            if c.get("ask") is not None and c["ask"] < g["min_premium_usd"]:
+                blocked.append("min_premium")            # v4: spread-as-% sanity
             if c["symbol"] in held_syms:
                 blocked.append("already_held")
             day_pct = c.get("underlying_day_pct")
@@ -181,9 +190,15 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
             if (_minutes(lo) <= et_min < _minutes(hi)
                     and (day_pct is None or abs(day_pct) <= g["midday_skip_override_day_pct"])):
                 blocked.append("midday_window")
-            if (c.get("expiry_days") is not None and c["expiry_days"] <= 1
-                    and state.get("ticker_classes", {}).get(c["symbol"]) == "index"):
-                blocked.append("index_0dte_requires_gex_gate")
+            edays = c.get("expiry_days")
+            is_index = state.get("ticker_classes", {}).get(c["symbol"]) == "index"
+            if edays is not None:
+                if is_index and edays <= 1:
+                    blocked.append("index_0dte_requires_gex_gate")
+                elif edays <= 0:
+                    blocked.append("0dte_blocked")        # v4: no non-index 0DTE autos
+                elif edays < g["min_dte_day_trade"]:
+                    blocked.append("min_dte")             # v4: no <5-DTE day-trades
         audits.append({"id": c.get("id"), "symbol": c.get("symbol"),
                        "contract": c.get("contract"),
                        "blocked_by": blocked, "eligible": not blocked})
@@ -201,8 +216,15 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
     if (acct.get("manual_round_trips", 0) >= g["churn_round_trips"]
             and not state.get("day", {}).get("churn_threshold_hit")):
         pushes.append({"kind": "churn_guard", "dnd_exempt": False,
-                       "msg": f"{acct.get('manual_round_trips')} manual round-trips today — "
-                              "estimated spread cost is compounding."})
+                       "msg": f"{acct.get('manual_round_trips')} manual round-trips today "
+                              f"(brake at {g['churn_round_trips']}) — spread cost is compounding."})
+
+    # ---- v4 discipline governor: over-trading breach ------------------------
+    if (entries_today > g["max_entries_per_day_total"]
+            and not state.get("day", {}).get("entry_cap_alerted")):
+        pushes.append({"kind": "entry_cap", "dnd_exempt": False,
+                       "msg": f"{entries_today} entries today — over the "
+                              f"{g['max_entries_per_day_total']}/day governor cap. Overtrading."})
 
     # ---- system failure: majority of nodes erroring is never silent ---------
     if summary["errors"] and summary["node_count"] \
@@ -242,6 +264,21 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
                             "node_count": summary["node_count"],
                             "node_errors": summary["errors"],
                             "guardrail_gate": "single gate: engine/reporter.py"},
+        "discipline": {                     # v4 governor scorecard
+            "entries_today": entries_today,
+            "entries_cap": g["max_entries_per_day_total"],
+            "round_trips": acct.get("manual_round_trips", 0),
+            "round_trip_brake": g["churn_round_trips"],
+            "quality_floor": {"delta_min": g["entry_delta_floor"],
+                              "spread_max_pct": g["spread_cap_pct_of_ask"],
+                              "premium_min": g["min_premium_usd"],
+                              "min_dte": g["min_dte_day_trade"],
+                              "per_trade_bp_frac": g["per_trade_bp_frac"]},
+            "flags": ([f"entry cap reached ({entries_today}/{g['max_entries_per_day_total']})"]
+                      if entries_today >= g["max_entries_per_day_total"] else [])
+                     + (["churn brake — round-trips at/over limit"]
+                        if acct.get("manual_round_trips", 0) >= g["churn_round_trips"] else []),
+        },
     }
     if actions["entry"] is None:
         why = ", ".join(sorted(set(frozen))) if frozen else "no eligible candidates"

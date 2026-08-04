@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import datetime as dt
 import json
 import re
 import unittest
@@ -236,6 +237,89 @@ class TestOrchestrator(unittest.TestCase):
         for section in ("kpis", "positions_rails", "signal_board",
                         "pullback_gate", "gex_map", "loop_guardrails"):
             self.assertIn(section, report["console"])
+
+
+class TestDisciplineGovernorV4(unittest.TestCase):
+    """v4 Layer 1: the discipline governor. Each rule guarded so it can't regress."""
+
+    def _blocked(self, report, cid="cand-nvda"):
+        for a in report["guardrail_audit"]["per_candidate"]:
+            if a["id"] == cid:
+                return a["blocked_by"]
+        raise AssertionError("candidate not audited")
+
+    def test_delta_floor_raised_to_035(self):
+        state = entry_ready_state(load_state())
+        snap = perfect_candidate(state)
+        snap["option_quotes"]["cand-nvda"].update({"delta": 0.30})  # was fine at 0.25
+        self.assertIn("delta_floor", self._blocked(run(state, snap)))
+
+    def test_premium_floor_blocks_cheap_contracts(self):
+        state = entry_ready_state(load_state())
+        snap = perfect_candidate(state)
+        snap["option_quotes"]["cand-nvda"].update({"ask": 0.30})    # < $0.40 premium floor
+        self.assertIn("min_premium", self._blocked(run(state, snap)))
+
+    def test_per_trade_cap_tightened_to_25pct(self):
+        state = entry_ready_state(load_state())
+        snap = perfect_candidate(state)                              # bp 300
+        snap["option_quotes"]["cand-nvda"].update({"ask": 1.00})    # $100 = 33% (was ok <40%)
+        self.assertIn("per_trade_cap", self._blocked(run(state, snap)))
+
+    def test_min_dte_blocks_short_dated_day_trade(self):
+        state = entry_ready_state(load_state())
+        state["watchlist"] = [{"id": "cand-nvda", "contract": "NVDA 7/29 $225C"}]
+        snap = perfect_candidate(state)
+        report = asyncio.run(run_one_cycle(state, snap, dt.date(2026, 7, 27)))  # 2 DTE
+        self.assertIn("min_dte", self._blocked(report))
+
+    def test_0dte_blocked_for_non_index(self):
+        state = entry_ready_state(load_state())
+        state["watchlist"] = [{"id": "cand-nvda", "contract": "NVDA 7/27 $225C"}]
+        snap = perfect_candidate(state)
+        report = asyncio.run(run_one_cycle(state, snap, dt.date(2026, 7, 27)))  # 0 DTE
+        self.assertIn("0dte_blocked", self._blocked(report))
+
+    def test_daily_entry_cap_freezes_all(self):
+        state = entry_ready_state(load_state())
+        capped = run(state, perfect_candidate(state, manual_entries_today=2))
+        self.assertIsNone(capped["actions"]["entry"])
+        for a in capped["guardrail_audit"]["per_candidate"]:
+            self.assertIn("daily_entry_cap", a["blocked_by"])
+        self.assertIn("daily_entry_cap", capped["guardrail_audit"]["entry_frozen"])
+
+    def test_churn_brake_fires_at_three(self):
+        state = entry_ready_state(load_state())
+        state["day"]["churn_threshold_hit"] = False          # not yet alerted today
+        snap = perfect_candidate(state)
+        snap["account"]["manual_round_trips"] = 3            # v4 brake (was 4)
+        # always visible in the scorecard, even under DND
+        report = run(state, snap)
+        self.assertTrue(any("churn" in f.lower()
+                            for f in report["console"]["discipline"]["flags"]))
+        # and mobile-pushes once notifications are on
+        state["mode"]["dnd"] = False
+        self.assertTrue([p for p in run(state, snap)["pushes"]
+                         if p["kind"] == "churn_guard"])
+
+    def test_overtrade_push_on_third_entry(self):
+        state = entry_ready_state(load_state())
+        snap = perfect_candidate(state, manual_entries_today=3)  # over the 2/day cap
+        report = run(state, snap)
+        self.assertTrue(any("cap" in f.lower()
+                            for f in report["console"]["discipline"]["flags"]))
+        state["mode"]["dnd"] = False
+        self.assertTrue([p for p in run(state, snap)["pushes"]
+                         if p["kind"] == "entry_cap"])
+
+    def test_discipline_scorecard_present(self):
+        state = load_state()
+        report = run(state, synthetic_snapshot(state))
+        d = report["console"]["discipline"]
+        self.assertEqual(d["entries_cap"], 2)
+        self.assertEqual(d["round_trip_brake"], 3)
+        self.assertEqual(d["quality_floor"]["delta_min"], 0.35)
+        self.assertEqual(d["quality_floor"]["min_dte"], 5)
 
 
 if __name__ == "__main__":
