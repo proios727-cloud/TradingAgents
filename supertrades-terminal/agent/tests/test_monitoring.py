@@ -141,7 +141,7 @@ class TestGrading(unittest.TestCase):
         self.assertIn("options_only", self._rules(score))
 
     def test_balance_floor_is_info_only(self):
-        score = score_snapshot(snap([], total_value=434.0))
+        score = score_snapshot(snap([], total_value=250.0))
         floor = [v for v in score.violations if v.rule == "balance_floor"]
         self.assertEqual(len(floor), 1)
         self.assertEqual(floor[0].points, 0.0)

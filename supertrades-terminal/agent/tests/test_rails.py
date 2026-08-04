@@ -117,7 +117,10 @@ class RiskGovernorRails(unittest.TestCase):
         self.assertFalse(v.allow)
 
     def test_settled_cash_floor(self):
-        v = self._eval(acct=account(settled=2000.0))
+        # Floor operator-lowered to $300 (2026-08-04); at/below it, deny.
+        v = self._eval(acct=account(settled=300.0))
+        self.assertFalse(v.allow)
+        v = self._eval(acct=account(balance=250.0, settled=250.0), ask=0.30)
         self.assertFalse(v.allow)
 
     def test_cannot_afford_one_contract(self):
@@ -126,13 +129,13 @@ class RiskGovernorRails(unittest.TestCase):
         v = self._eval(sig=s, acct=account(balance=2500.0, settled=2400.0), ask=1.21)
         self.assertFalse(v.allow)
 
-    def test_settled_floor_keeps_kickstart_dormant(self):
-        # The $2,000 settled-cash floor fires BEFORE sizing: at the real
-        # small-balance account the Kickstart phase is unreachable for the
-        # automated agent (it governs manual-trade grading only) until the
-        # account is funded past the floor. Deliberate; pinned here.
+    def test_kickstart_live_at_small_balance(self):
+        # With the floor operator-lowered to $300 the Kickstart phase is
+        # reachable at the real account: $541 settled, A+ signal ->
+        # $112.50 budget -> one $60 contract clears every gate.
         v = self._eval(acct=account(balance=541.0, settled=541.0), ask=0.60)
-        self.assertFalse(v.allow)
+        self.assertTrue(v.allow)
+        self.assertEqual(v.max_contracts, 1)
 
     def test_kickstart_phase_budget_math(self):
         # Ladder arithmetic (the part the scorer uses today): $75 fixed below

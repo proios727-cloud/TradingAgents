@@ -42,10 +42,12 @@ class Guardrails:
     per_trade_cap_usd: float = 1000.0  # hard cap per trade, all phases
     sizing_phases: tuple = ((1500.0, 75.0), (4000.0, 100.0))
     # (upper_balance_bound, fixed_premium_budget); above the last bound -> sizing_pct
-    # NOTE: the settled-cash floor (balance_floor_alert_usd) still denies ALL
-    # automated entries below $2,000 — the ladder governs manual-trade grading
-    # today and the agent once funded past the floor. Lowering that floor is a
-    # separate operator decision, never a side effect of this ladder.
+    # NOTE: the settled-cash floor (balance_floor_alert_usd) denies ALL
+    # automated entries at/below it. Operator-lowered $2,000 -> $300 on
+    # 2026-08-04 (its own explicit decision, after guardian review flagged
+    # that $2,000 kept Kickstart dormant): below $300 the account has lost
+    # ~45% from the kickstart stake and the right behavior is halt + alert,
+    # not smaller bets. The 15% clamp above keeps budgets sane down to it.
     kickstart_max_pct_of_balance: float = 0.15  # fixed budgets never exceed 15% of balance
 
     # --- Conviction-tiered sizing (operator-approved 2026-08-04) ---
@@ -126,7 +128,8 @@ class Guardrails:
 
     # --- Cash-account settlement (T+1) ---
     # Never buy with unsettled proceeds; open premium must never exceed settled cash.
-    balance_floor_alert_usd: float = 2000.0  # nearing $2,000 -> halt + alert
+    balance_floor_alert_usd: float = 300.0  # at/below $300 settled -> halt + alert
+    # (operator-lowered from $2,000 on 2026-08-04 to open the Kickstart phase)
 
     # --- Kill switch ---
     stale_data_seconds: float = 10.0     # data stale >10s -> kill

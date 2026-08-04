@@ -70,7 +70,7 @@ TSLA gamma-flip → **rejected by the earnings filter** (hyperscaler week).
 
 ## Going live (human-gated — the agent cannot do these for you)
 
-1. In the Robinhood app: apply for **options Level 2** on the Agentic account; **fund** it (~$2,500 — funding is your hard loss cap).
+1. In the Robinhood app: apply for **options Level 2** on the Agentic account; **fund** it with only what you will risk (the $300 settled-cash floor halts entries; funding is your hard loss cap).
 2. Connect the MCP: `claude mcp add robinhood-trading --transport http https://agent.robinhood.com/mcp/trading`; complete OAuth. Reads always-allow; order placement ask-every-time.
 3. Wire a real `mcp_call(tool, params)` dispatcher into `RobinhoodMcpBroker` (this repo ships without one).
 4. `python3 -m unittest` green + a dry run with zero errors.

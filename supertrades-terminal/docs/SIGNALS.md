@@ -58,9 +58,10 @@ entry-confirmation fields:
   half-size multipliers apply to the phase budget. Fixed budgets are additionally clamped to 15% of balance. **Conviction multiplier:** A+ signals
   (confidence >= 70 and RVOL >= 1.8) size 1.5x the phase budget; scored-but-low-confidence (B)
   size 0.5x; unscored is neutral. One authority: `Guardrails.premium_budget(balance)` x
-  `Guardrails.conviction_multiplier(...)`. NOTE: the $2,000 settled-cash floor still denies all
-  AUTOMATED entries below it — the ladder governs manual-trade grading until the account is
-  funded past the floor; lowering that floor is a separate operator decision.
+  `Guardrails.conviction_multiplier(...)`. The settled-cash floor was operator-lowered
+  $2,000 → **$300** on 2026-08-04 (its own explicit decision): automated entries halt
+  at/below $300 settled — below that the kickstart stake is ~45% drawn down and the
+  system alerts instead of digging.
 - **Stop:** −50% premium, never widened. **Target:** +90%, or scale half at
   +1R and trail the runner with 30% peak give-back when `scale_and_trail` is on.
 - **Daily:** −2R halt · 3 straight losses = kill · half-size after a red day ·
