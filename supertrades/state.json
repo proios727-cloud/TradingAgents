@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T19:06:00Z",
+  "updated_at": "2026-08-04T19:19:00Z",
   "risk_posture": {
     "priority": "LOW_DRAWDOWN",
     "set_by": "user 8/4 'keep DD low'",
@@ -8,10 +8,10 @@
   },
   "performance": {
     "window": "2026-07-21..2026-08-04 (visible log)",
-    "trades_closed": 6, "wins": 2, "losses": 4, "win_rate": 0.33,
-    "gross_pnl_usd": -7, "avg_win_usd": 42.0, "avg_loss_usd": -22.8,
-    "expectancy_per_trade_usd": -1.2,
-    "read": "Wins are clean (+50-64% targets); edge erased by 2 OVERSIZED losses (NVDA -55%, DIS -42% - stops slipped past the -30% line). Win-rate/expectancy levers (v4.4): (1) green_lock converts brief winners into guaranteed small wins; (2) CAP loss size - marketable stops, no single-name overnight gap; (3) keep runner upside so the big wins that carry expectancy survive. Goal = raise win rate WITHOUT shrinking the winners.",
+    "trades_closed": 7, "wins": 3, "losses": 4, "win_rate": 0.43,
+    "gross_pnl_usd": 2, "avg_win_usd": 31.0, "avg_loss_usd": -22.8,
+    "expectancy_per_trade_usd": 0.3,
+    "read": "8/4 all 3 GREEN (+48/+36/+9). INTC's +9 was cut short by a competing session's hard-exit (would've been ~+35 as a runner) - a CONTRADICTION, not a strategy failure. Wins are clean; earlier edge was erased by 2 oversized losses (NVDA -55%, DIS -42%). Levers (v4.4): green_lock, cap loss size (marketable stops, no gap), keep runner upside. Goal = raise win rate WITHOUT shrinking winners. NOTE: single-executor discipline (one session) matters as much as the rails - competing triggers cost real upside today.",
     "recompute": "on each close from the journal; wire an auto-updater next."
   },
   "barbell_runner_strategy": {
@@ -171,79 +171,18 @@
     }
   },
   "day": {
-    "realized_pnl": 84.0,
+    "realized_pnl": 93.0,
     "auto_entries_used": 1,
     "manual_entries_today": 2,
-    "manual_round_trips": 2,
+    "manual_round_trips": 3,
     "entries_today_total": 3,
     "churn_threshold_hit": false,
     "halted": false,
-    "open_pnl_est": 4.5,
-    "note": "LIVE 8/4. SPY 771C -> +48 (order 6a721cea). QQQ 724C: target (+50%) tripped but at eval it was +123% (mark 1.43); bid evaporated in a fast 0DTE selloff (1.42->1.33->1.15->1.00 in ~2min); chased down and AGENTIC exit filled @1.00 = +36 (+56%, order 6a7228d3 after 2 cancels). Locked the win, did NOT round-trip to zero. Realized now +84. Open: INTC 8/5 102C @1.99, mark 2.035 (+2%). BP ~203.",
-    "day_pnl_est": 88.5
+    "open_pnl_est": 0.0,
+    "note": "LIVE 8/4 - FLAT into close, all 3 GREEN. SPY 771C +48; QQQ 724C +36 (@1.00). INTC 8/5 102C: bought @1.99, ran to +18%, but a COMPETING 0DTE hard-exit trigger (ANOTHER session, fired 15:15 ET) FLATTENED it early @2.08 = +9 (+4.5%, order 6a723a53, ref_id null, NOT the runner chain which was holding score-high). Green but left upside (option ran to +18% after). Deleted the competing hard-exit (trig_01THT) + EOD-flatten (trig_01VJg). Realized day +93. Account FLAT.",
+    "day_pnl_est": 93.0
   },
-  "positions": {
-    "intc-102c-0805": {
-      "contract": "INTC 8/5 $102C",
-      "option_id": "fcf1eaae-926f-4e41-b4ca-990db635982c",
-      "account": "902341866",
-      "qty": 1,
-      "entry": 1.99,
-      "hwm": 2.35,
-      "ratchet_engaged": false,
-      "never_red": true,
-      "class": "day_trade",
-      "expiry": "2026-08-05",
-      "exit_rules": [
-        {"type": "target", "pct": 50, "price": 2.99, "runner": true, "mech": "hold_runner_trail_no_cap"},
-        {"type": "never_red_floor", "floor_bid": 2.03, "trail_style": "LOOSE_milestone_not_tight", "milestone_ratchets": [{"when_bid_gte": 2.49, "raise_floor_to": 2.20}, {"when_bid_gte": 2.79, "raise_floor_to": 2.49}, {"when_bid_gte": 2.99, "raise_floor_to": 2.70}], "mech": "sell_marketable_if_bid_at_or_below_floor", "note": "USER 'never red' + 'allow just enough wiggle to still get the target, no paperhand'. Floor guarantees a GREEN close (breakeven+fees ~2.03) but sits LOOSE for maximum wiggle room - do NOT tight-trail a 128%-IV name or noise stops you out before target. Floor steps UP only at milestones (+25%->2.20, +40%->2.49, +50%->2.70), never down; give-back trail owns +50%+. Exit only on a floor breach or a REAL stall (score not high) - not on wiggle."},
-        {"type": "giveback", "arm_gain_pct": 50, "peak_frac": 0.40, "mech": "sell_marketable_through_bid"},
-        {"type": "flatten_et_conditional", "at": "15:44", "mech": "sell_limit_at_bid_unless_overnight_gate_passes"}
-      ],
-      "profit_max_ladder": "day_trade runner (v4.3). entry->+25%: hard stop 1.39. +25%->+50%: breakeven stop 1.99 (ratchet). +50%+: RUNNER - do NOT cap at +50%; trail give-back (arm at peak >=+50%, exit if it gives back 40% of peak gain -> locks ~60% of the peak), MARKETABLE exit through bid (QQQ lesson: resting-at-bid missed the fast reversal). Close: overnight gate 15:35-15:44. Exit timing: management cadence tightens to ~8min once mark >= 2.49 (extended/near trail).",
-      "growth_score_hold_gate": {
-        "authorized_by": "user 8/4 - 'intc held too long unless scoring shows greater potential for growth thru close into tomorrow'",
-        "principle": "Do NOT overstay a 1-DTE into theta (-1.25/day). The runner only KEEPS holding a profit while the growth score is HIGH; on a STALL, book it.",
-        "growth_score_HIGH_requires": ["INTC day% strong / near HOD", "above VWAP", "RVOL elevated (volume confirming)", "still making higher highs (no 15-min stall)", "$100 breakout holding"],
-        "if_in_profit_and_score_NOT_high": "STALL EXIT - take profit marketable now rather than bleed theta (don't wait for the give-back trail). Applies once mark is meaningfully green (>= ~+15%).",
-        "if_score_HIGH": "keep running (give-back trail + overnight gate govern). Strong score into 15:35-15:44 -> overnight gate may carry to 8/5.",
-        "expiry_reality": "Contract expires 8/5 (Wed). Holding 'into Thursday 8/6' is IMPOSSIBLE without a ROLL to a later INTC expiry - pending user decision (roll-on-strength vs exit-by-8/5)."
-      },
-      "overnight_swing_gate": {
-        "authorized_by": "user 8/4 - 'can swing intc if scoring permits' + 'weigh expiry theta vs potential huge growth AH/PM'",
-        "evaluate_at": "15:35-15:44 ET",
-        "theta_vs_catalyst_weigh": {
-          "principle": "This is a 1-DTE: holding overnight = heavy overnight theta AND it becomes 0DTE tomorrow. Carry it ONLY if an identifiable AH/PM UPSIDE CATALYST plausibly gaps INTC enough to beat the overnight decay. No catalyst + just grinding = theta wins, FLATTEN.",
-          "theta_cost_side": "Estimate overnight decay: at IV ~122%, theta ~-1.25/day - a flat open tomorrow bleeds a large fraction of the option. That is the hurdle the upside must clear.",
-          "catalyst_upside_side": [
-            "EARNINGS CHECKED 8/4: INTC last reported 2026-07-23 (Q2 beat 0.42 vs 0.19); NEXT is 2026-10-22 (unverified). NO earnings catalyst tonight - today's +10% is news/momentum, not a scheduled event. So there is NO binary AH event to justify carry; the upside case is pure momentum-continuation.",
-            "Absent a fresh AH/PM news catalyst, momentum-only continuation rarely beats a 1-DTE's overnight theta -> bias FLATTEN.",
-            "Would only favor hold if INTC is powering into the close (near HOD, strong RVOL, higher highs) AND a fresh catalyst/news is driving it."
-          ],
-          "decision": "HOLD overnight only if (strong-close conditions ALL true) AND a real AH/PM upside catalyst beats the theta hurdle. With no earnings tonight, DEFAULT LEANS FLATTEN unless INTC is exceptionally strong into 15:44."
-        },
-        "hold_overnight_requires_ALL": [
-          "INTC day_pct still >= +5% AND green vs prior close",
-          "INTC last price above intraday VWAP (trend intact)",
-          "option mark >= ratchet-arm 2.49 (i.e. >=+25%, in profit) - do NOT carry a red 1-DTE overnight",
-          "no sharp reversal: INTC not down >2% from the day's high in the last 30 min",
-          "theta_vs_catalyst_weigh.decision favors HOLD (identifiable AH/PM upside catalyst beats the overnight theta hurdle; NOT an unwanted earnings gamble)"
-        ],
-        "if_all_true": "reclass class -> 'swing_overnight'; set stop to breakeven 1.99 (protect gain); exit plan = sell tomorrow 8/5 by 10:30 ET OR on any -20% from carry mark, whichever first. Never ride to 8/5 expiry.",
-        "if_any_false": "FLATTEN at 15:44 marketable through the bid (theta beats hope on a 1-DTE).",
-        "delegation": "User 8/4: 'if not sold before close I trust your judgment.' Agent makes the final overnight call at 15:35-15:44 using this gate; with no catalyst tonight the default is LEAN FLATTEN. USER-REQUESTED PING: push the HOLD/FLATTEN decision at the gate regardless of fill."
-      },
-      "note": "AGENTIC entry 8/4 13:24 ET @1.99 (user 'tiny live', top rvol-screen affordable mover; DTE broken to 1). 1-DTE, IV ~122%, theta -1.19. DEFAULT = same-day scalp flatten 15:44, BUT user authorized OVERNIGHT SWING IF overnight_swing_gate passes at 15:35-15:44 (strong close required). If held, exit 8/5 by 10:30 ET or -20%, never to expiry. ~49% BP. INTC +10.4% $100 breakout. OVERRIDES daily-2/midday/min_dte per user.",
-      "last_mark": 2.285,
-      "floor_bid": 2.03,
-      "hwm_note2": "15:05 ET: option mark 2.285/bid 2.25 (+14.8%), hwm 2.35 (slight pullback, thin bid size 2). INTC equity 101.12 (+11.1%) NEW HIGH, VWAP 98.97 -> above, higher highs = score HIGH. Beneficial-exit: none (underlying strong, dip is noise). HOLD runner. Floor 2.03; peak +18%, green_lock arms at +20% (2.39). Cadence 8min -> next ~15:13, lands a check in the 15:35-15:44 gate.",
-      "beneficial_exit_discretion": {
-        "authorized_by": "user 8/4 'exit if ratchet or something is also more beneficial'",
-        "rule": "Agent MAY exit early (take profit marketable through bid, always GREEN) at judgment when booking is clearly MORE BENEFICIAL than holding the runner - e.g. a ratchet/milestone lock hit with momentum fading; a sharp spike likely to fade; theta/gap risk into the gate outweighing remaining upside; risk/reward flipped. Not required to wait for the fixed +50% target or the give-back trail. Never-red always holds. PUSH on the resulting fill (counts as a fill ping)."
-      },
-      "hwm_note": "14:48 ET check: option mark 2.23 / bid 2.20 = NEW HIGH +12.1%, hwm 2.23. INTC equity 100.90 (+10.9%), VWAP 98.88 -> above VWAP, higher highs = growth score HIGH. HOLD runner. Floor 2.03 intact; no milestone (bid < 2.49); green_lock arms at +20% (mark 2.39) -> then floor +5% (2.09). Cadence 8min. No push (no fill/target/gate)."
-    }
-  },
+  "positions": {},
   "watchlist": [],
   "pool": [
     {
@@ -321,6 +260,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T19:18Z",
+      "event": "fill",
+      "detail": "INTC 8/5 102C CLOSED @2.08 = +9 (+4.5%, order 6a723a53, agentic, ref_id null, 15:15:31 ET). NOT the runner chain (which held score-high at +14.8%) - a COMPETING 0DTE hard-exit trigger (trig_01THT, another session) flattened it early at 3:15 despite INTC being day_trade not 0dte_scalp. Green (never-red held) but the option ran to +18% (2.34+) after - the competing exit cost ~$26 upside. Response: verified via get_option_orders, deleted trig_01THT (0dte hard-exit) + trig_01VJg (EOD flatten) so ONLY this session's chain can act. Did NOT re-arm the INTC mgmt chain (position flat). Account FLAT into close. Day: 3/3 green, realized +93. PUSH sent (fill)."
+    },
     {
       "t": "2026-08-04T19:12Z",
       "event": "ops",
