@@ -64,7 +64,9 @@ entry-confirmation fields:
   system alerts instead of digging.
 - **Stop:** −50% premium, never widened. **Target:** +90%, or scale half at
   +1R and trail the runner with 30% peak give-back when `scale_and_trail` is on.
-- **Daily:** −2R halt · 3 straight losses = kill · half-size after a red day ·
+- **Daily:** −2R halt · 3 straight losses = kill (both wired in-engine as of
+  2026-08-04: every dispatched exit books its R and streak in-session) · press
+  total hard-capped at 2× base budget and $1k · half-size after a red day ·
   flat by 15:45 ET on short-dated · never average down · cash-account entries
   only from settled cash.
 

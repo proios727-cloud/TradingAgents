@@ -96,12 +96,17 @@ def evaluate(
         cap = min(cap, G.per_trade_cap_usd * 0.5)  # week-1: $500 cap / half risk
         reasons.append("week-1 half-size ($500 cap)")
     budget = min(G.premium_budget(account.balance) * mult, cap)
-    # Press rule: only once >= +2R is booked, later trades may size up 2x,
+    # Press rule: only once >= +2R is booked, later trades may size up,
     # funded strictly by the day's booked profit (never base bankroll).
+    # The pressed TOTAL is capped at press_multiplier x the base phase
+    # budget AND the per-trade cap — the cap is hard, press included
+    # (operator-approved 2026-08-04 after guardian review).
     if day.booked_profit_r >= G.press_min_booked_r and day.entries_today > 0:
         extra = min(budget * (G.press_multiplier - 1.0), day.booked_profit_r * budget)
-        budget += extra
-        reasons.append("press rule: sized up from booked profit")
+        budget = min(budget + extra,
+                     G.press_multiplier * G.premium_budget(account.balance),
+                     G.per_trade_cap_usd)
+        reasons.append("press rule: sized up from booked profit (capped)")
 
     if ask_premium <= 0:
         return RiskVerdict.deny("no valid ask premium")

@@ -17,7 +17,7 @@ from agent.config import MARKET_TZ, RuntimeConfig
 from agent.engine import SuperTradesAgent
 from agent.kill_switch import KillState, check as kill_check
 from agent.models import (
-    AccountState, ChainSnapshot, DayState, OptionContract, OrderIntent, Position, Signal,
+    AccountState, ChainSnapshot, DayState, ExitIntent, OptionContract, OrderIntent, Position, Signal,
 )
 from agent.simulated import SimulatedSignalSource, demo_account, demo_chains
 
@@ -166,6 +166,63 @@ class RiskGovernorRails(unittest.TestCase):
             day=DayState(day_r=2.5, booked_profit_r=2.5, entries_today=1)
         ).max_contracts
         self.assertGreater(pressed, base)
+
+    def test_press_respects_hard_cap(self):
+        # $200k A+ pressed would be $2,000 uncapped; the $1k cap is final ->
+        # same 8 contracts as unpressed-at-cap.
+        v = self._eval(acct=account(balance=200000.0, settled=200000.0),
+                       day=DayState(day_r=2.5, booked_profit_r=2.5, entries_today=1))
+        self.assertEqual(v.max_contracts, 8)
+
+    def test_press_capped_at_2x_base_in_kickstart(self):
+        # $541: base $100, A+ $150; pressed total capped at 2 x base = $200
+        # (not $300) -> three $60 contracts.
+        v = self._eval(acct=account(balance=541.0, settled=541.0), ask=0.60,
+                       day=DayState(day_r=2.5, booked_profit_r=2.5, entries_today=1))
+        self.assertTrue(v.allow)
+        self.assertEqual(v.max_contracts, 3)
+
+    def test_limiters_wired_losses_trip_halt_and_kill(self):
+        # Guardian finding closed: dispatched exits book R + streak in-engine.
+        from agent.engine import SuperTradesAgent
+        from agent.approval import ApprovalGate
+        broker = PaperBroker(demo_account(), demo_chains(SESSION))
+        agent = SuperTradesAgent(CFG, broker, SimulatedSignalSource(SESSION),
+                                 approval=ApprovalGate(deny_all, required=True))
+        def losing_exit():
+            pos = Position("NVDA", "oid1", "call", 202.5, SESSION, 1,
+                           entry_premium=1.00, current_premium=0.50,
+                           underlying_stop=201.0, underlying_target=204.0)
+            return ExitIntent(pos, "stop", 1, "stop -50%", marketable=True)
+        agent._book_close(losing_exit(), et(11, 0))
+        self.assertEqual(agent.kill.consecutive_losses, 1)
+        self.assertAlmostEqual(agent.day.day_r, -1.0)
+        self.assertFalse(agent.day.halted)
+        agent._book_close(losing_exit(), et(11, 30))
+        self.assertTrue(agent.day.halted)          # -2R daily halt fired
+        agent._book_close(losing_exit(), et(12, 0))
+        self.assertEqual(agent.kill.consecutive_losses, 3)
+        res = agent.run_cycle(et(12, 5))           # kill switch trips next cycle
+        self.assertIn("consecutive losses", res.killed)
+
+    def test_scale_close_books_half_r_keeps_streak(self):
+        from agent.engine import SuperTradesAgent
+        from agent.approval import ApprovalGate
+        broker = PaperBroker(demo_account(), demo_chains(SESSION))
+        agent = SuperTradesAgent(CFG, broker, SimulatedSignalSource(SESSION),
+                                 approval=ApprovalGate(deny_all, required=True))
+        agent.kill.consecutive_losses = 2
+        pos = Position("NVDA", "oid2", "call", 202.5, SESSION, 2,
+                       entry_premium=1.00, current_premium=2.00,
+                       underlying_stop=201.0, underlying_target=204.0)
+        agent._book_close(ExitIntent(pos, "scale", 1, "+1R scale"), et(11, 0))
+        # +2R on the position, half closed -> +1R booked; streak untouched.
+        self.assertAlmostEqual(agent.day.day_r, 1.0)
+        self.assertAlmostEqual(agent.day.booked_profit_r, 1.0)
+        self.assertEqual(agent.kill.consecutive_losses, 2)
+        # A winning FULL close resets the streak.
+        agent._book_close(ExitIntent(pos, "target", 2, "target"), et(11, 30))
+        self.assertEqual(agent.kill.consecutive_losses, 0)
 
 
 CONV_CFG = RuntimeConfig(account_number="A1", dry_run=True, armed=False,

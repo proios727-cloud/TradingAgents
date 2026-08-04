@@ -102,8 +102,10 @@ class Guardrails:
 
     # --- Daily rules ---
     daily_halt_r: float = -2.0         # down 2R on the day -> entries stop (exits stay live)
-    press_min_booked_r: float = 2.0    # up >=+2R -> later trades may size up 2x...
-    press_multiplier: float = 2.0      # ...funded only by the day's booked profit
+    press_min_booked_r: float = 2.0    # up >=+2R -> later trades may size up...
+    press_multiplier: float = 2.0      # ...funded only by booked profit; pressed
+    # TOTAL capped at press_multiplier x base phase budget AND per_trade_cap_usd
+    # (hard-capped 2026-08-04 after guardian review: the $1k cap is final)
     earnings_block_sessions: int = 3   # no entries in names with earnings within 3 sessions
     no_entry_open_minutes: int = 15    # no entries in the first 15 min (09:30–09:45)
     no_entry_close_minutes: int = 10   # no entries in the last 10 min (15:50–16:00)

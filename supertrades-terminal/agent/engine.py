@@ -158,10 +158,38 @@ class SuperTradesAgent:
                 self.log.record("exit", ex.position.symbol, now, kind=ex.kind,
                                 qty=ex.quantity, reason=ex.reason,
                                 placed=result.placed, dry_run=result.dry_run)
+                if result.placed or result.dry_run:
+                    self._book_close(ex, now)
         # Drop peaks for positions no longer open so the map can't leak or
         # resurrect a stale high-water mark on a re-entered symbol.
         self._peaks = {oid: pk for oid, pk in self._peaks.items() if oid in live_ids}
         return out
+
+    def _book_close(self, ex: ExitIntent, now: datetime) -> None:
+        """Wire the loss limiters (guardian finding, 2026-08-04): realized R
+        and the loss streak update the moment a protective exit is
+        dispatched, so the -2R daily halt and the 3-loss kill fire
+        in-session rather than depending on the retrospective scorer. R is
+        computed from the mark at exit evaluation; fills may differ by
+        slippage, which the scorer trues up after the fact. Scale-outs book
+        their closed fraction of R but only FULL closes drive the streak."""
+        p = ex.position
+        if p.entry_premium <= 0 or p.quantity <= 0:
+            return
+        frac = min(ex.quantity / p.quantity, 1.0)
+        r = (p.current_premium - p.entry_premium) / (G.stop_premium_loss * p.entry_premium)
+        r_booked = r * frac
+        self.day.day_r += r_booked
+        if r_booked > 0:
+            self.day.booked_profit_r += r_booked
+        if ex.kind != "scale":
+            if r < 0:
+                self.kill.consecutive_losses += 1
+            else:
+                self.kill.consecutive_losses = 0
+        if self.day.day_r <= G.daily_halt_r and not self.day.halted:
+            self.day.halted = True
+            self.log.record("halt", p.symbol, now, day_r=round(self.day.day_r, 2))
 
     def _flatten_all(self, now: datetime, reason: str) -> list[ExitIntent]:
         out = []
