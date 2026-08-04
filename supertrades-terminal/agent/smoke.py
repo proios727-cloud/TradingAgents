@@ -42,8 +42,10 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Optional, Sequence
 
+from .broker.mcp_dispatch import McpDispatchError
 from .broker.robinhood_mcp import RobinhoodMcpBroker
 from .config import RuntimeConfig, WATCHLIST
+from .earnings import McpEarningsCalendar
 from .kill_switch import KillState
 
 
@@ -95,6 +97,13 @@ def build_checks(
         symbol from config — this also exercises get_option_instruments and
         get_option_quotes (and their strict Greek/price parsing) since
         get_chain fans out to both for the day's 0DTE chain.
+      * get_earnings_calendar -> McpEarningsCalendar.blackout(), which the
+        engine consults before every entry. It fails CLOSED: a feed the
+        dispatcher refuses or cannot parse blocks the whole watchlist, so the
+        armed agent would take no trade at all and look merely quiet. That is
+        precisely the failure this command exists to surface pre-arm, and the
+        only check here whose *success* is also worth reading — the blackout
+        it prints is the live one.
 
     Deliberately excludes ``get_equity_quotes``: this agent trades 0DTE
     options only and neither the broker nor the dispatcher's ``READ_TOOLS``
@@ -112,7 +121,34 @@ def build_checks(
             f"get_option_chains:{symbol} (broker.get_chain)",
             (lambda s=symbol: broker.get_chain(s)),
         ))
+    # Same dispatcher the broker reads through, so this validates the live
+    # path rather than a second one built for the occasion.
+    calendar = McpEarningsCalendar(broker._mcp)
+    checks.append((
+        "get_earnings_calendar (McpEarningsCalendar.blackout)",
+        (lambda: _probe_blackout(calendar, broker, watchlist)),
+    ))
     return checks
+
+
+def _probe_blackout(
+    calendar: McpEarningsCalendar,
+    broker: RobinhoodMcpBroker,
+    watchlist: Sequence[str],
+) -> object:
+    """Resolve the live blackout, and FAIL the check if it fell back closed.
+
+    A fail-closed blackout returns the entire watchlist, which is a legitimate
+    frozenset — it would sail through as a pass while meaning "the feed is
+    broken and this agent will never trade". Turn it back into the error it is.
+    """
+    blocked = calendar.blackout(broker._now(), watchlist)
+    if calendar.last_error:
+        raise McpDispatchError(
+            f"earnings calendar unavailable ({calendar.last_error}) — the "
+            f"blackout failed closed over all {len(watchlist)} watchlist names"
+        )
+    return f"blackout: {sorted(blocked) or '(none)'}"
 
 
 def run_smoke(

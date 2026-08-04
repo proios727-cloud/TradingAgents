@@ -68,8 +68,8 @@ python3 -m agent.cli dry-run --at 2026-07-20T14:32
 python3 -m unittest agent.tests.test_rails -v
 ```
 
-The dry run reproduces the dashboard: NVDA squeeze → a previewed 202.5-call entry;
-TSLA gamma-flip → **rejected by the earnings filter** (hyperscaler week).
+The dry run reproduces the dashboard: NVDA squeeze and TSLA gamma-flip, each
+previewed as a 0DTE long entry — subject to the earnings blackout below.
 
 ## Going live (human-gated — the agent cannot do these for you)
 
@@ -77,11 +77,36 @@ TSLA gamma-flip → **rejected by the earnings filter** (hyperscaler week).
 2. Connect the MCP: `claude mcp add robinhood-trading --transport http https://agent.robinhood.com/mcp/trading`; complete OAuth. Reads always-allow; order placement ask-every-time.
 3. **Smoke-test the real API while still inert:** `python3 -m agent.cli smoke`. This builds the REAL dispatcher/transport (`RobinhoodMcpBroker.live` / `broker/mcp_dispatch.py` — the same code path live trading uses, not a fake) and issues only READ calls (`get_accounts`, `get_option_positions`, and `get_option_chains` for every symbol in `WATCHLIST`), run through the same strict parsing the live path uses. No test in this repo has ever made a real HTTP call to Robinhood — every other test uses in-memory fakes — so this is the first point a schema mismatch (a missing/renamed field, which trips the kill switch under strict parsing) can be caught, while `armed=False, dry_run=True`. It refuses outright if that invariant doesn't hold, or if `ROBINHOOD_MCP_TOKEN` is unset (no fallback to a paper broker — that would validate nothing). It prints PASS/FAIL/latency per check and the real exception text on failure, continues after a failure, and exits non-zero if anything failed. Do not proceed past this step until every check passes.
 4. Wire the dispatcher: `RobinhoodMcpBroker.live(cfg, kill_state=ks)` builds the real `mcp_call` from `broker/mcp_dispatch.py` — it refuses to construct until `ROBINHOOD_MCP_TOKEN` holds your OAuth bearer token, and refuses to dispatch any placing/cancelling tool while `dry_run=True` or `armed=False`. Pass the same `kill_state` to `SuperTradesAgent(..., kill=ks)` so any MCP failure halts the next cycle.
-5. `python3 -m unittest` green + a dry run with zero errors.
-6. Only then set `armed=True, dry_run=False`. First possible entry 9:45 ET; keep `require_entry_approval=True` for week 1.
+5. Wire the **same** dispatcher into the live earnings calendar and pass it to the engine:
+
+   ```python
+   from agent import McpEarningsCalendar, SuperTradesAgent
+   agent = SuperTradesAgent(cfg, broker, signals, kill=ks,
+                            earnings=McpEarningsCalendar(mcp_call))
+   ```
+
+   Without this the engine falls back to `simulated.EARNINGS_CALENDAR`, a
+   hand-maintained fixture that cannot tell you it has gone stale. Do not arm
+   on the fixture. `python -m agent.cli status` prints which one is in play.
+6. `python3 -m unittest` green + a dry run with zero errors.
+7. Only then set `armed=True, dry_run=False`. First possible entry 9:45 ET; keep `require_entry_approval=True` for week 1.
 
 Kill anytime: say **STOP** (cancel all, flatten, halt), disconnect the connector in
 Claude settings, or one-tap disconnect in the Robinhood app.
+
+## Earnings blackout
+
+`GUARDRAILS.earnings_block_sessions` (3) blocks entries for that many sessions on
+**both** sides of the session carrying a name's earnings gap — before, because a
+0DTE long would be held into the print; after, because the IV crush is just as
+hostile to long premium. An `am` report gaps its own open; a `pm` report gaps the
+next one (Friday `pm` → Monday).
+
+`McpEarningsCalendar` **fails closed**: no dispatcher, an unreachable feed, a
+malformed payload, or a row whose date will not parse all block the *entire*
+watchlist rather than nothing. "We could not confirm this name is clear" and
+"this name has no earnings" must never produce the same answer. Expect the agent
+to stop trading on a feed outage — that is the design, not a bug.
 
 ## Credential failure disables exits, not just entries
 

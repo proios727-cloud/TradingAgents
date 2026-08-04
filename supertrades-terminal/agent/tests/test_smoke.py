@@ -154,10 +154,11 @@ class OnlyNonMutatingToolsDispatched(unittest.TestCase):
                 f"smoke test must never dispatch a mutating-shaped tool: {name}",
             )
         # And specifically the expected read set — nothing extra snuck in.
-        # (get_account also reads get_portfolio for buying power; get_chain goes
-        # straight to get_option_instruments by chain_symbol.)
+        # (get_account also reads get_portfolio; the earnings blackout reads
+        # get_earnings_calendar; get_chain goes straight to get_option_instruments.)
         expected = {"get_accounts", "get_portfolio", "get_option_positions",
-                    "get_option_instruments", "get_option_quotes"}
+                    "get_option_instruments", "get_option_quotes",
+                    "get_earnings_calendar"}
         self.assertTrue(called.issubset(expected), called - expected)
 
     def test_build_checks_only_uses_broker_parsed_accessors(self):
@@ -172,6 +173,38 @@ class OnlyNonMutatingToolsDispatched(unittest.TestCase):
         self.assertTrue(any("get_option_chains:NVDA" in n for n in names))
 
 
+class EarningsCheckSurfacesAFailClosedFeed(unittest.TestCase):
+    """A blackout that fell back closed is a legitimate frozenset covering the
+    whole watchlist. It must FAIL the smoke check, not pass quietly — that
+    state means the armed agent would take no trade and merely look idle."""
+
+    def _earnings_result(self, results):
+        return next(r for r in results if "get_earnings_calendar" in r.name)
+
+    def test_reachable_feed_passes_and_reports_the_blackout(self):
+        watchlist = ["NVDA", "MSFT"]
+        resp = _responses_for(watchlist)
+        resp[MCP_TOOL_PREFIX + "get_earnings_calendar"] = {"results": [
+            {"symbol": "MSFT", "report": {"date": "2026-07-29", "timing": "pm"}},
+        ]}
+        results, _ = run_smoke(
+            INERT, transport=RecordingTransport(responses=resp), watchlist=watchlist)
+        check = self._earnings_result(results)
+        self.assertTrue(check.ok, check.error)
+
+    def test_unreachable_feed_fails_the_check(self):
+        watchlist = ["NVDA", "MSFT"]
+        transport = RecordingTransport(
+            responses=_responses_for(watchlist),
+            fail_on={"get_earnings_calendar"},
+        )
+        results, code = run_smoke(INERT, transport=transport, watchlist=watchlist)
+        check = self._earnings_result(results)
+        self.assertFalse(check.ok)
+        self.assertIn("failed closed", check.error)
+        self.assertEqual(code, 1)
+
+
 class MidRunFailureDoesNotAbort(unittest.TestCase):
     def test_one_failed_check_does_not_skip_the_rest(self):
         watchlist = ["NVDA", "TSLA", "AMD"]
@@ -183,7 +216,8 @@ class MidRunFailureDoesNotAbort(unittest.TestCase):
         self.assertEqual(code, 1)
         names = [r.name for r in results]
         # every check ran, including the ones after the failure
-        self.assertEqual(len(results), 2 + len(watchlist))
+        # (account + positions + one per symbol + earnings)
+        self.assertEqual(len(results), 3 + len(watchlist))
         by_name = {r.name: r for r in results}
         failed = [r for r in results if not r.ok]
         self.assertEqual(len(failed), 1)
