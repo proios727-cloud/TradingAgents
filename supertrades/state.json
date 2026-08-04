@@ -1,13 +1,21 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T18:41:00Z",
+  "updated_at": "2026-08-04T18:45:00Z",
   "risk_posture": {
     "priority": "LOW_DRAWDOWN",
     "set_by": "user 8/4 'keep DD low'",
     "note": "Capital preservation first. Served by: never-red floor (open positions can't go red), floor ratchets UP only, +50% give-back trail (locks ~60% of peak), v4.2 concentration ceilings, -$60 daily halt, and taking profit on real stalls. Balance with 'enough wiggle to reach target, no paperhand' - keep DD low WITHOUT choking runners: floors/trails, not tight noise-stops."
   },
+  "performance": {
+    "window": "2026-07-21..2026-08-04 (visible log)",
+    "trades_closed": 6, "wins": 2, "losses": 4, "win_rate": 0.33,
+    "gross_pnl_usd": -7, "avg_win_usd": 42.0, "avg_loss_usd": -22.8,
+    "expectancy_per_trade_usd": -1.2,
+    "read": "Wins are clean (+50-64% targets); edge erased by 2 OVERSIZED losses (NVDA -55%, DIS -42% - stops slipped past the -30% line). Win-rate/expectancy levers (v4.4): (1) green_lock converts brief winners into guaranteed small wins; (2) CAP loss size - marketable stops, no single-name overnight gap; (3) keep runner upside so the big wins that carry expectancy survive. Goal = raise win rate WITHOUT shrinking the winners.",
+    "recompute": "on each close from the journal; wire an auto-updater next."
+  },
   "trading_date": "2026-08-04",
-  "rule_version": "v4.3",
+  "rule_version": "v4.4",
   "mode": {
     "cadence_min": 30,
     "dnd": true,
@@ -71,6 +79,7 @@
       "target_pct": 50,
       "stop_pct": -30,
       "ratchet_pct": 25,
+      "green_lock": {"arm_pct": 20, "floor_pct": 8},
       "hard_exit_et": "15:15",
       "index_hard_close_et": "15:00",
       "exit_time_discipline": "HARD (user 8/4 'hard on exit time ... always close before best target time for indexes'). INDEX positions (SPY/QQQ) MUST be flat by index_hard_close_et 15:00 - non-discretionary buffer BEFORE the 15:15 backstop; never ride to the deadline (late-day gamma/pin/theta risk). Non-index 0dte: hard-exit 15:15. No ratchet-keep discretion for indexes into the close.",
@@ -86,6 +95,7 @@
       "target_pct": 50,
       "stop_pct": -30,
       "ratchet_pct": 25,
+      "green_lock": {"arm_pct": 20, "floor_pct": 5},
       "flatten_et": "15:45",
       "profit_max": {
         "runner": true,
@@ -99,6 +109,7 @@
       "target_pct": 50,
       "stop_pct": -30,
       "ratchet_pct": 25,
+      "green_lock": {"arm_pct": 30, "floor_pct": 10},
       "time_stop": {
         "days_before_expiry": 14
       },
@@ -115,6 +126,7 @@
     "swing_overnight": {
       "stop_pct": -30,
       "ratchet_pct": 25,
+      "green_lock": {"arm_pct": 20, "floor_pct": 8},
       "profit_max": {
         "runner": true,
         "giveback": {"arm_gain_pct": 50, "peak_frac": 0.45},
@@ -290,6 +302,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T18:45Z",
+      "event": "build",
+      "detail": "v4.4 WIN-RATE / EXPECTANCY layer (user: 'adjust for best win rate + review exits/maximize growth/trailing, best logical approach'). REVIEW: 6 closes, ~33% win rate, gross ~-$7 - wins clean (+50-64%) but edge erased by 2 oversized losses (NVDA -55%, DIS -42% past -30% stop) + winners round-tripping (QQQ +123%->+56%). BUILT: green_lock exit_rule (arm ~+20% peak -> small-green floor +5-10% so a brief winner can't become a loss) + per-class green_lock + state.performance tracker. Framework = max EXPECTANCY not naive win rate: lock win early (green_lock), cut losers hard (marketable stop, no gap), run a piece (trail), scale-out on >=2 lots. +4 tests, 54/54, selftest 25 nodes 0 err. v4.3->v4.4. Recommended next: 2-contract sizing for scale-out; auto performance updater."
+    },
     {
       "t": "2026-08-04T18:41Z",
       "event": "rule",

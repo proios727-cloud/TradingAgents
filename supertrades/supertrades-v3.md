@@ -207,7 +207,32 @@ The fixed +50% target both **capped** upside and **lagged** the poll (QQQ 8/4: +
   premarket open-plan summary) goes to the pages and ledger silently. Every
   state.json write bumps updated_at.
 
+## 6c. Win rate + expectancy — lock the win, cut losers, run a piece (v4.4)
+Review of the live window (6 closes, ~33% win rate, gross ≈ −$7) showed the edge wasn't
+the winners (+50–64% clean targets) — it was **two oversized losses (NVDA −55%, DIS −42%,
+past the −30% stop)** plus **winners round-tripping** (QQQ +123%→+56%). "Max win rate" naively
+(tiny scalps) would kill the big wins that carry expectancy. The logical target is **max
+expectancy = win_rate·avg_win − loss_rate·avg_loss**, raised on all three terms:
+- **Lock the win early (`green_lock`):** once a trade's peak clears `arm_pct` (~+20%), a
+  small-green floor at `floor_pct` (+5–10%) goes live — a brief winner can no longer become a
+  loss. Raises win_rate without capping upside (the runner/trail still owns the top). Per-class
+  in `class_defaults[...].green_lock`.
+- **Cut losers hard (cap avg_loss):** −30% stop is marketable and checked every cycle;
+  single-names don't sit overnight into gap risk (the −55%/−42% slips came from stops not being
+  honored fast enough). Reliable-ops flatten (§Layer 2) is the backstop.
+- **Run a piece (protect avg_win):** never-red floor + give-back trail keep the runner alive so
+  the occasional +100%+ still lands. Scale-out banks the win on ≥2 lots.
+- **Sizing insight:** the cleanest win-rate + growth combo needs **≥2 contracts** — bank 1 at
+  the first target (locks the win), run 1 under the trail (captures growth). Budget-permitting,
+  prefer 2×small over 1×large so scale-out is available.
+- **Visibility:** `state.performance` tracks win_rate / avg_win / avg_loss / expectancy so the
+  system sees its own edge and can adapt (auto-updater on close is the next wire-up).
+
 ## Changelog
+- v4.4 (2026-08-04): WIN-RATE / EXPECTANCY layer. `green_lock` exit_rule (arm a small-green
+  floor once peak clears ~+20% → brief winners can't round-trip to losses); per-class green_lock
+  profiles; `state.performance` tracker (win_rate/expectancy). Framed by a review of the live
+  window (33% win rate, edge erased by 2 oversized losses). +4 tests; suite 54/54.
 - v4.3 (2026-08-04): PROFIT-MAX / GIVE-BACK TRAIL. New `giveback` exit_rule + runner
   (uncap winners) + multi-contract scale-out in the exit engine; per-class profit_max
   profiles (0dte tight → swing wide) with a TA+fundamental overlay for weekly swings;

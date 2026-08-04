@@ -487,6 +487,55 @@ class TestProfitMaxGivebackV43(unittest.TestCase):
         self.assertIn("ta_fundamental_gate", cd["swing"]["profit_max"])
 
 
+class TestWinRateGreenLockV44(unittest.TestCase):
+    """v4.4 (8/4): green_lock converts a brief winner into a guaranteed small win.
+
+    Review found win rate ~33% (2/6) with the edge erased by winners round-tripping
+    to losses. green_lock arms a small-green floor once the peak clears arm_pct.
+    """
+
+    def _run_pos(self, exit_rules, *, entry=0.64, hwm=None, mark=None, bid=None):
+        state = copy.deepcopy(load_state())
+        state["positions"] = {
+            "pos-agentic": {"contract": "QQQ 8/4 $724C", "account": AGENTIC_ACCT,
+                            "qty": 1, "entry": entry, "hwm": hwm if hwm else entry,
+                            "ratchet_engaged": False, "class": "day_trade",
+                            "expiry": "2026-08-04", "exit_rules": exit_rules}}
+        state["watchlist"] = []
+        snap = synthetic_snapshot(state, et_time="10:15", bp=500.0)
+        snap["option_quotes"]["pos-agentic"].update(
+            {"mark": mark, "bid": bid if bid is not None else mark})
+        return run(state, snap)
+
+    def _exits(self, r):
+        return [e for e in r["actions"]["exits"] if e["id"] == "pos-agentic"]
+
+    GL = {"type": "green_lock", "arm_pct": 20, "floor_pct": 5}
+
+    def test_green_lock_exits_when_winner_round_trips(self):
+        # peaked +25% (0.80), fell back to +3% (0.66) <= +5% lock -> exit a WIN
+        r = self._run_pos([self.GL], hwm=0.80, mark=0.66, bid=0.65)
+        ex = self._exits(r)
+        self.assertTrue(ex and ex[0]["order"] == "sell_limit_at_bid")
+        self.assertIn("green_lock", ex[0]["why"])
+
+    def test_green_lock_dormant_until_armed(self):
+        # peak only +12% (< 20% arm): floor not live, no exit at +3%
+        r = self._run_pos([self.GL], hwm=0.72, mark=0.66, bid=0.65)
+        self.assertFalse(self._exits(r))
+
+    def test_green_lock_holds_above_floor(self):
+        # armed (peak +25%) but still +15% (> +5% floor): keep holding
+        r = self._run_pos([self.GL], hwm=0.80, mark=0.735, bid=0.73)
+        self.assertFalse(self._exits(r))
+
+    def test_class_defaults_carry_green_lock(self):
+        cd = load_state()["class_defaults"]
+        self.assertEqual(cd["0dte_scalp"]["green_lock"]["floor_pct"], 8)
+        self.assertEqual(cd["day_trade"]["green_lock"]["floor_pct"], 5)
+        self.assertEqual(cd["swing"]["green_lock"]["arm_pct"], 30)
+
+
 class TestReliableOpsV4(unittest.TestCase):
     """v4 Layer 2: deterministic clock/flatten/staleness so no cycle silently misses."""
 
