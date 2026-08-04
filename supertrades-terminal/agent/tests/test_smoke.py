@@ -45,9 +45,16 @@ class RecordingTransport:
 
 GOOD_ACCOUNT = {"results": [{
     "account_number": "A1", "agentic_allowed": True,
-    "option_level": "option_level_2",
-    "portfolio_value": 25000, "settled_cash": 25000,
+    "option_level": "option_level_2", "unsettled_funds": "0.0000",
 }]}
+
+# get_accounts carries identity/permissions only — balances come from
+# get_portfolio, keyed by account_number (see robinhood_mcp.get_account).
+GOOD_PORTFOLIO = {"data": {
+    "total_value": "25000.00",
+    "cash": "25000.00",
+    "buying_power": {"buying_power": "25000.00", "unleveraged_buying_power": "25000.00"},
+}}
 
 GOOD_INSTRUMENT = {"results": [
     {"id": "i1", "type": "call", "strike_price": "202.5"}]}
@@ -61,6 +68,7 @@ def _responses_for(watchlist, quote_by_symbol=None):
     quote_by_symbol = quote_by_symbol or {}
     resp = {
         MCP_TOOL_PREFIX + "get_accounts": GOOD_ACCOUNT,
+        MCP_TOOL_PREFIX + "get_portfolio": GOOD_PORTFOLIO,
         MCP_TOOL_PREFIX + "get_option_positions": {"results": []},
         MCP_TOOL_PREFIX + "get_option_chains": {"results": []},
         MCP_TOOL_PREFIX + "get_option_instruments": GOOD_INSTRUMENT,
@@ -151,7 +159,7 @@ class OnlyNonMutatingToolsDispatched(unittest.TestCase):
                 f"smoke test must never dispatch a mutating-shaped tool: {name}",
             )
         # And specifically the expected read set — nothing extra snuck in.
-        expected = {"get_accounts", "get_option_positions",
+        expected = {"get_accounts", "get_portfolio", "get_option_positions",
                     "get_option_chains", "get_option_instruments",
                     "get_option_quotes"}
         self.assertTrue(called.issubset(expected))

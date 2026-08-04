@@ -94,22 +94,49 @@ class RobinhoodMcpBroker(BrokerAdapter):
         return self._mcp
 
     def get_account(self) -> AccountState:
-        data = self._require_mcp()("get_accounts", {})
+        """Identity/permissions come from ``get_accounts``; money comes from
+        ``get_portfolio`` for that account. The real ``get_accounts`` response
+        carries neither ``portfolio_value``/``balance`` nor ``settled_cash`` —
+        only ``get_portfolio`` (keyed by ``account_number``) has balances."""
+        mcp = self._require_mcp()
+        accounts_data = mcp("get_accounts", {})
         try:
-            acct = _first_account(data, self.cfg.account_number)
+            acct = _first_account(accounts_data, self.cfg.account_number)
             if not acct:
                 raise ValueError("no account rows in get_accounts response")
+            account_number = acct.get("account_number", self.cfg.account_number or "")
+        except (KeyError, ValueError, TypeError) as e:
+            self._trip(f"unparseable get_accounts response: {e}")
+
+        portfolio = mcp("get_portfolio", {"account_number": account_number})
+        try:
+            port = _unwrap_object(portfolio)
+            # Cash-account settlement (GO-LIVE: never buy with unsettled
+            # proceeds; open premium <= settled cash). This is a CASH account:
+            # the top-level "cash" figure includes UNSETTLED funds (T+1) that
+            # are not yet spendable — real spendable cash is
+            # buying_power.buying_power. Do NOT "simplify" this back to
+            # "cash"; that would let the risk governor size a trade against
+            # money that hasn't settled yet.
+            buying_power = port.get("buying_power")
+            if not isinstance(buying_power, dict):
+                raise ValueError(
+                    "missing required field buying_power (settled cash) — "
+                    "refusing to default it"
+                )
             return AccountState(
-                account_number=acct.get("account_number", self.cfg.account_number or ""),
+                account_number=account_number,
                 agentic_allowed=bool(acct.get("agentic_allowed", False)),
                 option_level=acct.get("option_level", "") or "",
                 # Balances are strict — a missing balance is never defaulted.
-                balance=_req_num(acct, ("portfolio_value", "balance"), "account balance"),
-                settled_cash=_req_num(acct, ("settled_cash", "cash"), "settled cash"),
+                balance=_req_num(port, ("total_value",), "account balance"),
+                settled_cash=_req_num(
+                    buying_power, ("buying_power",), "settled cash (buying power)"
+                ),
                 unsettled_cash=float(acct.get("unsettled_funds", 0) or 0),
             )
         except (KeyError, ValueError, TypeError) as e:
-            self._trip(f"unparseable get_accounts response: {e}")
+            self._trip(f"unparseable get_portfolio response: {e}")
 
     def get_positions(self) -> list[Position]:
         data = self._require_mcp()(
@@ -117,7 +144,7 @@ class RobinhoodMcpBroker(BrokerAdapter):
             {"account_number": self.cfg.account_number, "nonzero": True},
         )
         try:
-            return [_parse_position(p) for p in _rows(data)]
+            return [_parse_position(p) for p in _rows(data, "positions")]
         except (KeyError, ValueError, TypeError) as e:
             self._trip(f"unparseable get_option_positions response: {e}")
 
@@ -254,14 +281,59 @@ def _req_str(d: dict, keys: tuple[str, ...], ctx: str) -> str:
                      f"refusing to default it")
 
 
-def _rows(data) -> list[dict]:
-    if isinstance(data, dict):
-        return data.get("results") or data.get("data") or []
-    return data or []
+def _rows(data, key: str | None = None) -> list[dict]:
+    """Extract the row list from an MCP response envelope.
+
+    Real Robinhood payloads nest the collection one level deeper under a
+    NAMED key — e.g. ``{"data": {"accounts": [...]}}``,
+    ``{"data": {"positions": [...]}}`` — not a bare list under ``"data"``.
+    Older/simpler shapes some endpoints (and every existing test) use are
+    still accepted: ``{"results": [...]}`` and a bare list.
+
+    ``key`` is the collection name the caller already knows (e.g.
+    ``"accounts"``, ``"positions"``) — pass it whenever known so a real
+    nested dict is read explicitly instead of guessed at. Without a key, a
+    nested dict is only unwrapped when exactly one of its values is a list —
+    picking among several would silently return the wrong collection.
+    """
+    if isinstance(data, list):
+        return data
+    if not isinstance(data, dict):
+        return []
+    if "results" in data:
+        return data.get("results") or []
+    inner = data.get("data")
+    if isinstance(inner, list):
+        return inner
+    if isinstance(inner, dict):
+        if key is not None:
+            return inner.get(key) or []
+        candidates = [v for v in inner.values() if isinstance(v, list)]
+        return candidates[0] if len(candidates) == 1 else []
+    return []
+
+
+def _unwrap_object(data) -> dict:
+    """Unwrap a single-object MCP response envelope, e.g. ``get_portfolio``'s
+    ``{"data": {...fields...}}``. Distinct from ``_rows``: the portfolio
+    payload is one object, not a named list of rows. Tolerates the older
+    ``{"results": {...}}`` shape and a bare dict for the same reason ``_rows``
+    tolerates ``{"results": [...]}``."""
+    if not isinstance(data, dict):
+        return {}
+    inner = data.get("data")
+    if isinstance(inner, dict):
+        return inner
+    results = data.get("results")
+    if isinstance(results, dict):
+        return results
+    if isinstance(results, list) and results and isinstance(results[0], dict):
+        return results[0]
+    return data
 
 
 def _first_account(data, account_number: str | None) -> dict:
-    rows = _rows(data) or ([data] if isinstance(data, dict) else [])
+    rows = _rows(data, "accounts") or ([data] if isinstance(data, dict) else [])
     if account_number:
         for a in rows:
             if a.get("account_number") == account_number:

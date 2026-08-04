@@ -302,9 +302,10 @@ class PlacementGateRails(unittest.TestCase):
             if tool == "get_accounts":
                 return {"results": [{"account_number": "A1",
                                      "agentic_allowed": False,
-                                     "option_level": "option_level_0",
-                                     "portfolio_value": 5000,
-                                     "settled_cash": 5000}]}
+                                     "option_level": "option_level_0"}]}
+            if tool == "get_portfolio":
+                return {"data": {"total_value": "5000",
+                                 "buying_power": {"buying_power": "5000"}}}
             return {"id": "SHOULD-NOT-HAPPEN"}
 
         broker = RobinhoodMcpBroker(
@@ -321,9 +322,10 @@ class PlacementGateRails(unittest.TestCase):
             if tool == "get_accounts":
                 return {"results": [{"account_number": "A1",
                                      "agentic_allowed": True,
-                                     "option_level": "option_level_2",
-                                     "portfolio_value": 5000,
-                                     "settled_cash": 5000}]}
+                                     "option_level": "option_level_2"}]}
+            if tool == "get_portfolio":
+                return {"data": {"total_value": "5000",
+                                 "buying_power": {"buying_power": "5000"}}}
             return {"id": "ORDER-1"}
 
         broker = RobinhoodMcpBroker(
