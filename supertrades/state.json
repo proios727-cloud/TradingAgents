@@ -322,6 +322,11 @@
   },
   "log": [
     {
+      "t": "2026-08-04T19:12Z",
+      "event": "ops",
+      "detail": "TRIGGER CLEANUP (user 'only this chain, nothing confused/contradicting'). Audited 13 live triggers: 1 INTC manager (trig_01XMvY6m, THIS session, sole authority), 8 read-only/other-domain (SPY captures, GEX/PowerHour alert/review-only, PR/dev, Monday digest - place NO orders), 4 account-traders. DELETED the 2 that apply CONFLICTING rails to INTC: trig_01DbtRRV (8/5 premarket watcher, bound to ANOTHER session, conflicting 0DTE rails - could not update cross-session so deleted) + trig_01NUe (reconcile sweep, generic class rails vs INTC never-red). KEPT coordinated same-day backstops that check-then-defer (can't contradict): trig_01VJg (EOD flatten 3:44, this session, skips swing_overnight/won't hit INTC before its 15:45 time-stop) + trig_01THT (0DTE hard-exit, targets 0dte_scalp only - INTC is day_trade, won't match). Branch clean (only claude/claude-code-mcp-study-s227lj + main, 1 worktree). Sole INTC actor = trig_01XMvY6m."
+    },
+    {
       "t": "2026-08-04T18:55Z",
       "event": "build",
       "detail": "v4.5 BUILT BOTH (user 'build both'): (1) MULTI-LOT SIZING - reporter.size_order() fills the per-trade cap (0.22 BP) with up to 3 lots, same risk envelope, so scale-out is possible; wired into the entry qty. (2) BARBELL AUTO-MATERIALIZER - reporter.materialize_exit_rules() stamps exit_rules at entry: >=2 lots -> leg-A scale-out 0.5 (bank half at target = lock day) + leg-B strict giveback 0.20 (moonshot trail); 1 lot -> never-red runner + loose giveback; index 0dte -> + underlying_vwap_stop. Entry action now carries qty + exit_rules + sizing. +7 tests, 60->67 total, selftest 25/0. v4.4->v4.5. Note: live ~$200 BP usually = 1 lot until cheaper contracts/more BP. Not pushed (build)."
