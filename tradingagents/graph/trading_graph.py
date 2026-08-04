@@ -114,6 +114,8 @@ class TradingAgentsGraph:
             self.deep_thinking_llm,
             self.tool_nodes,
             self.conditional_logic,
+            parallel_analysts=self.config.get("parallel_analysts", True),
+            skip_risk_on_hold=self.config.get("skip_risk_on_hold", True),
         )
 
         self.propagator = Propagator()
