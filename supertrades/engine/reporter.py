@@ -50,6 +50,11 @@ GUARDRAILS = {
     "midday_skip_et": ("12:00", "14:00"),
     "midday_skip_override_day_pct": 3.0,
     "after_et_gex_only": "15:00",       # after 3pm only GEX-gated index scalps
+    # v4.13 (8/5): OBJECTIVE breakout confirmation — a level-break entry (HOD/wall/flip)
+    #   arms only when relative volume confirms real participation. Replaces the
+    #   qualitative "no volume thrust" judgment call; a slow creep at rvol < min = fakeout
+    #   risk, stand down (the 8/5 NVDA 221.7 creep). Holds/reclaims still require the hold.
+    "breakout_rvol_min": 1.5,           # rvol >= 1.5x average participation to confirm a break
 }
 
 _GROUPS = ("signals", "gex", "whale", "gates", "exits", "entries")
@@ -129,6 +134,18 @@ def conviction_score(c: dict) -> float:
                  + 0.10 * s_vwap + 0.05 * s_iv, 3)
 
 
+def breakout_confirmed(rvol: float | None) -> bool:
+    """Objective volume gate for LEVEL-BREAK entries (v4.13).
+
+    A breakout through a level (HOD / wall / flip) only arms when rvol clears
+    breakout_rvol_min — real participation, not a slow creep that fakes out
+    (8/5: NVDA ground to 221.74 on quiet volume and fizzled). Unknown rvol
+    does NOT confirm: a break must PROVE participation. Hold/reclaim entries
+    (put-wall hold, VWAP pullback-hold) are gated by the hold itself, not this.
+    """
+    return rvol is not None and rvol >= GUARDRAILS["breakout_rvol_min"]
+
+
 def size_order(cost_per_contract_usd: float, bp: float) -> int:
     """Lots to buy: fill the per-trade cost cap with up to max_lots_per_order, >= 1.
 
@@ -177,9 +194,11 @@ def materialize_exit_rules(class_name: str, qty: int, class_defaults: dict,
              "mech": "tiered_trail_tightens_at_extreme_gains"}
     if qty >= GUARDRAILS["barbell_min_lots"]:
         # leg A: bank half at the (reachable) target -> locks the day. leg B: the rest runs
-        # under the progressive stop + the tightening trail.
-        rules.append({"type": "target", "pct": tgt,
-                      "scale_out_frac": 0.5, "mech": "scale_out_lock_day"})
+        # under the progressive stop + the tightening trail. resting_bracket: place the
+        # scale-out as a GTC sell-limit AT the target immediately on fill, so it executes
+        # without poll lag (QQQ 8/4: bid crashed 1.42->1.00 mid-chase between polls).
+        rules.append({"type": "target", "pct": tgt, "scale_out_frac": 0.5,
+                      "resting_bracket": True, "mech": "resting_gtc_limit_scale_out_lock_day"})
     else:
         # single lot: runner that doesn't cap at target; progressive stop + tightening trail.
         rules.append({"type": "target", "pct": tgt,

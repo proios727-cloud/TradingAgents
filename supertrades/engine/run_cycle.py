@@ -44,6 +44,8 @@ def synthetic_snapshot(state: dict, *, et_time: str = "10:15",
         vwap[sym] = last - 0.5
     for sym, q in (quote_overrides or {}).items():
         quotes.setdefault(sym, {}).update(q)
+        # an override-only sym (not in universe) still needs a vwap entry
+        vwap.setdefault(sym, quotes[sym].get("last", 100.0) - 0.5)
 
     option_quotes = {}
     for pid, pos in state.get("positions", {}).items():

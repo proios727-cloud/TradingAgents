@@ -980,5 +980,51 @@ class TestJournalWriterV4(unittest.TestCase):
         self.assertTrue(fm.startswith("---\n"))
 
 
+class TestExecutionAccuracyV413(unittest.TestCase):
+    """v4.13: resting bracket exits, objective breakout RVOL gate, at-level cadence."""
+
+    def test_barbell_scale_out_is_a_resting_bracket(self):
+        # the scale-out leg rests as a GTC limit AT the target from the moment of fill,
+        # so the lock-the-day exit can't be missed between polls (QQQ 8/4 lesson)
+        from supertrades.engine.reporter import materialize_exit_rules
+        rules = materialize_exit_rules("day_trade", 2, {}, target_pct=40, stop_pct=-25)
+        tgt = next(r for r in rules if r["type"] == "target")
+        self.assertTrue(tgt.get("resting_bracket"))
+        self.assertEqual(tgt["scale_out_frac"], 0.5)
+        # single-lot runner does NOT rest a cap — the runner rides the trail
+        solo = materialize_exit_rules("day_trade", 1, {}, target_pct=40, stop_pct=-25)
+        stgt = next(r for r in solo if r["type"] == "target")
+        self.assertFalse(stgt.get("resting_bracket", False))
+        self.assertTrue(stgt.get("runner"))
+
+    def test_breakout_needs_objective_rvol(self):
+        # a level-break only confirms with real participation; a quiet creep or
+        # UNKNOWN volume does not (the 8/5 NVDA 221.7 slow-creep fakeout)
+        from supertrades.engine.reporter import breakout_confirmed, GUARDRAILS
+        self.assertTrue(breakout_confirmed(GUARDRAILS["breakout_rvol_min"]))
+        self.assertTrue(breakout_confirmed(3.0))
+        self.assertFalse(breakout_confirmed(1.1))
+        self.assertFalse(breakout_confirmed(None))
+
+    def test_rvol_now_is_time_of_day_relative(self):
+        from supertrades.engine.live import rvol_now
+        # half the day elapsed, half the average volume traded -> exactly 1.0x
+        self.assertEqual(rvol_now(500_000, 1_000_000, 0.5), 1.0)
+        # same cumulative volume EARLY in the day = much hotter tape
+        self.assertGreater(rvol_now(500_000, 1_000_000, 0.1), 1.0)
+        # missing inputs -> None (unknown must not confirm a breakout)
+        self.assertIsNone(rvol_now(None, 1_000_000, 0.5))
+        self.assertIsNone(rvol_now(500_000, 0, 0.5))
+
+    def test_at_level_cadence_is_tight_even_when_flat(self):
+        from supertrades.engine import ops
+        # flat at an armed level -> 90s; the SPY 770 reclaim resolved between 12-min polls
+        self.assertEqual(ops.poll_interval_seconds(0, at_level=True), 90)
+        self.assertEqual(ops.poll_interval_seconds(30, at_level=True), 90)
+        # away from any level, the ladder is unchanged
+        self.assertEqual(ops.poll_interval_seconds(0), 900)
+        self.assertEqual(ops.poll_interval_seconds(30), 480)
+
+
 if __name__ == "__main__":
     unittest.main()

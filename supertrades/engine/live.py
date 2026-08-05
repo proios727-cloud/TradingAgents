@@ -37,6 +37,21 @@ def _i(v):
         return None
 
 
+def rvol_now(cum_volume: float | None, avg_daily_volume: float | None,
+             frac_of_day: float) -> float | None:
+    """OBJECTIVE intraday relative volume (v4.13): today's cumulative volume vs the
+    average volume expected BY THIS TIME of day (avg_daily * fraction elapsed).
+
+    Feeds conviction_score's rvol input and reporter.breakout_confirmed, replacing
+    the qualitative 'no volume thrust' read with a number. frac_of_day = minutes
+    since 9:30 / 390 (clamped to a small floor so the open doesn't divide by ~0).
+    """
+    if not cum_volume or not avg_daily_volume or avg_daily_volume <= 0:
+        return None
+    frac = min(max(frac_of_day, 0.05), 1.0)      # floor 5% ~ first 20 min
+    return round(cum_volume / (avg_daily_volume * frac), 2)
+
+
 def _day_pct(last: float, prev_close: float) -> float:
     if not prev_close:
         return 0.0
