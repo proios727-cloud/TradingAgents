@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-05T19:35:00Z",
+  "updated_at": "2026-08-05T20:25:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -176,7 +176,7 @@
     "default_2lot_style": "BARBELL - confirmed (user 8/4). Scale out 1 at the reachable target (recovers most of cost -> house-money-ish), run 1 on the tiered tightening trail with the progressive stop underneath. free_roll (sell 1 at +100% -> runner fully free) is available as a one-flag alternative for high-conviction days, not the default."
   },
   "trading_date": "2026-08-05",
-  "rule_version": "v4.14",
+  "rule_version": "v4.14.2",
   "mode": {
     "cadence_min": 30,
     "dnd": true,
@@ -416,15 +416,21 @@
     ],
     "seed_notes": {
       "SPY/QQQ": "permanent GEX vehicles. Fresh 0DTE GEX map premarket (8/5 close structure: SPY pin 770-773 w/ call wall AT 773 - watch whether OI rebuilds higher or the pin migrates; QQQ below flip 724.4, walls 720/725).",
-      "NVDA": "carry as validated leader: closed 221.92 near HOD (+4.7%), held gains ALL day vs fading tape = relative-strength continuation candidate. STILL needs volume confirmation (rvol was 1.01x today) - a gap-hold above 222 WITH rvol>=1.5x, or a VWAP pullback-hold, arms it. No chase."
+      "NVDA": "carry DOWNGRADED after the late fade (222.2->219.21 close): no longer an unconditional leader-carry. Needs a fresh premarket read - gap-hold + rvol>=1.5x to re-arm, else just a funnel candidate like any other.",
+      "post_earnings_reactions": "funnel will surface tonight/today's reporters: WDC (gap-down -9% AH), SHOP (+17 holder), DIS (+3.7 holder), PODD/FLUT/NYT (big RTH losers), DASH/APP/DDOG/TTD/ABNB (report tonight). Trade the DAY-AFTER reaction with RVOL + a level, never the number itself."
     },
-    "premarket_checkpoint": "~8:00-9:15 ET: run saved scan 'SuperTrades Funnel (v4.14)' (scan_id c4aeb87f-94a4-4dd7-ba28-68e1ce3ed52d) -> funnel_candidates/filter/rank -> top 3-5 full-gate singles join the seed. FIXES from today's live test: (1) re-sort results by %change/rvol not market cap; (2) post-filter for optionable liquidity (options-volume filter hit an RH backend bug - filter downstream instead); (3) premarket rows will have real gappers, unlike today's quiet-tape volume anomalies. Earnings check every single (exclude earnings-day gap traps). Then GEX maps + per-name levels + 9:40 first read.",
+    "premarket_checkpoint": "~8:00-9:15 ET: run saved scan 'SuperTrades Funnel (v4.14)' (scan_id c4aeb87f-94a4-4dd7-ba28-68e1ce3ed52d) -> funnel_candidates/filter/rank -> top 3-5 full-gate singles join the seed. FIXES from today's live test: (1) re-sort results by %change/rvol not market cap; (2) post-filter for optionable liquidity (options-volume filter hit an RH backend bug - filter downstream instead); (3) premarket rows will have real gappers, unlike today's quiet-tape volume anomalies. Earnings check every single (exclude earnings-day gap traps). Then GEX maps + per-name levels + 9:40 first read. v4.14.2: use live.rh_scan_rows (units-correct) for the scan mapping. Indices open below put walls = negative gamma; rebuild GEX FIRST.",
     "lunch_checkpoint": "~12:00-12:30 ET: funnel re-screen w/ intraday rvol; demote dead, promote full-gate passers, refresh GEX walls.",
     "rules": "unchanged: pure cash, <=2 clean trades, $200/setup high-score only, <=1 position, runner runway, afternoon posture post-noon, NEVER overtrade - the funnel widens the menu, not the appetite. END GOAL: pile up scalp gains; days without a clean setup must cost $0 (like today).",
     "bp": 633.88,
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-05T20:25Z",
+      "event": "ah_review",
+      "detail": "DAILY AH REVIEW #1 (v4.14.2): FIXED scanner %-units bug (SHOP +19.9% read as +0.2% - 'no movers' verdict was partially blind; rh_scan_rows canonical mapper + test, 101/101). Findings: wakeup latency (schedule early), late-day breakdown post-window (QQQ broke 720, SPY closed under 770 = negative-gamma open tomorrow). Vindications: NVDA no-chase (faded to 219.21 - declined entries would be red), WDC 700C whale-follow declined (earnings miss, -9% AH), strength-hold hypothesis disproven. AH: risk-off, earnings cohort reporting tonight = premarket gappers. NVDA carry downgraded to conditional. Digest sent."
+    },
     {
       "t": "2026-08-05T19:35Z",
       "event": "build",
@@ -739,7 +745,8 @@
       "peak >= +100% -> 3min",
       "peak >= +200% (5% trail) -> ~90s / near-continuous"
     ],
-    "exits": "marketable-through-bid when extended; a resting bid misses fast reversals."
+    "exits": "marketable-through-bid when extended; a resting bid misses fast reversals.",
+    "wakeup_latency_buffer": "schedule time-critical wakeups 10-15 min EARLY (observed 8/5: fires drifted 30 min); exits NEVER depend on wakeups - resting brackets are broker-side truth."
   },
   "next_session": {
     "priority": "WIRE THE v4.14 FUNNEL INTO THE PREMARKET TUNE (engine code SHIPPED; tomorrow's tune should USE it): run_scan market-wide -> funnel_candidates -> funnel_filter -> funnel_rank top ~5 -> seed the day's active watchlist (SPY/QQQ permanent). Midday refresh re-runs it. Flow flag: pass flow_unusual (reporter.unusual_flow on chain volume/OI) into conviction inputs near GEX levels.",
@@ -823,5 +830,37 @@
       "BETWEEN_CHECKPOINTS": "Dynamic re-rank of the CURRENT list every scan (already live). A brand-new name enters mid-stream ONLY on exceptional flow + full gate pass (rare by design - avoids churn/chase; afternoon posture raises the bar further).",
       "principle": "Screen wide at the two checkpoints, execute narrow always. Specifically-triggered tickers that meet ALL scoring requirements get slots; nothing squats (META 8/5), nothing gets chased."
     }
+  },
+  "session_retro": {
+    "date": "2026-08-05",
+    "mode": "daily AH review (light-touch)",
+    "findings": [
+      "1) UNITS BUG (proven miss, FIXED v4.14.2): RH scanner '% Change' is a FRACTION (0.199=+19.9%); funnel read SHOP's +19.9% earnings rip as +0.2% and reported 'no movers'. Fix: live.rh_scan_rows canonical mapper (fraction->percent, one mapper for all scan consumers) + test. Re-run of the 15:25 sweep with correct units shows ~12 real >5B movers (all >8% earnings gap-traps = correctly non-tradable, but now VISIBLE).",
+      "2) WAKEUP LATENCY (procedural): 15:15 trigger fired ~15:45, 15:40 fired ~16:10. Time-critical checks must be scheduled 10-15 min EARLY; exits never depend on wakeups (resting brackets are broker-side truth, v4.13). Noted in management_cadence.",
+      "3) LATE-DAY BREAKDOWN after the watch wound down: QQQ broke its 720 put wall into the close (-0.91%, closed 717.28), SPY closed below 770 (-0.21%). The short-bias read was RIGHT but resolved post-window - structurally fine (index 0DTE closes 15:00) yet keep at-level cadence running to ~15:55 for INFORMATION (tomorrow-prep value), even when entries are off."
+    ],
+    "vindications": [
+      "NVDA no-chase fully vindicated: faded 222.2 HOD -> 219.21 close (+3.4%); every declined entry (221.5-221.9) would have closed red. The objective rvol gate (1.01x all day) was the correct tell.",
+      "WDC 700C whale-follow discipline vindicated: earnings MISSED, AH -9.1% to ~472. The 'large order' was not a bullish tell (spread/hedge/roll) - following it = torched. Flow stays CONFIRMATION-ONLY.",
+      "Strength-hold entry hypothesis (gap leader holds VWAP -> starter) DISPROVEN by today's tape: NVDA's late fade would have stopped it out red. Not added."
+    ]
+  },
+  "ah_pm_read": {
+    "as_of": "2026-08-05T20:15Z (~16:15 ET)",
+    "closes": {
+      "SPY": "769.74 (-0.21%) - closed BELOW the 770 put wall",
+      "QQQ": "717.28 (-0.91%) - BROKE the 720 put wall into the close",
+      "NVDA": "219.21 (+3.4%, faded from 222.2 HOD)",
+      "META": "588.80 (+0.15%, late recovery)",
+      "AMD": "481.73 (-7.1%, day-2 bleed)"
+    },
+    "ah_prints": {
+      "WDC": "~472 (-9.1% AH) - earnings MISS after -5.4% RTH",
+      "SHOP": "145.44 AH after +17% RTH (reported, strong)",
+      "DIS": "+3.7% RTH held (reported)",
+      "NVDA": "220.08 AH (stable)"
+    },
+    "regime": "RISK-OFF into the close: breadth negative, BOTH indices closed below their put walls = tomorrow opens in NEGATIVE-GAMMA territory (dealers amplify, moves run further) - the opposite of today's pin. Heavy AH earnings reactions (DASH/APP/DDOG/TTD/ABNB cohort reported tonight) = gappers for the premarket funnel.",
+    "tomorrow_bias": "Volatile open likely: negative gamma + earnings gap cohort. GEX map premarket is CRITICAL (walls will have migrated on the breakdown). Index plays now favor downside-continuation/put-wall-bounce structures; NVDA carry needs a fresh look after its fade (219.21, below its old VWAP zone)."
   }
 }

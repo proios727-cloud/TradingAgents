@@ -1074,6 +1074,23 @@ class TestUniverseFunnelV414(unittest.TestCase):
         self.assertEqual(g["funnel_day_pct_max_abs"], 8.0)
         self.assertEqual(g["funnel_min_market_cap_usd"], 5e9)
 
+    def test_rh_scan_rows_normalizes_fraction_pct(self):
+        # the 8/5 proven miss: scanner '% Change' is a FRACTION — SHOP's +19.9%
+        # earnings rip read as +0.2% and the sweep said 'no movers'
+        rows = [{"ticker": "SHOP", "instrument_type": "EQUITY",
+                 "columns": {"Last": "147.88", "% Change": "0.19935",
+                             "Relative volume": "1.51", "Market cap": 1.6e11}},
+                {"ticker": "XIDX", "instrument_type": "INDEX", "columns": {}}]
+        shaped = live.rh_scan_rows(rows)
+        self.assertEqual(len(shaped), 1)                  # non-equity dropped
+        self.assertAlmostEqual(shaped[0]["day_pct"], 19.935, places=3)
+        cands = live.funnel_candidates(shaped)
+        self.assertAlmostEqual(cands[0]["day_pct"], 19.935, places=3)
+        # +19.9% now correctly trips the gap-trap rail instead of hiding at 0.2%
+        kept = live.funnel_filter(cands, bp=500.0, per_setup_usd=110.0,
+                                  guardrails=GUARDRAILS)
+        self.assertEqual(kept, [])
+
     def test_funnel_candidates_carry_market_cap(self):
         rows = [{"symbol": "NVDA", "last": 220.0, "market_cap": "5.45e12"},
                 {"symbol": "SHOP", "last": 147.9, "Market cap": 1.6e11},

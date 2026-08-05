@@ -116,6 +116,28 @@ def _first(row: dict, keys: tuple):
     return None
 
 
+def rh_scan_rows(scan_results: list) -> list:
+    """Canonical mapping from run_scan result rows -> funnel_candidates input (v4.14.2).
+
+    THE unit trap this exists to fix (8/5 proven miss): the RH scanner's '% Change'
+    column is a FRACTION (0.19935 = +19.9%), not a percent. Ad-hoc mappings fed it
+    to the funnel as-is, so SHOP's +19.9% earnings-day rip scored as +0.2% and the
+    sweep reported 'no movers'. Normalize to PERCENT here — every scan consumer
+    goes through this one mapper, never hand-rolls the columns again.
+    """
+    out = []
+    for r in scan_results or []:
+        if r.get("instrument_type") not in (None, "EQUITY"):
+            continue
+        c = r.get("columns", {})
+        pct = _f(c.get("% Change"))
+        out.append({"symbol": r.get("ticker"), "last": c.get("Last"),
+                    "day_pct": None if pct is None else pct * 100.0,
+                    "rvol": c.get("Relative volume"), "volume": c.get("Volume"),
+                    "market_cap": c.get("Market cap")})
+    return out
+
+
 def funnel_candidates(scan_rows: list, quotes_meta: dict | None = None) -> list:
     """UNIVERSE FUNNEL stage 1 (v4.14): normalize raw run_scan rows.
 
