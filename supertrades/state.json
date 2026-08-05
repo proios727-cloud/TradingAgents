@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-05T19:14:00Z",
+  "updated_at": "2026-08-05T19:18:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -152,8 +152,9 @@
       "per_cycle": "engine updates hwm/floor/ratchet/P&L; each fill appended to trades[] + log",
       "per_close": "recompute_performance(trades) -> performance block (auto)",
       "per_eod_backward": "reflect(state) -> AUTO-APPLY auto_safe tweaks (tighten risk / fix a proven miss), log each; carry non-safe ideas as open_hypotheses for user OK",
-      "per_premarket_forward_AHPM": "TUNE for the upcoming session from AFTER-HOURS + PRE-MARKET: pull overnight movers/gaps + get_earnings_calendar/get_earnings_results; refresh watchlist candidates (rvol + IV-aware); flag gap risk + catalysts; tune rails to expected conditions (e.g. widen the IV steer on a high-vol open, tighten stops into a gappy tape); stage the engine-driven cycle so the open is ready",
-      "per_session_start": "read state, audit list_triggers (ONE executor), adopt latest rails + open_hypotheses"
+      "per_premarket_forward_AHPM": "TUNE for the upcoming session from AFTER-HOURS + PRE-MARKET: pull overnight movers/gaps + get_earnings_calendar/get_earnings_results; refresh watchlist candidates (rvol + IV-aware); flag gap risk + catalysts; tune rails to expected conditions (e.g. widen the IV steer on a high-vol open, tighten stops into a gappy tape); stage the engine-driven cycle so the open is ready v4.14: watchlist seeding now runs the UNIVERSE FUNNEL (see dynamic_watchlist.funnel_checkpoints PREMARKET).",
+      "per_session_start": "read state, audit list_triggers (ONE executor), adopt latest rails + open_hypotheses",
+      "per_lunch_refresh": "~12:00-12:30 ET: funnel RE-SCREEN (see dynamic_watchlist.funnel_checkpoints LUNCH) - demote dead names, promote newly-triggered full-gate passers, refresh GEX/OI walls. SPY/QQQ permanent."
     },
     "open_hypotheses": [
       "progressive_stop base/slope: tune where breakeven lands (+5% now) for win rate vs DD",
@@ -445,6 +446,11 @@
     }
   },
   "log": [
+    {
+      "t": "2026-08-05T19:18Z",
+      "event": "rule",
+      "detail": "FUNNEL CHECKPOINTS codified (user): PREMARKET broad market-wide screen -> funnel -> top 3-5 full-gate singles join permanent SPY/QQQ + per-name levels/earnings/GEX; LUNCH re-screen with intraday rvol -> demote dead / promote newly-triggered full-passers + GEX wall refresh; between checkpoints only re-rank (new name mid-stream = exceptional flow + full gate only). Wired into evolution cadence for tomorrow's tune."
+    },
     {
       "t": "2026-08-05T19:14Z",
       "event": "build",
@@ -805,6 +811,18 @@
       "LUNCH_1130_1400": "MONITOR level breaks (flip/wall reclaims & fails, VWAP holds/losses). Adapt: mark which morning theses held vs broke, promote/demote by live action, note breadth. Lower-conviction chop window \u2014 usually observe, rarely enter.",
       "AFTERNOON_1400_close": "REFRESH from the morning's movement: re-tailored watchlist + regime_shift diff drives the power-hour plan. Trade the names/side that the morning's action VALIDATED (leaders that held, breaks that confirmed), not the stale premarket thesis. Afternoon posture (tighten-only) + hard flats apply.",
       "carryforward": "Each phase feeds the next: the AFTERNOON list = morning seed, minus what died at lunch, plus what led \u2014 so by power hour we're trading proven intraday character, refreshed and ready."
+    },
+    "funnel_checkpoints": {
+      "set_by": "user 8/5: broader initial screen premarket + lunch-time re-screen to adjust the watchlist; cater to specifically-triggered tickers meeting ALL scoring requirements; SPY/QQQ always on.",
+      "permanent": [
+        "SPY",
+        "QQQ"
+      ],
+      "permanent_why": "GEX structure + penny spreads + deep 0DTE liquidity = highest-quality vehicles; they anchor the list regardless of screen results. IWM optional signal-arm only.",
+      "PREMARKET_0800_0915": "BROAD SCREEN: market-wide run_scan (RVOL, gappers both directions, % change) -> funnel_candidates -> funnel_filter (all GUARDRAILS pre-checks) -> funnel_rank -> top 3-5 singles that pass EVERYTHING join SPY/QQQ. Then per-name: earnings check (exclude earnings-gap traps), GEX map for SPY/QQQ, stamp levels/triggers per name. This IS the premarket tune's watchlist step now.",
+      "LUNCH_1200_1230": "RE-SCREEN: re-run the same funnel with intraday time-of-day rvol (frac_of_day) -> compare vs morning list: DEMOTE names whose thesis died (lost VWAP, rvol collapsed, level broke against them); PROMOTE newly-triggered names ONLY if they pass every gate at that moment (score + structure + liquidity + affordability). SPY/QQQ never leave. Also refresh the GEX/OI map (walls migrate - 8/5 lesson: 780->773). Afternoon trades only the validated list.",
+      "BETWEEN_CHECKPOINTS": "Dynamic re-rank of the CURRENT list every scan (already live). A brand-new name enters mid-stream ONLY on exceptional flow + full gate pass (rare by design - avoids churn/chase; afternoon posture raises the bar further).",
+      "principle": "Screen wide at the two checkpoints, execute narrow always. Specifically-triggered tickers that meet ALL scoring requirements get slots; nothing squats (META 8/5), nothing gets chased."
     }
   }
 }
