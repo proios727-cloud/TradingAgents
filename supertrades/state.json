@@ -1,13 +1,14 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-05T19:18:00Z",
+  "updated_at": "2026-08-05T19:30:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
-    "date": "2026-08-04",
-    "status": "CLOSED - market closed 16:00 ET; account FLAT, no overnight positions, no pending management triggers",
-    "day_result": "+$93 realized, 3/3 GREEN (SPY 771C +48, QQQ 724C +36, INTC 102C +9)",
-    "note": "INTC +9 was clipped early by a competing session's 0DTE hard-exit (would've been ~+35 as a runner) - fixed by deleting competing triggers + single-executor discipline. Built v4.4->v4.6 today (green_lock, VWAP trail, barbell + auto-materializer + multi-lot sizing, execution-layer engine bridge). Next session: populate watchlist, run engine-driven cycle at the open.",
-    "settlement": "cash acct - SPY/QQQ/INTC proceeds settle T+1 (8/5); BP frees on settle."
+    "date": "2026-08-05",
+    "status": "CLOSED-ish (~15:30 ET wrap; final-minutes watch armed to ~15:40) - account FLAT, 0 orders, $633.88 BP, no overnight positions",
+    "day_result": "NO-TRADE DAY (a win under the objective: 0 DD). Tape: gap-up-and-fade distribution - SPY pinned 770-773 all day (+0.04% at wrap), QQQ -0.41% below flip (720 wall held 2x), NVDA lone leader +4.7% but rvol 1.01x ALL DAY (no institutional thrust - objective gate held us out of the fizzling creep), META full gap-and-fade reversal -0.97%.",
+    "discipline_ledger": "Every stand-down verified: SPY 770 bounce sliced (no hold); NVDA 4 breakout pokes all volume-unconfirmed; QQQ wall never broke with force; last-hour 200-name funnel sweep found zero gate-passers. Caps never approached.",
+    "shipped_today": "v4.13 (resting brackets, objective breakout RVOL gate 1.5x, at-level 90s cadence) + v4.14 (universe funnel + unusual-flow flag, built by background agent, reviewed 99/99 tests) + funnel checkpoints codified (premarket broad screen / lunch re-screen) + $200-per-setup sizing + afternoon posture + dynamic watchlist + regime-shift re-tailoring. Console refreshed live. 12 commits.",
+    "settlement": "no trades -> nothing to settle; $633.88 all settled for tomorrow."
   },
   "execution_layer": {
     "mode": "engine_driven (v4.6)",
@@ -174,7 +175,7 @@
     "engine": "BUILT v4.5: reporter.size_order() fills the per-trade cap with up to 3 lots (same risk envelope, enables scale-out); reporter.materialize_exit_rules() auto-stamps leg-A scale-out + leg-B strict giveback (0.20) on any >=2-lot entry (single lot -> never-red runner), index scalps get the VWAP trail. Wired into the entry action (qty + exit_rules). Small live BP (~$200) usually resolves to 1 lot until cheaper contracts / more BP.",
     "default_2lot_style": "BARBELL - confirmed (user 8/4). Scale out 1 at the reachable target (recovers most of cost -> house-money-ish), run 1 on the tiered tightening trail with the progressive stop underneath. free_roll (sell 1 at +100% -> runner fully free) is available as a one-flag alternative for high-conviction days, not the default."
   },
-  "trading_date": "2026-08-04",
+  "trading_date": "2026-08-05",
   "rule_version": "v4.14",
   "mode": {
     "cadence_min": 30,
@@ -326,16 +327,16 @@
     }
   },
   "day": {
-    "realized_pnl": 93.0,
-    "auto_entries_used": 1,
-    "manual_entries_today": 2,
-    "manual_round_trips": 3,
-    "entries_today_total": 3,
+    "realized_pnl": 0.0,
+    "auto_entries_used": 0,
+    "manual_entries_today": 0,
+    "manual_round_trips": 0,
+    "entries_today_total": 0,
     "churn_threshold_hit": false,
     "halted": false,
     "open_pnl_est": 0.0,
-    "note": "LIVE 8/4 - FLAT into close, all 3 GREEN. SPY 771C +48; QQQ 724C +36 (@1.00). INTC 8/5 102C: bought @1.99, ran to +18%, but a COMPETING 0DTE hard-exit trigger (ANOTHER session, fired 15:15 ET) FLATTENED it early @2.08 = +9 (+4.5%, order 6a723a53, ref_id null, NOT the runner chain which was holding score-high). Green but left upside (option ran to +18% after). Deleted the competing hard-exit (trig_01THT) + EOD-flatten (trig_01VJg). Realized day +93. Account FLAT.",
-    "day_pnl_est": 93.0
+    "day_pnl_est": 0.0,
+    "note": "8/5: DISCIPLINED NO-TRADE DAY. 0 trades, $0 P&L, ZERO drawdown, $633.88 intact. Gate never passed on a pinned +GEX distribution tape."
   },
   "positions": {},
   "watchlist": [],
@@ -399,53 +400,29 @@
     "net": "No big flip migration but call walls/king migrated DOWN to spot + put walls tightened UP -> board COMPRESSED into pins (SPY 770-773, QQQ 720-725). Morning 780/730 call walls were the stale error; real ceilings now 773/725. Reinforces STAND DOWN: capped upside + low VIX + tight pins = low-probability trending scalp; take only a clean momentum break of a pin edge, else no-trade."
   },
   "open_plan": {
-    "date": "2026-08-05",
-    "as_of": "~07:52 ET premarket",
-    "watchlist": [
+    "date": "2026-08-06",
+    "prepared": "2026-08-05 EOD",
+    "watchlist_seed": [
       "SPY",
       "QQQ",
-      "IWM",
-      "NVDA",
-      "META"
+      "NVDA"
     ],
-    "premarket_gaps": {
-      "SPY": "+0.4%",
-      "QQQ": "+0.2%",
-      "IWM": "+0.2%",
-      "NVDA": "+1.9%",
-      "META": "+1.5%"
+    "seed_notes": {
+      "SPY/QQQ": "permanent GEX vehicles. Fresh 0DTE GEX map premarket (8/5 close structure: SPY pin 770-773 w/ call wall AT 773 - watch whether OI rebuilds higher or the pin migrates; QQQ below flip 724.4, walls 720/725).",
+      "NVDA": "carry as validated leader: closed 221.92 near HOD (+4.7%), held gains ALL day vs fading tape = relative-strength continuation candidate. STILL needs volume confirmation (rvol was 1.01x today) - a gap-hold above 222 WITH rvol>=1.5x, or a VWAP pullback-hold, arms it. No chase."
     },
-    "earnings_check": "CLEAR - no watchlist name reports today (NVDA 8/26, META 10/28; SPY/QQQ/IWM are ETFs). Excluded AMD (-8% earnings gap = trap) and INTC (-2.3%, reversed yesterday's pop).",
-    "plan": [
-      "INDEXES SPY/QQQ = 0DTE via the GEX GATE only - need user GEX levels or the gex_analyst map to arm; do NOT momentum-chase an index without the gate. IWM arms the signal, play maps to SPY/QQQ.",
-      "NVDA/META = momentum day-trades IF they hold above VWAP with RVOL confirming after 9:40; conviction-scored, EM exits, barbell (2 lots now viable at $634 BP).",
-      "No entries before 9:40 ET. One executor (this session). Review-gate the first engine entry.",
-      "why index-first: penny-wide spreads + huge 0DTE volume = accurate fills + stable greeks -> the EM/conviction math is reliable (vs a gappy single-name like AMD)."
-    ],
-    "capital_directive": {
-      "set_by": "user 8/5: 'keep it pure cash, plan for 1-2 clean trades with best setups and room for gains'",
-      "settlement": "PURE CASH - no limited-margin upgrade. Sale proceeds are unsettled T+1; do NOT re-flip unsettled cash same-day (good-faith-violation risk). Effective daily round-trip budget = settled cash only (~$634 first pass).",
-      "max_clean_trades_per_day": 2,
-      "selectivity": "QUALITY over turnover. Take ONLY best-score setups WITH room to a wall / next GEX level (runner runway). A setup with no room past target = skip or 1-lot no-runner. Skipping = success (minimal-DD objective).",
-      "per_setup_budget_usd": 200,
-      "per_setup_note": "user 8/5: '$200 to each section/setup if scored high enough'. HIGH-SCORE allocation = up to $200/setup (~31.6% of $634 BP), a deliberate loosening from the 0.22 auto cap ($139) - USER-AUTHORIZED. Stays UNDER the 0.35 short-DTE hand-placed floor ($222), so no governor breach. Only a setup that CLEARS the conviction gate gets the full $200; a marginal/at-gate setup stays 1 lot / smaller. Below gate = 0.",
-      "sizing_ladder": "conviction gates AND sizes: below gate=0; at gate=1 lot; HIGH score + runway => up to $200/setup => 2-lot BARBELL when a contract is <=~$1.00/lot (2x$100), else 1 richer lot up to $2.00. Scale half at target, run rest on tiered trail. Dollar cost still caps lots.",
-      "concurrency": "<=1 meaningful position open at a time (LEAN + low-DD). 2 setups/day => sequential, settled-cash permitting."
-    },
+    "premarket_checkpoint": "~8:00-9:15 ET: run saved scan 'SuperTrades Funnel (v4.14)' (scan_id c4aeb87f-94a4-4dd7-ba28-68e1ce3ed52d) -> funnel_candidates/filter/rank -> top 3-5 full-gate singles join the seed. FIXES from today's live test: (1) re-sort results by %change/rvol not market cap; (2) post-filter for optionable liquidity (options-volume filter hit an RH backend bug - filter downstream instead); (3) premarket rows will have real gappers, unlike today's quiet-tape volume anomalies. Earnings check every single (exclude earnings-day gap traps). Then GEX maps + per-name levels + 9:40 first read.",
+    "lunch_checkpoint": "~12:00-12:30 ET: funnel re-screen w/ intraday rvol; demote dead, promote full-gate passers, refresh GEX walls.",
+    "rules": "unchanged: pure cash, <=2 clean trades, $200/setup high-score only, <=1 position, runner runway, afternoon posture post-noon, NEVER overtrade - the funnel widens the menu, not the appetite. END GOAL: pile up scalp gains; days without a clean setup must cost $0 (like today).",
     "bp": 633.88,
-    "account": "FLAT",
-    "afternoon_posture": {
-      "activates": "after 12:00 ET (post-noon) \u2014 user 8/5 'once it hits after noon'",
-      "currently_active": true,
-      "direction": "TIGHTEN ONLY (auto-safe): compress exits/targets, raise the entry bar, honor hard flat clocks. NEVER loosen the entry gate to force a late trade (worse odds: theta/gamma/pin, less runway).",
-      "exits": "targets pull NEARER (expected_move hold window shrinks with time-to-close); management cadence tighter; take profit faster, don't let a late winner round-trip.",
-      "entries": "HIGHER conviction only. Prefer the FLIP-RECLAIM (highest-quality late play) and NVDA-class names with a longer clock; smaller size, nearer target, quick exit. A late entry = compressed timeframe, not a relaxed gate.",
-      "power_hour_15:00+": "flip-reclaim priority; NO new vacuum shorts after 15:00 unless the breach is fresh.",
-      "hard_flat": "index 0DTE flat by 15:00 ET (non-negotiable); day_trade flatten 15:45. New index 0DTE entry must fire ~by 14:30 for runway; after that NVDA (15:45) or skip.",
-      "default": "If no higher-conviction clean setup, STAND DOWN and close flat \u2014 preserve the no-loss day (minimal-DD objective)."
-    }
+    "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-05T19:30Z",
+      "event": "eod",
+      "detail": "EOD WRAP 8/5: NO-TRADE day, 0 DD, $633.88 intact (broker reconciled: flat, 0 orders). Distribution tape never offered a gate-passer (verified at every level: SPY 770 slice, NVDA rvol 1.01x creep, QQQ wall held, 200-name last-hour sweep empty). Shipped v4.13+v4.14+checkpoints (12 commits). Tomorrow 8/6 prepped: seed SPY/QQQ/NVDA(leader carry), premarket funnel via saved scan c4aeb87f w/ 3 fixes from today's live test, lunch re-screen. Final-minutes watch armed to ~15:40."
+    },
     {
       "t": "2026-08-05T19:18Z",
       "event": "rule",
