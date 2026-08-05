@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-05T12:10:00Z",
+  "updated_at": "2026-08-05T12:20:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -405,8 +405,10 @@
       "settlement": "PURE CASH - no limited-margin upgrade. Sale proceeds are unsettled T+1; do NOT re-flip unsettled cash same-day (good-faith-violation risk). Effective daily round-trip budget = settled cash only (~$634 first pass).",
       "max_clean_trades_per_day": 2,
       "selectivity": "QUALITY over turnover. Take ONLY best-score setups WITH room to a wall / next GEX level (runner runway). A setup with no room past target = skip or 1-lot no-runner. Skipping = success (minimal-DD objective).",
-      "sizing_ladder": "conviction gates AND sizes: below gate=0; at gate=1 lot; strong score + runway + BP-fits => 2-lot BARBELL (scale half at target, run rest on tiered trail). Hard per-trade cap = per_trade_bp_frac 0.22 ($139); dollar cost overrides score (2 lots only if ~<=$0.69/lot fits the cap).",
-      "concurrency": "<=1 meaningful position open at a time (LEAN + low-DD)."
+      "per_setup_budget_usd": 200,
+      "per_setup_note": "user 8/5: '$200 to each section/setup if scored high enough'. HIGH-SCORE allocation = up to $200/setup (~31.6% of $634 BP), a deliberate loosening from the 0.22 auto cap ($139) - USER-AUTHORIZED. Stays UNDER the 0.35 short-DTE hand-placed floor ($222), so no governor breach. Only a setup that CLEARS the conviction gate gets the full $200; a marginal/at-gate setup stays 1 lot / smaller. Below gate = 0.",
+      "sizing_ladder": "conviction gates AND sizes: below gate=0; at gate=1 lot; HIGH score + runway => up to $200/setup => 2-lot BARBELL when a contract is <=~$1.00/lot (2x$100), else 1 richer lot up to $2.00. Scale half at target, run rest on tiered trail. Dollar cost still caps lots.",
+      "concurrency": "<=1 meaningful position open at a time (LEAN + low-DD). 2 setups/day => sequential, settled-cash permitting."
     },
     "bp": 633.88,
     "account": "FLAT"
