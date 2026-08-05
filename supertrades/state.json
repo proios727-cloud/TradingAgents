@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-05T19:05:00Z",
+  "updated_at": "2026-08-05T19:02:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -446,6 +446,11 @@
   },
   "log": [
     {
+      "t": "2026-08-05T19:02Z",
+      "event": "plan",
+      "detail": "v4.14 QUEUED for after close (user: build, but hold if not beneficial for rest of day \u2014 correct, funnel/flow are premarket-discovery tools; power hour stays fully watched). Scope: market-wide universe funnel (scan wide -> gate-filter -> score -> top ~5 active) + vol/OI unusual-flow confirmation flag. Flat, 0 trades, NVDA-only window to 15:45."
+    },
+    {
       "t": "2026-08-05T19:05Z",
       "event": "build",
       "detail": "v4.13 EXECUTION ACCURACY (user 'refresh and revise where beneficial' + 'no false breakouts'). (1) RESTING BRACKET: barbell scale-out leg now stamps resting_bracket=true - place the lock-the-day half as a GTC sell-limit AT target on fill, no poll lag (QQQ 8/4 bid-crash lesson); single-lot runner unchanged (no cap). (2) OBJECTIVE BREAKOUT GATE: reporter.breakout_confirmed + GUARDRAILS.breakout_rvol_min 1.5 - a level-break entry only arms with rvol>=1.5x (live.rvol_now computes time-of-day-relative rvol); unknown volume does NOT confirm. Makes false breakouts HARDER to enter (today's NVDA 221.7 quiet creep = objective standdown). Hold/reclaim entries still gated by the hold. (3) AT-LEVEL CADENCE: ops.poll_interval_seconds(at_level=True)=90s even when flat - the SPY 770 slice-reclaim resolved between 12-min polls; at an armed level the cadence IS the trigger. ALSO fixed latent test-harness bug (synthetic_snapshot: override-only syms lacked vwap - pre-dated today, failed at last night's commit too). 94/94 tests, selftest 14/0. Entries stay discretionary/hold-confirmed - no auto stop-entries (whipsaw protection). v4.12->v4.13."
@@ -727,10 +732,12 @@
     "exits": "marketable-through-bid when extended; a resting bid misses fast reversals."
   },
   "next_session": {
-    "priority_1": "BUILD THE BACKTEST HARNESS (user 8/4). engine/backtest.py: replay historical option-chain snapshots (or a per-trade price path) through run_one_cycle, simulate fills at bid/mark, record each close into a trades ledger, then feed evolution.recompute_performance + max_drawdown_usd + score_objective. OUTPUT: win rate, avg win/loss, expectancy, max drawdown, objective score, per-trade ledger. Compare v4.11 rules vs the flat +50/-30 baseline on the SAME paths so the improvement is measured, not assumed. Turns '90/90 tests' into real expectancy/DD numbers.",
-    "data": "need historical option chains (Robinhood get_option_historicals per contract) or a set of past setups with intraday option price paths; start with a handful of real 0DTE/day-trade paths incl. the QQQ +123% and NVDA -55% cases to sanity-check the new exits.",
-    "then": "run the premarket AH/PM tune + engine-driven cycle if it's a trading day.",
-    "resume": "open this project + this chat -> 'resume SuperTrades' -> audit list_triggers -> build backtest.py."
+    "priority": "BUILD v4.14 AFTER CLOSE (user 8/5, queued at ~15:00 ET \u2014 deferred so power hour stays fully watched)",
+    "v414_scope": [
+      "UNIVERSE FUNNEL: premarket tune + midday refresh run a market-wide RH scanner sweep (RVOL/%chg/volume) -> auto-filter by engine gates (spread<=12%, OI>=500, contract<=~$2 affordability at $200/setup, delta>=0.35, IV caps) -> conviction-score survivors -> top ~5 seed the day's ACTIVE watchlist. Screen wide, execute narrow; SPY/QQQ permanent (GEX vehicles). Names earn their slot daily (META squatted 8/5).",
+      "UNUSUAL-FLOW FLAG: fold vol/OI>=3x per-strike check into existing scans on active names (fields already fetched with chains); flow = CONFIRMATION into conviction_score near GEX levels, never a solo trigger (no false signals). GEX/OI map refresh ~2x/day stays (wall migration = institutional flow)."
+    ],
+    "when": "after 16:00 ET close today, with the EOD wrap"
   },
   "dynamic_watchlist": {
     "authorized_by": "user 8/5: 'from open to EOD, constantly re-screen & adjust the watchlist, re-analyze all names for the best-scoring setups that STILL PASS ALL TESTS \u2014 not just looking for a trade'",
