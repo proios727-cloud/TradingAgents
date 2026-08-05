@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-05T11:55:00Z",
+  "updated_at": "2026-08-05T12:10:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -400,6 +400,14 @@
       "No entries before 9:40 ET. One executor (this session). Review-gate the first engine entry.",
       "why index-first: penny-wide spreads + huge 0DTE volume = accurate fills + stable greeks -> the EM/conviction math is reliable (vs a gappy single-name like AMD)."
     ],
+    "capital_directive": {
+      "set_by": "user 8/5: 'keep it pure cash, plan for 1-2 clean trades with best setups and room for gains'",
+      "settlement": "PURE CASH - no limited-margin upgrade. Sale proceeds are unsettled T+1; do NOT re-flip unsettled cash same-day (good-faith-violation risk). Effective daily round-trip budget = settled cash only (~$634 first pass).",
+      "max_clean_trades_per_day": 2,
+      "selectivity": "QUALITY over turnover. Take ONLY best-score setups WITH room to a wall / next GEX level (runner runway). A setup with no room past target = skip or 1-lot no-runner. Skipping = success (minimal-DD objective).",
+      "sizing_ladder": "conviction gates AND sizes: below gate=0; at gate=1 lot; strong score + runway + BP-fits => 2-lot BARBELL (scale half at target, run rest on tiered trail). Hard per-trade cap = per_trade_bp_frac 0.22 ($139); dollar cost overrides score (2 lots only if ~<=$0.69/lot fits the cap).",
+      "concurrency": "<=1 meaningful position open at a time (LEAN + low-DD)."
+    },
     "bp": 633.88,
     "account": "FLAT"
   },
