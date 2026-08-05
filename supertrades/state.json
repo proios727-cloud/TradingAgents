@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-05T18:32:00Z",
+  "updated_at": "2026-08-05T18:36:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -446,6 +446,11 @@
   },
   "log": [
     {
+      "t": "2026-08-05T18:36Z",
+      "event": "rule",
+      "detail": "DYNAMIC WATCHLIST enabled (user: constantly re-screen open->EOD, re-rank all names for best-scoring setups that STILL pass all tests, not force a trade). Each scan re-scores + re-ranks; promote leaders / demote dead / add emergent movers; strict gate unchanged. Live re-rank 14:35 ET: NVDA #1 (leader, at HOD), QQQ #2 (short-watch, testing 720 wall), SPY anchor (pinned), IWM monitor, META DEMOTED (broke down -0.86%, thesis dead). Flat, 0 trades."
+    },
+    {
       "t": "2026-08-05T18:32Z",
       "event": "rule",
       "detail": "AFTERNOON POSTURE codified (user 'once it hits after noon'). Post-12:00 ET: TIGHTEN only \u2014 exits/targets compress (shrinking EM hold window), cadence tighter, entry bar RAISED (flip-reclaim + longer-clock names, smaller/faster), hard flats 15:00 index / 15:45 day. NEVER loosen the entry gate to force a late trade. Auto-safe (tightening). Currently active (~14:30 ET). Flat, 0 trades."
@@ -711,5 +716,51 @@
     "data": "need historical option chains (Robinhood get_option_historicals per contract) or a set of past setups with intraday option price paths; start with a handful of real 0DTE/day-trade paths incl. the QQQ +123% and NVDA -55% cases to sanity-check the new exits.",
     "then": "run the premarket AH/PM tune + engine-driven cycle if it's a trading day.",
     "resume": "open this project + this chat -> 'resume SuperTrades' -> audit list_triggers -> build backtest.py."
+  },
+  "dynamic_watchlist": {
+    "authorized_by": "user 8/5: 'from open to EOD, constantly re-screen & adjust the watchlist, re-analyze all names for the best-scoring setups that STILL PASS ALL TESTS \u2014 not just looking for a trade'",
+    "behavior": "Each scan RE-SCORES every watchlist name live (conviction_score: delta/RVOL/momentum/above-VWAP/IV-fit + structure/GEX regime) and RE-RANKS by the objective. PROMOTE leaders, DEMOTE dead names, and ADD emergent high-RVOL movers that clean-pass every gate. Seed from the morning watchlist; evolve it through the close.",
+    "strict": "NEVER lowers the gate to manufacture a trade. A name is only actionable if it passes ALL tests (conviction gate + structure + afternoon posture + BP/size). Re-screening improves WHICH setup we'd take, not WHETHER we force one. No clean pass = stand down.",
+    "add_new_names": "Emergent movers (unusual RVOL + clean structure) can be added intraday via the RH scanner / mover check. Late-day (afternoon posture) favors RE-RANKING the known set over adding fresh names for a new position (higher bar, prefer known structure + runway).",
+    "seed_morning": [
+      "SPY",
+      "QQQ",
+      "IWM",
+      "NVDA",
+      "META"
+    ],
+    "live_rank_1435ET": [
+      {
+        "sym": "NVDA",
+        "day_pct": 4.52,
+        "read": "LEADER \u2014 at HOD 221.4, above rising VWAP; only clean LONG candidate (breakout pending decisive confirm). PROMOTED #1.",
+        "status": "active_long_watch"
+      },
+      {
+        "sym": "QQQ",
+        "day_pct": -0.47,
+        "read": "weakest index, testing 720 put wall; potential SHORT (puts) on a momentum break of 720 -> 717/715.",
+        "status": "active_short_watch"
+      },
+      {
+        "sym": "SPY",
+        "day_pct": 0.0,
+        "read": "pinned 770-773, low signal; index anchor / structural only.",
+        "status": "anchor"
+      },
+      {
+        "sym": "IWM",
+        "day_pct": -0.38,
+        "read": "below VWAP, lagging, no edge.",
+        "status": "monitor"
+      },
+      {
+        "sym": "META",
+        "day_pct": -0.86,
+        "read": "broke down ~$12 off highs, rolled over; premarket +1.5% momentum thesis DEAD.",
+        "status": "demoted_off_active"
+      }
+    ],
+    "note": "Static premarket list would still be watching META for calls; dynamic screen demotes it and promotes NVDA. This runs every scan through EOD."
   }
 }
