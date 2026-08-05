@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-05T18:15:00Z",
+  "updated_at": "2026-08-05T18:32:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -432,9 +432,24 @@
       "concurrency": "<=1 meaningful position open at a time (LEAN + low-DD). 2 setups/day => sequential, settled-cash permitting."
     },
     "bp": 633.88,
-    "account": "FLAT"
+    "account": "FLAT",
+    "afternoon_posture": {
+      "activates": "after 12:00 ET (post-noon) \u2014 user 8/5 'once it hits after noon'",
+      "currently_active": true,
+      "direction": "TIGHTEN ONLY (auto-safe): compress exits/targets, raise the entry bar, honor hard flat clocks. NEVER loosen the entry gate to force a late trade (worse odds: theta/gamma/pin, less runway).",
+      "exits": "targets pull NEARER (expected_move hold window shrinks with time-to-close); management cadence tighter; take profit faster, don't let a late winner round-trip.",
+      "entries": "HIGHER conviction only. Prefer the FLIP-RECLAIM (highest-quality late play) and NVDA-class names with a longer clock; smaller size, nearer target, quick exit. A late entry = compressed timeframe, not a relaxed gate.",
+      "power_hour_15:00+": "flip-reclaim priority; NO new vacuum shorts after 15:00 unless the breach is fresh.",
+      "hard_flat": "index 0DTE flat by 15:00 ET (non-negotiable); day_trade flatten 15:45. New index 0DTE entry must fire ~by 14:30 for runway; after that NVDA (15:45) or skip.",
+      "default": "If no higher-conviction clean setup, STAND DOWN and close flat \u2014 preserve the no-loss day (minimal-DD objective)."
+    }
   },
   "log": [
+    {
+      "t": "2026-08-05T18:32Z",
+      "event": "rule",
+      "detail": "AFTERNOON POSTURE codified (user 'once it hits after noon'). Post-12:00 ET: TIGHTEN only \u2014 exits/targets compress (shrinking EM hold window), cadence tighter, entry bar RAISED (flip-reclaim + longer-clock names, smaller/faster), hard flats 15:00 index / 15:45 day. NEVER loosen the entry gate to force a late trade. Auto-safe (tightening). Currently active (~14:30 ET). Flat, 0 trades."
+    },
     {
       "t": "2026-08-05T18:15Z",
       "event": "gex_refresh",
