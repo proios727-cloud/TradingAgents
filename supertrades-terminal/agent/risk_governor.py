@@ -12,7 +12,7 @@ denials except sizing, which returns the allotted budget.
 from __future__ import annotations
 
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .config import GUARDRAILS as G
 from .config import RuntimeConfig
@@ -80,9 +80,40 @@ def evaluate(
     if signal.symbol in held_symbols:
         return RiskVerdict.deny(f"already holding {signal.symbol} — no adding/averaging")
 
-    # --- Sizing: min(2.5% x balance, $1k), composed with red-day / week1 ---
-    # Build a size multiplier and a hard cap, then apply once.
-    mult = 1.0
+    # --- Continuation re-entry (operator-approved 2026-08-04) ------------
+    # A stop-out closes the name for the session — no revenge trades, ever.
+    if signal.symbol in day.loss_exit_syms:
+        return RiskVerdict.deny(f"{signal.symbol} stopped out today — closed for the session")
+    reentry_mult = 1.0
+    if signal.symbol in day.profit_exit_at:
+        # The name already paid today. Another entry is allowed ONLY as a
+        # validated continuation: scanner-flagged, one per name, half size,
+        # and never inside the cooldown after the exit.
+        if not signal.is_reentry:
+            return RiskVerdict.deny(
+                f"{signal.symbol} exited profitably today — re-entry requires a "
+                f"validated continuation signal (is_reentry)")
+        if day.reentries.get(signal.symbol, 0) >= G.reentry_max_per_name:
+            return RiskVerdict.deny(
+                f"{signal.symbol} re-entry cap ({G.reentry_max_per_name}/name/day) reached")
+        exited_at = datetime.fromisoformat(day.profit_exit_at[signal.symbol])
+        if now - exited_at < timedelta(minutes=G.reentry_cooldown_min):
+            return RiskVerdict.deny(
+                f"{signal.symbol} re-entry cooldown — {G.reentry_cooldown_min} min "
+                f"after the exit")
+        reentry_mult = G.reentry_size_mult
+        reasons.append(f"continuation re-entry: {G.reentry_size_mult:g}x size")
+    elif signal.is_reentry:
+        return RiskVerdict.deny(
+            f"{signal.symbol} flagged is_reentry but no profitable exit today")
+
+    # --- Sizing: phase ladder (config.premium_budget), conviction / red-day /
+    # week1 multipliers composed on it, then the hard cap applied once. ---
+    mult = G.conviction_multiplier(signal.confidence, signal.rvol)
+    if mult > 1.0:
+        reasons.append(f"A+ conviction: {mult:g}x phase budget")
+    elif mult < 1.0:
+        reasons.append(f"B conviction: {mult:g}x phase budget")
     cap = G.per_trade_cap_usd
     if day.yesterday_red:
         mult *= 0.5
@@ -91,13 +122,21 @@ def evaluate(
         mult *= 0.5
         cap = min(cap, G.per_trade_cap_usd * 0.5)  # week-1: $500 cap / half risk
         reasons.append("week-1 half-size ($500 cap)")
-    budget = min(G.sizing_pct * account.balance * mult, cap)
-    # Press rule: only once >= +2R is booked, later trades may size up 2x,
+    mult *= reentry_mult
+    budget = min(G.premium_budget(account.balance) * mult, cap)
+    # Press rule: only once >= +2R is booked, later trades may size up,
     # funded strictly by the day's booked profit (never base bankroll).
+    # Press applies to the MULTIPLIED budget and re-applies the (possibly
+    # week-1-halved) cap — so conviction/red-day/week-1/re-entry halvings
+    # survive pressing instead of being silently restored (guardian finding
+    # 2026-08-04; the $1k absolute cap remains hard via ``cap``).
     if day.booked_profit_r >= G.press_min_booked_r and day.entries_today > 0:
         extra = min(budget * (G.press_multiplier - 1.0), day.booked_profit_r * budget)
-        budget += extra
-        reasons.append("press rule: sized up from booked profit")
+        budget = min(budget + extra,
+                     G.press_multiplier * budget,                       # never > 2x current size
+                     G.press_multiplier * G.premium_budget(account.balance),  # never > 2x base phase budget
+                     cap)
+        reasons.append("press rule: sized up from booked profit (capped)")
 
     if ask_premium <= 0:
         return RiskVerdict.deny("no valid ask premium")

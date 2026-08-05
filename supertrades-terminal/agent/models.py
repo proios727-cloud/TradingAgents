@@ -37,6 +37,17 @@ class Signal:
     index_aligned: bool = False
     structural_level_near_stop: bool = False
     confidence: int = 0
+    # "momentum" (flip break, air-pocket run, hedge exhaustion, HOD break) or
+    # "reversion" (king-node bounce, gap fill). Momentum-class signals get
+    # convexity contract selection by default (operator standing directive
+    # 2026-08-04: max gamma/delta for short explosive moves). "" = untagged ->
+    # historical selection behavior.
+    setup_class: str = ""
+    # True when the scanner re-fired this setup as a validated CONTINUATION
+    # after a profitable same-session exit (reclaim of the exit level or new
+    # session high). The risk governor requires this flag — plus cooldown and
+    # the per-name cap — before allowing a half-size re-entry.
+    is_reentry: bool = False
 
     @property
     def option_type(self) -> OptionType:
@@ -130,6 +141,10 @@ class DayState:
     consecutive_losses: int = 0        # feeds the kill switch
     entries_today: int = 0
     halted: bool = False               # set once daily halt/kill fires
+    # --- continuation re-entry bookkeeping (engine._book_close writes these) ---
+    profit_exit_at: dict = field(default_factory=dict)   # symbol -> ISO ts of last profitable FULL close
+    loss_exit_syms: set = field(default_factory=set)     # names stopped out today -> closed for the session
+    reentries: dict = field(default_factory=dict)        # symbol -> re-entries taken today
 
 
 @dataclass
@@ -147,10 +162,20 @@ class Position:
     underlying_stop: float
     underlying_target: float
     thesis_intact: bool = True
-    scaled: bool = False               # half already taken off at +1R
+    scaled: bool = False               # half already taken off at +1R (legacy scale_trail)
     peak_premium: float = 0.0          # high-water mark of the mark; the position
                                        # tracker ratchets it up each cycle. Drives the
                                        # trailing stop. 0.0 => not yet tracked.
+    # --- single-owner rule (operator-approved 2026-08-04) ---
+    # Who manages this position's exit ladder: "engine" (opened by this agent),
+    # "watcher" (session watcher owns it), or "external" (another session /
+    # manual). Non-owners apply BACKSTOPS ONLY (15:45 flatten, -50% stop,
+    # thesis break) and never run the ladder/tranches — two managers walking
+    # orders on one position is how exits collide (2026-08-04 lesson).
+    owner: str = "engine"
+    # --- lot-aware tranche bookkeeping (5-stage ladder mode) ---
+    tranche_s1_done: bool = False      # 3+ lots: one sold at the +45% arm touch
+    tranche_target_done: bool = False  # 2+ lots: one sold at the +90% target touch
 
     @property
     def premium_change_pct(self) -> float:
@@ -192,7 +217,8 @@ class ExitIntent:
     """A protective exit for an open position."""
 
     position: Position
-    kind: Literal["target", "stop", "flatten", "scale", "trail", "thesis_break"]
+    kind: Literal["target", "stop", "flatten", "scale", "trail", "thesis_break",
+                  "guard", "tranche"]
     quantity: int
     reason: str
     marketable: bool = False           # True => cross the spread (stop/flatten)

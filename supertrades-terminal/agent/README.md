@@ -87,15 +87,15 @@ rejections, approvals, fills, and each distinct failure (`exit_failed`,
 ## Guardrails (all from `GO-LIVE.md`, enforced in `risk_governor` / `exit_manager` / `kill_switch`)
 
 - 0DTE long calls/puts only — no 0DTE chain that day ⇒ skip the name; no spreads, no shares, never a later expiry.
-- Size `min(2.5% × balance, $1,000)` premium/trade; half-size the day after a red day; week-1 caps at `$500`.
+- Size via the phase ladder `Guardrails.premium_budget` ($100 fixed <$4k with a 20%-of-balance clamp, then `min(2.5% × balance, $1,000)`), ×1.5 on A+ conviction (up to $150) / ×0.5 on B; half-size the day after a red day; week-1 caps at `$500`. Operator-amended 2026-08-04.
 - Press rule: only once ≥ +2R is **booked** may later trades size up 2×, funded from that day's profit.
 - Exits: +90% target, −50% stop or thesis break, scale ½ at +1R and trail, **flatten all by 15:45 ET**.
 - Daily −2R halt (entries stop, exits stay live); no entries first 15 min / last 10 min; no earnings names within 3 sessions; never widen a stop, never average down.
-- Cash settlement (T+1): never buy with unsettled proceeds; open premium ≤ settled cash; balance nearing $2,000 → halt + alert.
+- Cash settlement (T+1): never buy with unsettled proceeds; open premium ≤ settled cash; settled cash at/below $300 → halt + alert (operator-lowered from $2,000, 2026-08-04).
 - Contract: Δ 0.45–0.55 from broker Greeks, reject spread > 10% of mid, limit at mid (reprice once after 5s, abandon after 2 misses).
 
 > Note: the terminal's `data.js` has an illustrative per-strategy risk map
-> (`STRATEGY_RISK`, 2–7%). `GO-LIVE.md` **supersedes** it with the flat 2.5% / $1k
+> (`STRATEGY_RISK`, 2–7%). `GO-LIVE.md` **supersedes** it, as amended 2026-08-04 into the phase-ladder / $1k
 > rule — that's what this agent implements.
 
 ## Run
@@ -118,7 +118,7 @@ previewed as a 0DTE long entry — subject to the earnings blackout below.
 
 ## Going live (human-gated — the agent cannot do these for you)
 
-1. In the Robinhood app: apply for **options Level 2** on the Agentic account; **fund** it (~$2,500 — funding is your hard loss cap).
+1. In the Robinhood app: apply for **options Level 2** on the Agentic account; **fund** it with only what you will risk (the $300 settled-cash floor halts entries; funding is your hard loss cap).
 2. Connect the MCP: `claude mcp add robinhood-trading --transport http https://agent.robinhood.com/mcp/trading`; complete OAuth. Reads always-allow; order placement ask-every-time.
 3. **Smoke-test the real API while still inert:** `python3 -m agent.cli smoke`. This builds the REAL dispatcher/transport (`RobinhoodMcpBroker.live` / `broker/mcp_dispatch.py` — the same code path live trading uses, not a fake) and issues only READ calls (`get_accounts`, `get_portfolio`, `get_option_positions`, and `get_option_chains` for every symbol in `WATCHLIST`), run through the same strict parsing the live path uses. No test in this repo has ever made a real HTTP call to Robinhood — every other test uses in-memory fakes — so this is the first point a schema mismatch (a missing/renamed field, which trips the kill switch under strict parsing) can be caught, while `armed=False, dry_run=True`. It refuses outright if that invariant doesn't hold, or if `ROBINHOOD_MCP_TOKEN` is unset (no fallback to a paper broker — that would validate nothing). It prints PASS/FAIL/latency per check and the real exception text on failure, continues after a failure, and exits non-zero if anything failed. Do not proceed past this step until every check passes.
 3a. **Pin the account and run `preflight`.** With a second agentic account now in play, `cfg.account_number` MUST be set to the exact account you intend to trade — never leave it unset and let the broker infer one. `smoke.preflight(broker)` is the go/no-go gate for this: it fails unless `cfg.account_number` names a real, `agentic_allowed` row in the live `get_accounts` response (not just *some* agentic account — checked against the raw account rows, not the read path's own inference-tolerant selection), and unless that account carries options Level 2/3 and positive settled cash. It soft-fails to `(False, [reason], None)` rather than raising if the account can't even be read. Read-path inference (`robinhood_mcp._pick_account`'s "pick any agentic_allowed account" fallback) remains fine for diagnostics/reads — it must never be what decides which account receives a real order. Do not climb to `go_live.STAGES["tiny_live"]` until `preflight` returns `ok=True`.

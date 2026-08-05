@@ -4,15 +4,23 @@ Given a fired Signal and the underlying's chain snapshot, pick the single
 contract to trade: today's expiry, correct type, and a spread no wider than 10%
 of mid. Anything failing -> decline (the name is skipped).
 
-Two selection modes, chosen by ``RuntimeConfig.convexity_selection`` (default off):
+Two selection modes:
 
   * DEFAULT — strike nearest the signal entry, delta ~0.45–0.55 from the broker's
-    Greeks. The safe ATM pick; exactly the historical behavior.
-  * CONVEXITY — only on high-conviction signals (confidence and RVOL past the
-    conv_* bars), consider cheaper/more-convex contracts down to conv_delta_floor
+    Greeks. The safe ATM pick; exactly the historical behavior. Stays the pick
+    for mean-reversion setups (king-node bounce, gap fill), which profit from
+    grind, not burst.
+  * CONVEXITY — consider cheaper/more-convex contracts down to conv_delta_floor
     and pick the one with the best estimated return on the expected move to
-    target (Δ·M + ½·Γ·M²). Falls back to the default pick when the signal isn't
-    convincing enough, gamma data is missing, or no contract qualifies.
+    target (Δ·M + ½·Γ·M²). Engages for MOMENTUM-class signals
+    (``Signal.setup_class == "momentum"`` — flip breaks, air-pocket runs, hedge
+    exhaustion) by default (operator standing directive 2026-08-04: always use
+    the best gamma/delta contract for short explosive moves), and for any signal
+    when ``RuntimeConfig.convexity_selection`` is on. Either way it still
+    requires the conv_* conviction bars — high confidence AND RVOL — and falls
+    back to the default pick when the signal isn't convincing enough, gamma data
+    is missing, or no contract qualifies. The conv_delta_floor is a hard floor:
+    convexity never buys lottery tickets.
 
 The spread guard and 0DTE-only rule apply in BOTH modes.
 """
@@ -98,7 +106,14 @@ def select(
         # No 0DTE chain that day -> skip the name (never substitute later expiry).
         return ContractChoice(None, "no 0DTE chain for this name today")
 
-    if cfg and cfg.convexity_selection:
+    # Tri-state switch: False = hard off; True = on for any conviction-cleared
+    # signal; None (default) = auto, momentum-class signals only.
+    if cfg is not None and cfg.convexity_selection is False:
+        want_convexity = False
+    else:
+        want_convexity = (signal.setup_class == "momentum") or bool(
+            cfg and cfg.convexity_selection)
+    if want_convexity:
         convex = _convexity_pick(signal, zero_dte)
         if convex is not None:
             return convex

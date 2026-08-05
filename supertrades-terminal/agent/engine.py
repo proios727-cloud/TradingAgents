@@ -81,6 +81,23 @@ class SuperTradesAgent:
         # Positions are rebuilt from broker state each cycle, so the peak that
         # drives the trailing stop must persist here, across cycles.
         self._peaks: dict[str, float] = {}
+        # Ladder-tranche bookkeeping and ownership, also keyed by option_id and
+        # persisted across cycles for the same reason. _owners confirms the
+        # positions THIS engine opened ("engine"); ids it never placed keep the
+        # owner the broker adapter stamped (single-owner rule: the engine only
+        # ever confirms its own, never claims someone else's).
+        self._tranche_s1: set[str] = set()
+        self._tranche_target: set[str] = set()
+        self._owners: dict[str, str] = {}
+        # Original lot count per option_id — the denominator R is booked
+        # against (a tranche shrinks quantity, not the R scale). Guardian
+        # finding 2026-08-04.
+        self._orig_qty: dict[str, int] = {}
+        # Lots already committed to dispatched sell orders that have not yet
+        # shown up as a reduced position, and the last quantity observed (to
+        # detect fills). Prevents overselling when a banking tranche rests.
+        self._pending_sells: dict[str, int] = {}
+        self._last_qty: dict[str, int] = {}
 
     # -- one cycle --------------------------------------------------------
     def run_cycle(self, now: datetime) -> CycleResult:
@@ -162,6 +179,9 @@ class SuperTradesAgent:
             if result.placed or result.dry_run:
                 res.placed_entries.append(intent)
                 self.day.entries_today += 1
+                self._owners[choice.contract.option_id] = "engine"
+                if sig.is_reentry:
+                    self.day.reentries[sig.symbol] = self.day.reentries.get(sig.symbol, 0) + 1
                 held = held | {sig.symbol}
 
         return res
@@ -176,11 +196,42 @@ class SuperTradesAgent:
             # the trailing stop measures give-back from the true peak, not just
             # this cycle's mark. Only ever rises; never lowers an existing peak.
             live_ids.add(pos.option_id)
+            self._orig_qty.setdefault(pos.option_id, pos.quantity)
+            # Fills show up as a shrunk position: retire that much pending-sell.
+            prev_qty = self._last_qty.get(pos.option_id, pos.quantity)
+            if pos.quantity < prev_qty:
+                filled = prev_qty - pos.quantity
+                self._pending_sells[pos.option_id] = max(
+                    0, self._pending_sells.get(pos.option_id, 0) - filled)
+            self._last_qty[pos.option_id] = pos.quantity
             peak = max(self._peaks.get(pos.option_id, pos.current_premium),
                        pos.current_premium)
             self._peaks[pos.option_id] = peak
             pos.peak_premium = peak
-            for ex in exit_manager.evaluate(pos, now, self.cfg):
+            pos.owner = self._owners.get(pos.option_id, pos.owner)
+            pos.tranche_s1_done = pos.option_id in self._tranche_s1
+            pos.tranche_target_done = pos.option_id in self._tranche_target
+            try:
+                exits = exit_manager.evaluate(pos, now, self.cfg)
+            except Exception as e:  # one position's failure never starves the rest
+                self.log.record("error", pos.symbol, now, stage="exit_eval",
+                                error=repr(e))
+                continue
+            for ex in exits:
+                pending = self._pending_sells.get(pos.option_id, 0)
+                if ex.kind in ("stop", "flatten", "thesis_break", "trail", "guard"):
+                    # Protective exit: nothing may block or shrink it. If lots
+                    # are committed to working orders, clear the book first,
+                    # then send the full remainder marketable.
+                    if pending:
+                        self.broker.cancel_all()
+                        self._pending_sells.clear()
+                else:
+                    # Banking exit (tranche/scale/target): never oversell —
+                    # net out lots already committed to working sells.
+                    ex.quantity = min(ex.quantity, max(0, pos.quantity - pending))
+                    if ex.quantity <= 0:
+                        continue
                 out.append(ex)
                 intent = self._exit_intent(ex)
                 # APPROVAL IS ASYMMETRIC BY DESIGN:
@@ -212,6 +263,10 @@ class SuperTradesAgent:
                                     now, exit_kind=ex.kind, approved=approved,
                                     note="advisory only — protective exit placed "
                                          "regardless of operator response")
+                # Snapshot the lot count at decision time: an instant-fill
+                # broker (paper) mutates pos.quantity inside place_order, and
+                # the flag/booking logic below must see the pre-fill count.
+                qty_at_decision = pos.quantity
                 # ISOLATION: one position's broker failure must never abort
                 # the loop and leave every later position with no exit this
                 # cycle. Catch here, journal loudly, and keep going — the
@@ -230,10 +285,69 @@ class SuperTradesAgent:
                 self.log.record("exit", ex.position.symbol, now, exit_kind=ex.kind,
                                 qty=ex.quantity, reason=ex.reason,
                                 placed=result.placed, dry_run=result.dry_run)
-        # Drop peaks for positions no longer open so the map can't leak or
-        # resurrect a stale high-water mark on a re-entered symbol.
+                if result.placed or result.dry_run:
+                    self._pending_sells[pos.option_id] = (
+                        self._pending_sells.get(pos.option_id, 0) + ex.quantity)
+                    if ex.kind == "tranche":
+                        # Which tranche this was: the S1 tranche fires first
+                        # and only once, so an un-flagged position taking a
+                        # tranche at 3+ lots is S1; otherwise it's the target
+                        # tranche. Flags persist engine-side across cycles.
+                        if pos.option_id not in self._tranche_s1 and qty_at_decision >= 3:
+                            self._tranche_s1.add(pos.option_id)
+                        else:
+                            self._tranche_target.add(pos.option_id)
+                    self._book_close(ex, now)
+        # Drop peaks/flags for positions no longer open so the maps can't leak
+        # or resurrect stale state on a re-entered symbol.
         self._peaks = {oid: pk for oid, pk in self._peaks.items() if oid in live_ids}
+        self._tranche_s1 &= live_ids
+        self._tranche_target &= live_ids
+        self._owners = {oid: ow for oid, ow in self._owners.items() if oid in live_ids}
+        self._orig_qty = {oid: q for oid, q in self._orig_qty.items() if oid in live_ids}
+        self._pending_sells = {oid: q for oid, q in self._pending_sells.items()
+                               if oid in live_ids}
+        self._last_qty = {oid: q for oid, q in self._last_qty.items() if oid in live_ids}
         return out, failed
+
+    def _book_close(self, ex: ExitIntent, now: datetime) -> None:
+        """Wire the loss limiters (guardian finding, 2026-08-04): realized R
+        and the loss streak update the moment a protective exit is
+        dispatched, so the -2R daily halt and the 3-loss kill fire
+        in-session rather than depending on the retrospective scorer. R is
+        computed from the mark at exit evaluation; fills may differ by
+        slippage, which the scorer trues up after the fact. Scale-outs book
+        their closed fraction of R but only FULL closes drive the streak."""
+        p = ex.position
+        if p.entry_premium <= 0:
+            return
+        # R is measured against the ORIGINAL lot count, not what remains after
+        # tranches — else a post-tranche close over-books R (guardian finding).
+        # p.quantity may already be 0 here (instant-fill brokers reduce it in
+        # place_order), which is exactly why the denominator is _orig_qty.
+        orig = self._orig_qty.get(p.option_id, p.quantity)
+        if orig <= 0:
+            return
+        frac = min(ex.quantity / orig, 1.0)
+        r = (p.current_premium - p.entry_premium) / (G.stop_premium_loss * p.entry_premium)
+        r_booked = r * frac
+        self.day.day_r += r_booked
+        if r_booked > 0:
+            self.day.booked_profit_r += r_booked
+        if ex.kind not in ("scale", "tranche"):
+            # Full closes drive the loss streak AND the continuation re-entry
+            # bookkeeping: a profitable close opens the (gated) re-entry window
+            # for the name; a loss closes the name for the session. A dead
+            # scratch (r == 0) is neither: streak unchanged, no window opened.
+            if r < 0:
+                self.kill.consecutive_losses += 1
+                self.day.loss_exit_syms.add(p.symbol)
+            elif r > 0:
+                self.kill.consecutive_losses = 0
+                self.day.profit_exit_at[p.symbol] = now.isoformat()
+        if self.day.day_r <= G.daily_halt_r and not self.day.halted:
+            self.day.halted = True
+            self.log.record("halt", p.symbol, now, day_r=round(self.day.day_r, 2))
 
     def _flatten_all(self, now: datetime, reason: str) -> tuple[list[ExitIntent], list[tuple[str, str, str]]]:
         out: list[ExitIntent] = []
