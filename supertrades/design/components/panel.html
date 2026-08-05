@@ -1,0 +1,59 @@
+<!-- @dsCard group="Components" name="Rules panel + pipeline" -->
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SuperTrades · Panels</title>
+<style>
+  :root{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  @media (prefers-color-scheme: dark){ :root{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }
+  :root[data-theme="light"]{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;padding:18px;
+    font:14px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink3);margin:0 0 12px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;max-width:560px}
+  .rules{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;font-size:13.5px}
+  .rules li{display:flex;gap:9px;align-items:baseline}
+  .rules .tick{color:var(--accent);font-family:ui-monospace,Menlo,monospace;flex:none}
+  .steps{display:flex;flex-wrap:wrap;gap:6px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+  .step{border:1px solid var(--line);border-radius:3px;padding:2px 8px;color:var(--ink2);background:var(--surface2)}
+  .step.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+</style></head><body>
+
+  <p class="eyebrow">Rules panel — the single gate</p>
+  <section class="panel">
+    <ul class="rules">
+      <li><span class="tick">▸</span><strong>Progressive stop</strong> — breakeven by ~+5%; tight small-green, looser for runners.</li>
+      <li><span class="tick">▸</span><strong>Tiered trail</strong> — give-back 40% → 20% (+100%) → 5% (+200%).</li>
+      <li><span class="tick">▸</span><strong>Barbell</strong> — scale out to lock the day, run the rest.</li>
+    </ul>
+  </section>
+  <p class="eyebrow" style="margin-top:18px">Cycle pipeline — steps light as they run</p>
+  <div class="steps"><span class="step on">fetch MCP</span><span class="step on">re-screen</span><span class="step on">run engine</span><span class="step">exits→entry</span><span class="step">commit</span></div>
+</body></html>

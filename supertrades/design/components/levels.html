@@ -1,0 +1,61 @@
+<!-- @dsCard group="Components" name="GEX level strip" -->
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SuperTrades · GEX levels</title>
+<style>
+  :root{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  @media (prefers-color-scheme: dark){ :root{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }
+  :root[data-theme="light"]{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;padding:18px;
+    font:14px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink3);margin:0 0 12px}
+  .strip{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+  .lvl{border:1px solid var(--line);border-radius:6px;padding:8px 12px;background:var(--surface);min-width:84px;text-align:center}
+  .lvl .k{font-size:17px;font-weight:600}
+  .lvl .t{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-top:2px}
+  .lvl.crit{border-color:var(--crit);background:var(--crit-bg)} .lvl.crit .k{color:var(--crit)}
+  .lvl.good{border-color:var(--good);background:var(--good-bg)} .lvl.good .k{color:var(--good)}
+  .lvl.flip{border-color:var(--accent);background:var(--accent-soft)} .lvl.flip .k{color:var(--accent)}
+  .lvl.spot{border-color:var(--ink);border-width:2px} 
+  .lvl.mut .k{color:var(--ink3)}
+  .note{color:var(--ink2);font-size:12.5px;max-width:560px}
+</style></head><body>
+
+  <p class="eyebrow">GEX level strip — structure at a glance</p>
+  <div class="strip mono">
+    <div class="lvl crit"><div class="k">770</div><div class="t">put wall</div></div>
+    <div class="lvl flip"><div class="k">772.5</div><div class="t">gamma flip</div></div>
+    <div class="lvl spot"><div class="k">772.1</div><div class="t">SPOT</div></div>
+    <div class="lvl good"><div class="k">773</div><div class="t">call wall · king</div></div>
+    <div class="lvl mut"><div class="k">780</div><div class="t">2nd call node</div></div>
+  </div>
+  <p class="note">Spot renders between its bounding levels. Wall colors are semantic: put wall = crit (support risk), call wall = good (target), flip = accent.</p>
+</body></html>

@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-05T19:30:00Z",
+  "updated_at": "2026-08-05T19:45:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -199,7 +199,14 @@
       "favicon": "\ud83d\udce1",
       "rule": "alert feed accumulates all DND-muted alerts"
     },
-    "publish_rule": "edit the repo file, then Artifact publish with BOTH file_path (repo path) AND url (stored above) so the existing URL is kept; republish only when displayed values changed"
+    "publish_rule": "edit the repo file, then Artifact publish with BOTH file_path (repo path) AND url (stored above) so the existing URL is kept; republish only when displayed values changed",
+    "design_system": {
+      "path": "supertrades/design/design-system.html",
+      "url": "https://claude.ai/code/artifact/7ca8acfc-768b-49b7-b811-fd3e85ce9a36",
+      "favicon": "\ud83c\udfa8",
+      "kit": "supertrades/design/ (foundations/ + components/, @dsCard markers, dual-theme tokens)",
+      "claude_design_handoff": "remote session can't /design-login; sync via Claude Design 'Send to Claude Code Web' OR an interactive session /design-login then DesignSync (see design/README.md)"
+    }
   },
   "universe": [
     "SPY",
@@ -418,6 +425,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-05T19:45Z",
+      "event": "build",
+      "detail": "DESIGN SYSTEM shipped (user 'push a UI model to Claude Design labs + handoff'): supertrades/design/ kit - dual-theme tokens, terminal-mono identity, semantic good/warn/crit split from teal accent; 7 @dsCard component previews (colors, type, KPI cards, chips, watchlist table, GEX level strip, rules panel+pipeline) + one-page showcase published as artifact 7ca8acfc. Claude Design sync staged (remote can't design-login; handoff via 'Send to Claude Code Web' or interactive /design-login - README.md documents both)."
+    },
     {
       "t": "2026-08-05T19:30Z",
       "event": "eod",

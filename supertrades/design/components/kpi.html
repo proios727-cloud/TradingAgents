@@ -1,0 +1,55 @@
+<!-- @dsCard group="Components" name="KPI cards" -->
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SuperTrades · KPI cards</title>
+<style>
+  :root{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  @media (prefers-color-scheme: dark){ :root{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }
+  :root[data-theme="light"]{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;padding:18px;
+    font:14px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink3);margin:0 0 12px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;max-width:760px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  .kpi.hero{border-color:var(--good);background:var(--good-bg)}
+  .kpi .v{font-size:25px;font-weight:600;line-height:1.15}
+  .kpi .l{font-size:12px;color:var(--ink2);margin-top:2px}
+  .kpi .s{font-size:11px;color:var(--ink3);margin-top:1px}
+</style></head><body>
+
+  <p class="eyebrow">KPI cards — summary before detail</p>
+  <div class="kpis">
+    <div class="kpi hero"><div class="v mono" style="color:var(--good)">+$93</div><div class="l">Day P&amp;L — realized</div><div class="s">all closed · nothing overnight</div></div>
+    <div class="kpi"><div class="v mono">0</div><div class="l">Open positions</div><div class="s">$634 BP · pure cash</div></div>
+    <div class="kpi"><div class="v mono" style="color:var(--warn)">STANDBY</div><div class="l">Gate</div><div class="s">armed · no setup passed</div></div>
+    <div class="kpi"><div class="v mono" style="color:var(--accent)">v4.14</div><div class="l">Rule engine</div><div class="s">99/99 tests</div></div>
+  </div>
+</body></html>

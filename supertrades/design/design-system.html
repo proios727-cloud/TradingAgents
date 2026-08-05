@@ -1,0 +1,220 @@
+<title>SuperTrades Design System</title>
+<style>
+
+  :root{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  @media (prefers-color-scheme: dark){ :root{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }
+  :root[data-theme="light"]{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;padding:18px;
+    font:14px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink3);margin:0 0 12px}
+  
+  body{padding:0}
+  .ds-wrap{max-width:1080px;margin:0 auto;padding:28px 20px 56px;display:flex;flex-direction:column;gap:8px}
+  .ds-head{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:10px}
+  .ds-title{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:19px;letter-spacing:.07em;margin:0}
+  .ds-sub{color:var(--ink2);font-size:13px;margin:6px 0 0;max-width:65ch}
+  .ds-sec{border:1px solid var(--line);border-radius:10px;background:var(--surface2);padding:18px;margin-top:14px}
+  .ds-h{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+/* foundations/colors.html */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .sw{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px}
+  .c{height:44px;border-radius:4px;border:1px solid var(--line)}
+  .n{font-size:11.5px;margin-top:8px;color:var(--ink)}
+  .d{font-size:11px;color:var(--ink3);margin-top:2px}
+  .note{color:var(--ink2);font-size:12.5px;max-width:560px}
+
+/* foundations/type.html */
+.stack{display:flex;flex-direction:column;gap:18px;max-width:640px}
+  .spec{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:8px}
+  .h{font-size:19px;letter-spacing:.07em;margin:0}
+  .kpi{font-size:25px;font-weight:600}
+  .body{margin:0;font-size:14.5px;color:var(--ink);max-width:65ch}
+  .data{font-size:13px;color:var(--ink2)}
+  .tag{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--ink3)}
+
+/* components/kpi.html */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;max-width:760px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  .kpi.hero{border-color:var(--good);background:var(--good-bg)}
+  .kpi .v{font-size:25px;font-weight:600;line-height:1.15}
+  .kpi .l{font-size:12px;color:var(--ink2);margin-top:2px}
+  .kpi .s{font-size:11px;color:var(--ink3);margin-top:1px}
+
+/* components/chips.html */
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .chip{display:inline-block;border-radius:3px;padding:2px 8px;font-size:10.5px;font-weight:600;letter-spacing:.06em;white-space:nowrap;font-family:ui-monospace,Menlo,monospace}
+  .chip.good{background:var(--good-bg);color:var(--good)}
+  .chip.warn{background:var(--warn-bg);color:var(--warn)}
+  .chip.crit{background:var(--crit-bg);color:var(--crit)}
+  .chip.mut{background:var(--surface2);color:var(--ink2)}
+  .flat{display:inline-flex;align-items:center;background:var(--accent-soft);color:var(--accent);
+    border:1px solid var(--accent);border-radius:3px;padding:2px 10px;font-size:11px;letter-spacing:.12em;font-weight:600;font-family:ui-monospace,Menlo,monospace}
+
+/* components/table.html */
+.scroll{overflow-x:auto;max-width:720px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+  th{color:var(--ink3);font-weight:600;font-size:11px;letter-spacing:.09em;text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:9px 10px;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
+  .num{text-align:right;font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* components/levels.html */
+.strip{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+  .lvl{border:1px solid var(--line);border-radius:6px;padding:8px 12px;background:var(--surface);min-width:84px;text-align:center}
+  .lvl .k{font-size:17px;font-weight:600}
+  .lvl .t{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-top:2px}
+  .lvl.crit{border-color:var(--crit);background:var(--crit-bg)} .lvl.crit .k{color:var(--crit)}
+  .lvl.good{border-color:var(--good);background:var(--good-bg)} .lvl.good .k{color:var(--good)}
+  .lvl.flip{border-color:var(--accent);background:var(--accent-soft)} .lvl.flip .k{color:var(--accent)}
+  .lvl.spot{border-color:var(--ink);border-width:2px} 
+  .lvl.mut .k{color:var(--ink3)}
+  .note{color:var(--ink2);font-size:12.5px;max-width:560px}
+
+/* components/panel.html */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;max-width:560px}
+  .rules{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;font-size:13.5px}
+  .rules li{display:flex;gap:9px;align-items:baseline}
+  .rules .tick{color:var(--accent);font-family:ui-monospace,Menlo,monospace;flex:none}
+  .steps{display:flex;flex-wrap:wrap;gap:6px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+  .step{border:1px solid var(--line);border-radius:3px;padding:2px 8px;color:var(--ink2);background:var(--surface2)}
+  .step.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
+</style>
+<div class="ds-wrap">
+  <header class="ds-head">
+    <h1 class="ds-title">SUPERTRADES · DESIGN SYSTEM</h1>
+    <p class="ds-sub">The console's visual language, formalized: dual-theme tokens, terminal-mono identity, semantic state colors kept separate from the teal accent. Component source lives in <span class="mono">supertrades/design/</span> with <span class="mono">@dsCard</span> markers, ready for Claude Design sync.</p>
+  </header>
+  <section class="ds-sec"><h2 class="mono ds-h">foundations/colors</h2>
+
+
+  <p class="eyebrow">Color tokens — dual theme, semantic split from accent</p>
+  <div class="grid">
+    <div class="sw"><div class="c" style="background:var(--bg)"></div>
+      <div class="n mono">--bg</div><div class="d">page ground</div></div>
+    <div class="sw"><div class="c" style="background:var(--surface)"></div>
+      <div class="n mono">--surface</div><div class="d">panel</div></div>
+    <div class="sw"><div class="c" style="background:var(--surface2)"></div>
+      <div class="n mono">--surface2</div><div class="d">inset / muted chip</div></div>
+    <div class="sw"><div class="c" style="background:var(--line)"></div>
+      <div class="n mono">--line</div><div class="d">hairline borders</div></div>
+    <div class="sw"><div class="c" style="background:var(--ink)"></div>
+      <div class="n mono">--ink</div><div class="d">primary text</div></div>
+    <div class="sw"><div class="c" style="background:var(--ink2)"></div>
+      <div class="n mono">--ink2</div><div class="d">secondary text</div></div>
+    <div class="sw"><div class="c" style="background:var(--ink3)"></div>
+      <div class="n mono">--ink3</div><div class="d">labels / stamps</div></div>
+    <div class="sw"><div class="c" style="background:var(--accent)"></div>
+      <div class="n mono">--accent</div><div class="d">SuperTrades teal — identity, links, active steps</div></div>
+    <div class="sw"><div class="c" style="background:var(--good)"></div>
+      <div class="n mono">--good</div><div class="d">profit / green / pass</div></div>
+    <div class="sw"><div class="c" style="background:var(--warn)"></div>
+      <div class="n mono">--warn</div><div class="d">standby / caution</div></div>
+    <div class="sw"><div class="c" style="background:var(--crit)"></div>
+      <div class="n mono">--crit</div><div class="d">loss / block / demoted</div></div>
+  </div>
+  <p class="note">Semantic colors (good/warn/crit) encode P&amp;L and gate state and are never used decoratively. The teal accent is identity only — it never means "profit."</p>
+</section>
+<section class="ds-sec"><h2 class="mono ds-h">foundations/type</h2>
+
+
+  <p class="eyebrow">Type — the terminal carries identity</p>
+  <div class="stack">
+    <div class="spec"><h1 class="mono h">SUPERTRADES · CONSOLE</h1><span class="tag">display · ui-monospace 19px · tracking .07em</span></div>
+    <div class="spec"><p class="eyebrow" style="margin:0">Exit framework — the arsenal</p><span class="tag">eyebrow · mono 11px · caps · tracking .16em</span></div>
+    <div class="spec"><div class="mono kpi">+$93</div><span class="tag">KPI numeral · mono 25px · tabular-nums</span></div>
+    <div class="spec"><p class="body">Winners aren't capped at +50%; they run and trail off the high-water mark. The give-back trail tightens as gains extend, so a mega-winner locks nearly all of it.</p><span class="tag">body · system sans 14–15px / 1.55 · ≤65ch</span></div>
+    <div class="spec"><span class="mono data">770 · 772.5 · 773 · 780 &nbsp; rvol 1.01x &nbsp; Δ0.42</span><span class="tag">data inline · mono 13px · tabular-nums</span></div>
+  </div>
+</section>
+<section class="ds-sec"><h2 class="mono ds-h">components/kpi</h2>
+
+
+  <p class="eyebrow">KPI cards — summary before detail</p>
+  <div class="kpis">
+    <div class="kpi hero"><div class="v mono" style="color:var(--good)">+$93</div><div class="l">Day P&amp;L — realized</div><div class="s">all closed · nothing overnight</div></div>
+    <div class="kpi"><div class="v mono">0</div><div class="l">Open positions</div><div class="s">$634 BP · pure cash</div></div>
+    <div class="kpi"><div class="v mono" style="color:var(--warn)">STANDBY</div><div class="l">Gate</div><div class="s">armed · no setup passed</div></div>
+    <div class="kpi"><div class="v mono" style="color:var(--accent)">v4.14</div><div class="l">Rule engine</div><div class="s">99/99 tests</div></div>
+  </div>
+</section>
+<section class="ds-sec"><h2 class="mono ds-h">components/chips</h2>
+
+
+  <p class="eyebrow">Chips — state reads at a glance</p>
+  <div class="row"><span class="chip good">#1 long-watch</span><span class="chip good">FILLED +64%</span>
+    <span class="chip warn">short-watch</span><span class="chip warn">GATE: STANDBY</span>
+    <span class="chip crit">demoted</span><span class="chip crit">HALT −$60</span>
+    <span class="chip mut">anchor</span><span class="chip mut">0DTE</span><span class="chip mut">monitor</span></div>
+  <div class="row"><span class="flat">LIVE · WATCHING</span><span class="flat">FLAT · EOD</span></div>
+</section>
+<section class="ds-sec"><h2 class="mono ds-h">components/table</h2>
+
+
+  <p class="eyebrow">Live watchlist — dynamic re-rank</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Name</th><th class="num">Day %</th><th>Structure / GEX</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">NVDA</td><td class="num" style="color:var(--good)">+4.6%</td><td>above rising VWAP ~220</td><td><span class="chip good">#1 long-watch</span></td></tr>
+      <tr><td class="mono">QQQ</td><td class="num" style="color:var(--crit)">−0.5%</td><td>below flip 724.4 · put wall 720</td><td><span class="chip warn">short-watch</span></td></tr>
+      <tr><td class="mono">SPY</td><td class="num">≈0%</td><td>pinned 770–773 · +GEX</td><td><span class="chip mut">anchor</span></td></tr>
+      <tr><td class="mono">META</td><td class="num" style="color:var(--crit)">−0.9%</td><td>lost VWAP · rolled over</td><td><span class="chip crit">demoted</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+<section class="ds-sec"><h2 class="mono ds-h">components/levels</h2>
+
+
+  <p class="eyebrow">GEX level strip — structure at a glance</p>
+  <div class="strip mono">
+    <div class="lvl crit"><div class="k">770</div><div class="t">put wall</div></div>
+    <div class="lvl flip"><div class="k">772.5</div><div class="t">gamma flip</div></div>
+    <div class="lvl spot"><div class="k">772.1</div><div class="t">SPOT</div></div>
+    <div class="lvl good"><div class="k">773</div><div class="t">call wall · king</div></div>
+    <div class="lvl mut"><div class="k">780</div><div class="t">2nd call node</div></div>
+  </div>
+  <p class="note">Spot renders between its bounding levels. Wall colors are semantic: put wall = crit (support risk), call wall = good (target), flip = accent.</p>
+</section>
+<section class="ds-sec"><h2 class="mono ds-h">components/panel</h2>
+
+
+  <p class="eyebrow">Rules panel — the single gate</p>
+  <section class="panel">
+    <ul class="rules">
+      <li><span class="tick">▸</span><strong>Progressive stop</strong> — breakeven by ~+5%; tight small-green, looser for runners.</li>
+      <li><span class="tick">▸</span><strong>Tiered trail</strong> — give-back 40% → 20% (+100%) → 5% (+200%).</li>
+      <li><span class="tick">▸</span><strong>Barbell</strong> — scale out to lock the day, run the rest.</li>
+    </ul>
+  </section>
+  <p class="eyebrow" style="margin-top:18px">Cycle pipeline — steps light as they run</p>
+  <div class="steps"><span class="step on">fetch MCP</span><span class="step on">re-screen</span><span class="step on">run engine</span><span class="step">exits→entry</span><span class="step">commit</span></div>
+</section>
+</div>

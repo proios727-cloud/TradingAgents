@@ -1,0 +1,57 @@
+<!-- @dsCard group="Foundations" name="Typography" -->
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SuperTrades · Typography</title>
+<style>
+  :root{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  @media (prefers-color-scheme: dark){ :root{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }
+  :root[data-theme="light"]{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;padding:18px;
+    font:14px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink3);margin:0 0 12px}
+  .stack{display:flex;flex-direction:column;gap:18px;max-width:640px}
+  .spec{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:8px}
+  .h{font-size:19px;letter-spacing:.07em;margin:0}
+  .kpi{font-size:25px;font-weight:600}
+  .body{margin:0;font-size:14.5px;color:var(--ink);max-width:65ch}
+  .data{font-size:13px;color:var(--ink2)}
+  .tag{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--ink3)}
+</style></head><body>
+
+  <p class="eyebrow">Type — the terminal carries identity</p>
+  <div class="stack">
+    <div class="spec"><h1 class="mono h">SUPERTRADES · CONSOLE</h1><span class="tag">display · ui-monospace 19px · tracking .07em</span></div>
+    <div class="spec"><p class="eyebrow" style="margin:0">Exit framework — the arsenal</p><span class="tag">eyebrow · mono 11px · caps · tracking .16em</span></div>
+    <div class="spec"><div class="mono kpi">+$93</div><span class="tag">KPI numeral · mono 25px · tabular-nums</span></div>
+    <div class="spec"><p class="body">Winners aren't capped at +50%; they run and trail off the high-water mark. The give-back trail tightens as gains extend, so a mega-winner locks nearly all of it.</p><span class="tag">body · system sans 14–15px / 1.55 · ≤65ch</span></div>
+    <div class="spec"><span class="mono data">770 · 772.5 · 773 · 780 &nbsp; rvol 1.01x &nbsp; Δ0.42</span><span class="tag">data inline · mono 13px · tabular-nums</span></div>
+  </div>
+</body></html>

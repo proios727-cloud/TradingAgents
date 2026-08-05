@@ -1,0 +1,74 @@
+<!-- @dsCard group="Foundations" name="Color tokens" -->
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SuperTrades · Color tokens</title>
+<style>
+  :root{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  @media (prefers-color-scheme: dark){ :root{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0C1516; --surface:#121D1F; --surface2:#0F181A; --line:#233335;
+    --ink:#E6ECEA; --ink2:#9FAEAC; --ink3:#6E7B79;
+    --accent:#6FB4C8; --accent-soft:#6FB4C826;
+    --good:#4CBF8C; --warn:#D9A83F; --crit:#E07B62;
+    --good-bg:#4CBF8C1F; --warn-bg:#D9A83F1F; --crit-bg:#E07B621F;
+  }
+  :root[data-theme="light"]{
+    --bg:#F2F4F4; --surface:#FFFFFF; --surface2:#E9EDED; --line:#D5DCDC;
+    --ink:#17211F; --ink2:#4A5654; --ink3:#7A8684;
+    --accent:#2E7E92; --accent-soft:#2E7E9222;
+    --good:#22795A; --warn:#8A6215; --crit:#A33D2F;
+    --good-bg:#22795A1A; --warn-bg:#8A62151A; --crit-bg:#A33D2F1A;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);margin:0;padding:18px;
+    font:14px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink3);margin:0 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .sw{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px}
+  .c{height:44px;border-radius:4px;border:1px solid var(--line)}
+  .n{font-size:11.5px;margin-top:8px;color:var(--ink)}
+  .d{font-size:11px;color:var(--ink3);margin-top:2px}
+  .note{color:var(--ink2);font-size:12.5px;max-width:560px}
+</style></head><body>
+
+  <p class="eyebrow">Color tokens — dual theme, semantic split from accent</p>
+  <div class="grid">
+    <div class="sw"><div class="c" style="background:var(--bg)"></div>
+      <div class="n mono">--bg</div><div class="d">page ground</div></div>
+    <div class="sw"><div class="c" style="background:var(--surface)"></div>
+      <div class="n mono">--surface</div><div class="d">panel</div></div>
+    <div class="sw"><div class="c" style="background:var(--surface2)"></div>
+      <div class="n mono">--surface2</div><div class="d">inset / muted chip</div></div>
+    <div class="sw"><div class="c" style="background:var(--line)"></div>
+      <div class="n mono">--line</div><div class="d">hairline borders</div></div>
+    <div class="sw"><div class="c" style="background:var(--ink)"></div>
+      <div class="n mono">--ink</div><div class="d">primary text</div></div>
+    <div class="sw"><div class="c" style="background:var(--ink2)"></div>
+      <div class="n mono">--ink2</div><div class="d">secondary text</div></div>
+    <div class="sw"><div class="c" style="background:var(--ink3)"></div>
+      <div class="n mono">--ink3</div><div class="d">labels / stamps</div></div>
+    <div class="sw"><div class="c" style="background:var(--accent)"></div>
+      <div class="n mono">--accent</div><div class="d">SuperTrades teal — identity, links, active steps</div></div>
+    <div class="sw"><div class="c" style="background:var(--good)"></div>
+      <div class="n mono">--good</div><div class="d">profit / green / pass</div></div>
+    <div class="sw"><div class="c" style="background:var(--warn)"></div>
+      <div class="n mono">--warn</div><div class="d">standby / caution</div></div>
+    <div class="sw"><div class="c" style="background:var(--crit)"></div>
+      <div class="n mono">--crit</div><div class="d">loss / block / demoted</div></div>
+  </div>
+  <p class="note">Semantic colors (good/warn/crit) encode P&amp;L and gate state and are never used decoratively. The teal accent is identity only — it never means "profit."</p>
+</body></html>
