@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T23:10:00Z",
+  "updated_at": "2026-08-05T11:55:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -204,34 +204,14 @@
     "QQQ",
     "IWM",
     "NVDA",
-    "TSLA",
-    "AMD",
-    "INTC",
-    "RIVN",
-    "DIS",
-    "META",
-    "LMT",
-    "XOM",
-    "CVX",
-    "XLE",
-    "USO"
+    "META"
   ],
   "ticker_classes": {
     "SPY": "index",
     "QQQ": "index",
     "IWM": "index",
     "NVDA": "single_name",
-    "TSLA": "single_name",
-    "AMD": "single_name",
-    "INTC": "single_name",
-    "RIVN": "single_name",
-    "DIS": "single_name",
-    "META": "single_name",
-    "LMT": "single_name",
-    "XOM": "single_name",
-    "CVX": "single_name",
-    "XLE": "sector_etf",
-    "USO": "sector_etf"
+    "META": "single_name"
   },
   "class_defaults": {
     "0dte_scalp": {
@@ -397,47 +377,38 @@
   },
   "gex_map": {},
   "open_plan": {
-    "built_at": "2026-08-04T13:57:00Z",
-    "settled_bp": 541.18,
-    "per_trade_cap": 119.06,
-    "risk_budget": {
-      "per_trade_bp_frac": 0.22,
-      "max_capital_per_trade": 119.06,
-      "intended_stop_risk_usd": 36.0,
-      "intended_stop_risk_pct_acct": 6.6,
-      "note": "v4.1: capital-at-risk cap tightened 0.25->0.22 of BP. Single-leg long only, 1 contract, worst-case (gap-to-0) = ~22% of account; engineered -30% stop = ~$36 (~6.6%). Frequency cap (1 auto / 2 total entries/day) remains the primary loss control."
-    },
-    "deposit_landed": true,
-    "gappers": {
-      "up": {
-        "INTC": 6.48,
-        "AMD": 4.89,
-        "NVDA": 1.43,
-        "QQQ": 1.84,
-        "IWM": 0.7,
-        "SPY": 0.68
-      },
-      "down": {
-        "META": -0.87
-      }
-    },
-    "gate": {
-      "status": "NOT_ARMED",
-      "reason": "QQQ +1.84% (strongly green; negative-gamma downside gate arms on -0.75% dip, not up)",
-      "action": "no index 0DTE setup; re-check only on an intraday QQQ/SPY -0.75% red-after-green reversal"
-    },
-    "candidates": [
-      {
-        "note": "BP 541.18 settled, per-trade cap 0.25*BP = ~$135, halt reset, no settlement suppression. Can afford quality delta 0.35-0.50, 1 lot, under v4 caps (1 auto / 2 total entries max)."
-      },
-      {
-        "contract": "SEMIS = do NOT chase the gap",
-        "note": "INTC +6.5, AMD +4.9 already extended at open. v4 blocks the chase. Only a clean 9:40-11:00 pullback to VWAP that HOLDS + reclaims the 15-min OR high is a candidate - and only ONE, quality delta."
-      }
+    "date": "2026-08-05",
+    "as_of": "~07:52 ET premarket",
+    "watchlist": [
+      "SPY",
+      "QQQ",
+      "IWM",
+      "NVDA",
+      "META"
     ],
-    "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
+    "premarket_gaps": {
+      "SPY": "+0.4%",
+      "QQQ": "+0.2%",
+      "IWM": "+0.2%",
+      "NVDA": "+1.9%",
+      "META": "+1.5%"
+    },
+    "earnings_check": "CLEAR - no watchlist name reports today (NVDA 8/26, META 10/28; SPY/QQQ/IWM are ETFs). Excluded AMD (-8% earnings gap = trap) and INTC (-2.3%, reversed yesterday's pop).",
+    "plan": [
+      "INDEXES SPY/QQQ = 0DTE via the GEX GATE only - need user GEX levels or the gex_analyst map to arm; do NOT momentum-chase an index without the gate. IWM arms the signal, play maps to SPY/QQQ.",
+      "NVDA/META = momentum day-trades IF they hold above VWAP with RVOL confirming after 9:40; conviction-scored, EM exits, barbell (2 lots now viable at $634 BP).",
+      "No entries before 9:40 ET. One executor (this session). Review-gate the first engine entry.",
+      "why index-first: penny-wide spreads + huge 0DTE volume = accurate fills + stable greeks -> the EM/conviction math is reliable (vs a gappy single-name like AMD)."
+    ],
+    "bp": 633.88,
+    "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-05T11:55Z",
+      "event": "premarket",
+      "detail": "PREMARKET TUNE 8/5 (~07:52 ET). Watchlist SET: SPY/QQQ/IWM (index, 0DTE via GEX gate) + NVDA (+1.9%) / META (+1.5%) (liquid momentum day-trades). Earnings CLEAR on all (NVDA 8/26, META 10/28). Excluded AMD (-8% earnings gap) + INTC (-2.3% reversed). Account FLAT, BP $634 -> barbell (2 lots) now viable. No entry before 9:40; index plays need the GEX gate; review-gate first entry. Also v4.12: backtest harness shipped - current rules vs flat baseline objective +34.8 vs -2.2 on reconstructed paths (real tick data = next accuracy upgrade)."
+    },
     {
       "t": "2026-08-04T22:45Z",
       "event": "build",
