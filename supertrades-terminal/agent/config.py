@@ -15,16 +15,28 @@ from zoneinfo import ZoneInfo
 
 MARKET_TZ = ZoneInfo("America/New_York")
 
-# Watchlist — scanned every 5 min, 09:30–16:00 ET. Curated 2026-08-04
-# (operator-approved universe; tiers live in docs/SIGNALS.md):
-#   Tier 1 (full maps, tradable every phase): SPY, QQQ, IWM
-#   Tier 2 (full maps, tradable at Scale/A+ size): NVDA, TSLA, META, AAPL, AMD
+# Watchlist — scanned every 5 min, 09:30–16:00 ET. Union of two curation
+# passes: the 2026-07-30 rotation review (this is a scan universe, not a
+# directional view — a name earns its slot by liquidity and movement, either
+# direction; only SPY/QQQ/IWM list daily expiries, so single names and sector
+# ETFs trade on their own weekly expiries and are skipped other sessions) and
+# the operator-approved 2026-08-04 tiering (tiers live in docs/SIGNALS.md):
+#   Tier 1 (full maps, tradable every phase — daily 0DTE): SPY, QQQ, IWM
+#   Tier 2 (full maps, Scale/A+ size — weeklies, deepest single-name chains):
+#          NVDA, TSLA, META, AAPL, AMD (earnings-gated), MSFT, AMZN
+#          (the megacap dispersion engines this reporting cycle)
 #   Tier 3 (affordable movers, scan-grade maps, B-size): SOFI, HOOD
-#   Context-only (never heatseeker blocks): COIN, XOM, CVX, XLE
+#   Sector/rotation legs (scan + context): XOM, XLE, XLF, XLV
 #   Situational (macro-catalyst days only; skill-gated): TLT, GLD
+#   Context-only (never heatseeker blocks): COIN, CVX (7/30 review would drop
+#   both — CVX redundant with XOM+XLE, COIN off-theme — retained scan-only per
+#   the 8/4 operator list; drop for real if the ledger agrees)
 WATCHLIST: tuple[str, ...] = (
-    "SPY", "QQQ", "IWM", "NVDA", "TSLA", "AMD", "META", "AAPL",
-    "SOFI", "HOOD", "TLT", "GLD", "COIN", "XOM", "CVX", "XLE",
+    "SPY", "QQQ", "IWM",
+    "NVDA", "TSLA", "AMD", "META", "AAPL", "MSFT", "AMZN",
+    "SOFI", "HOOD",
+    "XOM", "XLE", "XLF", "XLV",
+    "TLT", "GLD", "COIN", "CVX",
 )
 
 

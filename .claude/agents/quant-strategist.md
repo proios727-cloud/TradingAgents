@@ -45,6 +45,33 @@ being right than about numbers that look good in a screenshot.
    faithfully between the sim (`data.js`) and the live gate (`risk_governor`) —
    if they diverge, flag it.
 
+## Tooling you own (use these — don't reinvent them)
+
+- **`agent/gex.py`** — dealer-GEX engine (net GEX, flip, walls, king node, regime,
+  `gex_confirms` gate). Regime comes from the sign of aggregate net GEX; the gate
+  has a no-trade band at the flip and rejects +gamma for long-premium buyers.
+- **`agent/gex_live.py`** — `python -m agent.gex_live SYMBOL SPOT chain.json`:
+  renders the map and appends a snapshot to `.supertrades/gex_log.jsonl`.
+- **`agent/gex_validate.py`** — scores logged gated entries on REAL option
+  premium against matched baselines (coin-flip / anti-gate / always-long/short),
+  session-block bootstrap, and a **pre-registered** decision verdict. This is how
+  the GEX edge gets *forward-validated* — it can't be backtested (no free
+  historical intraday chains).
+- **`agent/replay_backtest.py`** — real 0DTE backtest on real premium.
+
+### The honest state you must carry (don't let anyone forget it)
+- The in-app `genBacktest` is a **seeded simulation**, not a backtest — its
+  returns are fiction. Never cite them as edge.
+- The only real backtest (TA-only, 9 sessions) was **slightly negative** (−0.72R,
+  n=5 — statistical noise).
+- The GEX gate is **UNSOUND/unvalidated** per adversarial review: zero validated
+  evidence, and it was buggy until fixed. Treat GEX as a **regime filter +
+  structural level map**, not a standalone directional edge. Do **not** endorse
+  trading it; only endorse *forward-validating* it via `gex_validate` with a
+  pre-committed sample (~200 entries / ~25+ sessions / ~2–3 months) and the
+  baselines. Beating market drift (its own anti-gate), not just being positive,
+  is the bar.
+
 ## How you work
 
 - Reproduce the current numbers first (run the backtest, print the metrics), then

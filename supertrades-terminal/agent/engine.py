@@ -7,6 +7,12 @@ Flow per cycle (09:30–16:00 ET, every 5 min):
      signal run the SINGLE risk gate -> select contract -> preview -> approval
      -> place (all placement gated by dry-run/arm in the broker).
 
+Approval is asymmetric: ENTRY approval is a hard veto (a declined entry is
+never placed), while EXIT approval — when require_exit_approval is on — is
+advisory only: the ticket is previewed and the operator's answer journaled,
+but protective exits (stop, thesis break, 15:45 force-flatten, ...) always
+place regardless of the answer.
+
 The engine never re-checks guardrails itself; risk_governor is the one gate.
 Signals come from an injected SignalSource so the same engine runs on the
 paper/simulated source (dry run) or a live signal engine.
@@ -23,8 +29,9 @@ from . import contract_selector, exit_manager, risk_governor
 from .approval import ApprovalGate, Preview
 from .broker.base import BrokerAdapter
 from .config import GUARDRAILS as G
-from .config import MARKET_TZ, RuntimeConfig
+from .config import MARKET_TZ, WATCHLIST, RuntimeConfig
 from .decision_log import DecisionLog
+from .earnings import EarningsCalendar
 from .kill_switch import KillState, check as kill_check
 from .models import DayState, ExitIntent, OrderIntent, Signal
 
@@ -42,6 +49,7 @@ class CycleResult:
     placed_entries: list[OrderIntent] = field(default_factory=list)
     rejected: list[tuple[str, str]] = field(default_factory=list)  # (symbol, reason)
     previewed_declined: list[str] = field(default_factory=list)    # symbols the human skipped
+    failed_exits: list[tuple[str, str, str]] = field(default_factory=list)  # (symbol, exit_kind, error)
 
 
 class SuperTradesAgent:
@@ -53,14 +61,22 @@ class SuperTradesAgent:
         *,
         approval: ApprovalGate | None = None,
         log: DecisionLog | None = None,
+        earnings: EarningsCalendar | None = None,
+        kill: KillState | None = None,
     ):
         self.cfg = cfg
         self.broker = broker
         self.signals = signals
+        # When wired, the calendar OVERRIDES the signal source's own blackout.
+        # The signal source's version is a fixture; this one is the live feed
+        # and fails closed, so it must win wherever both exist.
+        self.earnings = earnings
         self.approval = approval or ApprovalGate(required=cfg.require_entry_approval)
         self.log = log or DecisionLog()
         self.day = DayState()
-        self.kill = KillState()
+        # Share ONE KillState with the broker/dispatcher (pass the same object
+        # here) so an MCP dispatch failure halts the very next cycle.
+        self.kill = kill or KillState()
         # High-water mark of each open position's mark, keyed by option_id.
         # Positions are rebuilt from broker state each cycle, so the peak that
         # drives the trailing stop must persist here, across cycles.
@@ -91,14 +107,19 @@ class SuperTradesAgent:
         kd = kill_check(self.kill, now)
         if kd:
             self.day.halted = True
-            self.broker.cancel_all()
+            # Cancelling working orders is best-effort — closing positions is
+            # not. A raise here must never block the flatten below.
+            try:
+                self.broker.cancel_all()
+            except Exception as e:  # noqa: BLE001 — flatten must still run
+                self.log.record("cancel_all_failed", "*", now, error=repr(e))
             res.killed = kd.reason
-            res.exits = self._flatten_all(now, reason=f"kill: {kd.reason}")
+            res.exits, res.failed_exits = self._flatten_all(now, reason=f"kill: {kd.reason}")
             self.log.record("kill", "*", now, reason=kd.reason)
             return res
 
         # 1. Exits always run (even if halted for entries).
-        res.exits = self._manage_exits(now)
+        res.exits, res.failed_exits = self._manage_exits(now)
 
         # 2. Entries — only if not halted.
         if self.day.halted or self.day.day_r <= G.daily_halt_r:
@@ -106,7 +127,11 @@ class SuperTradesAgent:
             return res
 
         held = frozenset(p.symbol for p in self.broker.get_positions())
-        earnings = self.signals.earnings_symbols(now)
+        earnings = (
+            self.earnings.blackout(now, WATCHLIST)
+            if self.earnings is not None
+            else self.signals.earnings_symbols(now)
+        )
         account = self.broker.get_account()
 
         for sig in self.signals.fired_signals(now):
@@ -129,6 +154,15 @@ class SuperTradesAgent:
 
             intent = self._entry_intent(sig, choice.contract, verdict.max_contracts)
             review = self.broker.review_order(intent)
+            if not review.ok:
+                # Fail CLOSED on entries: a failed broker preview must never
+                # reach the human approval prompt dressed as a reviewable
+                # order. Block the entry, log it, surface it as a rejection.
+                reason = f"broker review failed: {review.error or 'unknown error'}"
+                res.rejected.append((sig.symbol, reason))
+                self.log.record("reject", sig.symbol, now, stage="review",
+                                reason=reason, intent=intent.mcp_params)
+                continue
             preview = Preview(intent, review)
             self.log.record("preview", sig.symbol, now, intent=intent.mcp_params,
                             alerts=review.alerts)
@@ -153,8 +187,9 @@ class SuperTradesAgent:
         return res
 
     # -- helpers ----------------------------------------------------------
-    def _manage_exits(self, now: datetime) -> list[ExitIntent]:
+    def _manage_exits(self, now: datetime) -> tuple[list[ExitIntent], list[tuple[str, str, str]]]:
         out: list[ExitIntent] = []
+        failed: list[tuple[str, str, str]] = []
         live_ids: set[str] = set()
         for pos in self.broker.get_positions():
             # Ratchet the per-position high-water mark before evaluating exits so
@@ -199,22 +234,54 @@ class SuperTradesAgent:
                         continue
                 out.append(ex)
                 intent = self._exit_intent(ex)
-                # Protective exits submit automatically when armed (config);
-                # entries are the ones that require per-order approval.
+                # APPROVAL IS ASYMMETRIC BY DESIGN:
+                #   * ENTRIES are vetoable — the operator's decline blocks them.
+                #   * EXITS are NOT — they are protective. With
+                #     require_exit_approval=True the ticket is still previewed
+                #     to the approver and their answer journaled, but the
+                #     answer is ADVISORY ONLY: the exit places regardless of a
+                #     decline, an approver exception, or no approver being
+                #     wired at all (the default approver denies everything —
+                #     it must never be able to veto a stop or the 15:45
+                #     force-flatten and hold 0DTE into the bell).
                 if self.cfg.require_exit_approval:
                     review = self.broker.review_order(intent)
-                    if not self.approval.request(Preview(intent, review)):
-                        continue
+                    # Fail OPEN on exits: a broker preview failure must never
+                    # trap the agent in a position. The exit still goes to the
+                    # approver, and the Preview renders the failed review
+                    # unmistakably.
+                    if not review.ok:
+                        self.log.record("exit_review_failed", ex.position.symbol,
+                                        now, exit_kind=ex.kind, error=review.error)
+                    try:
+                        approved = bool(self.approval.request(Preview(intent, review)))
+                    except Exception as e:  # noqa: BLE001 — advisory; never blocks
+                        approved = False
+                        self.log.record("exit_approver_error", ex.position.symbol,
+                                        now, exit_kind=ex.kind, error=repr(e))
+                    self.log.record("exit_approval_advisory", ex.position.symbol,
+                                    now, exit_kind=ex.kind, approved=approved,
+                                    note="advisory only — protective exit placed "
+                                         "regardless of operator response")
                 # Snapshot the lot count at decision time: an instant-fill
                 # broker (paper) mutates pos.quantity inside place_order, and
                 # the flag/booking logic below must see the pre-fill count.
                 qty_at_decision = pos.quantity
+                # ISOLATION: one position's broker failure must never abort
+                # the loop and leave every later position with no exit this
+                # cycle. Catch here, journal loudly, and keep going — the
+                # kill switch (tripped by the broker itself on a real error)
+                # still halts entries next cycle; this just finishes the pass.
                 try:
                     result = self.broker.place_order(intent)
-                except Exception as e:
-                    self.log.record("error", pos.symbol, now, stage="exit_place",
-                                    error=repr(e))
+                except Exception as e:  # noqa: BLE001 — isolate per-position
+                    failed.append((ex.position.symbol, ex.kind, repr(e)))
+                    self.log.record("exit_failed", ex.position.symbol, now,
+                                    exit_kind=ex.kind, qty=ex.quantity,
+                                    reason=ex.reason, error=repr(e))
                     continue
+                # NB: detail key must not be "kind" — that's record()'s first
+                # positional arg (was a latent TypeError on every real exit).
                 self.log.record("exit", ex.position.symbol, now, exit_kind=ex.kind,
                                 qty=ex.quantity, reason=ex.reason,
                                 placed=result.placed, dry_run=result.dry_run)
@@ -241,7 +308,7 @@ class SuperTradesAgent:
         self._pending_sells = {oid: q for oid, q in self._pending_sells.items()
                                if oid in live_ids}
         self._last_qty = {oid: q for oid, q in self._last_qty.items() if oid in live_ids}
-        return out
+        return out, failed
 
     def _book_close(self, ex: ExitIntent, now: datetime) -> None:
         """Wire the loss limiters (guardian finding, 2026-08-04): realized R
@@ -282,13 +349,23 @@ class SuperTradesAgent:
             self.day.halted = True
             self.log.record("halt", p.symbol, now, day_r=round(self.day.day_r, 2))
 
-    def _flatten_all(self, now: datetime, reason: str) -> list[ExitIntent]:
-        out = []
+    def _flatten_all(self, now: datetime, reason: str) -> tuple[list[ExitIntent], list[tuple[str, str, str]]]:
+        out: list[ExitIntent] = []
+        failed: list[tuple[str, str, str]] = []
         for pos in self.broker.get_positions():
             ex = ExitIntent(pos, "flatten", pos.quantity, reason, marketable=True)
             out.append(ex)
-            self.broker.place_order(self._exit_intent(ex))
-        return out
+            # Emergency flatten: ISOLATE each position's attempt so a
+            # persistently-failing one can never block flattening the rest —
+            # including the 15:45 ET force-flatten on the kill path.
+            try:
+                self.broker.place_order(self._exit_intent(ex))
+            except Exception as e:  # noqa: BLE001 — isolate per-position
+                failed.append((ex.position.symbol, ex.kind, repr(e)))
+                self.log.record("flatten_failed", ex.position.symbol, now,
+                                exit_kind=ex.kind, qty=ex.quantity,
+                                reason=ex.reason, error=repr(e))
+        return out, failed
 
     def _entry_intent(self, sig: Signal, contract, qty: int) -> OrderIntent:
         return OrderIntent(

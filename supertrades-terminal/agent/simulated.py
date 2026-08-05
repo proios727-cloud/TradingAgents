@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+from .config import WATCHLIST
+from .earnings import StaticEarningsCalendar
 from .models import (
     AccountState,
     ChainSnapshot,
@@ -16,10 +18,43 @@ from .models import (
     Signal,
 )
 
+# Earnings calendar fixture: symbol -> (report date, "am" | "pm").
+#
+# A FIXTURE, not a feed — the dry-run path only. Anything that can place an
+# order must use earnings.McpEarningsCalendar, which refetches once per
+# session date and so stays current on its own.
+#
+# This block is GENERATED. Refresh it from the live feed with:
+#
+#     python -m agent.cli refresh-earnings
+#
+# and commit the result. Everything between the BEGIN/END markers is rewritten
+# wholesale, so hand-edits there are lost — put anything durable outside them.
+#
+# EARNINGS_CALENDAR_AS_OF is what makes the fixture able to say it has gone
+# stale: past STATIC_FIXTURE_MAX_AGE_DAYS, StaticEarningsCalendar stops
+# answering and fails closed rather than quoting dates from a previous
+# reporting cycle. A symbol absent from the map has no scheduled report.
+# --- BEGIN GENERATED EARNINGS FIXTURE ---
+EARNINGS_CALENDAR_AS_OF = date(2026, 8, 4)
+
+EARNINGS_CALENDAR: dict[str, tuple[date, str]] = {
+    "MSFT": (date(2026, 7, 29), "pm"),
+    "META": (date(2026, 7, 29), "pm"),
+    "AMZN": (date(2026, 7, 30), "pm"),
+    "XOM": (date(2026, 7, 31), "am"),
+    "AMD": (date(2026, 8, 4), "pm"),
+    "NVDA": (date(2026, 8, 26), "pm"),
+}
+# --- END GENERATED EARNINGS FIXTURE ---
+
 
 class SimulatedSignalSource:
     def __init__(self, session: date):
         self.session = session
+        self._calendar = StaticEarningsCalendar(
+            EARNINGS_CALENDAR, as_of=EARNINGS_CALENDAR_AS_OF
+        )
 
     def fired_signals(self, now: datetime) -> list[Signal]:
         return [
@@ -34,8 +69,13 @@ class SimulatedSignalSource:
         ]
 
     def earnings_symbols(self, now: datetime) -> frozenset[str]:
-        # Hyperscaler week per data.js EARNINGS — these names are blocked.
-        return frozenset({"GOOGL", "META", "MSFT", "AMZN", "TSLA"})
+        """Names inside the earnings blackout as of ``now``.
+
+        Derived from EARNINGS_CALENDAR rather than hardcoded, so the blackout
+        expires on its own instead of blocking a name forever. See
+        earnings.blackout_from_reports for the window semantics.
+        """
+        return self._calendar.blackout(now, WATCHLIST)
 
 
 def demo_account(account_number: str = "AGENTIC-DEMO") -> AccountState:

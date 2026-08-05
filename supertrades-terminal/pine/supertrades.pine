@@ -1,0 +1,171 @@
+//@version=5
+// =============================================================================
+// SuperTrades — intraday confluence scalper (TradingView Strategy Tester / Replay)
+// -----------------------------------------------------------------------------
+// A faithful, Pine-expressible port of the SuperTrades exit discipline for
+// backtesting on real TradingView bars. Load it on a 1–5m chart of a liquid
+// name (SPY/QQQ/NVDA…), open the Strategy Tester, and/or scrub it with the bar
+// Replay tool.
+//
+// IMPORTANT — what this can and cannot model:
+//   * TradingView strategies trade the UNDERLYING (shares), so P&L and the
+//     equity curve here are share-based. The transferable result is the
+//     R-MULTIPLE behaviour of the SETUP (win rate, avg R, drawdown in R), NOT
+//     the 0DTE option-premium dollars — options add ~1.9x payoff and theta drag
+//     the SuperTrades sim models separately.
+//   * GEX (dealer gamma) and options-flow confluence CANNOT be expressed in
+//     Pine (no data feed). This implements the TA-expressible subset — VWAP
+//     reclaim, RVOL, trend, and a structural stop — so it is a floor on the real
+//     system's selectivity, not the full four-factor confluence. Treat its
+//     edge as conservative vs. the live signal.
+//
+// This is a research/backtest tool. It places no real orders.
+// =============================================================================
+
+strategy("SuperTrades — confluence scalper", overlay=true,
+     default_qty_type=strategy.percent_of_equity, default_qty_value=100,
+     initial_capital=2500, pyramiding=0, calc_on_every_tick=false,
+     commission_type=strategy.commission.cash_per_order, commission_value=0.0)
+
+// --- Inputs ------------------------------------------------------------------
+grpS = "Session (ET)"
+useSession   = input.bool(true,  "Restrict to RTH 09:30–16:00 ET", group=grpS)
+noEntryOpen  = input.int(15, "No-entry: first N min",  minval=0, group=grpS)
+noEntryClose = input.int(10, "No-entry: last N min",   minval=0, group=grpS)
+flattenMinInp= input.int(945, "Force-flatten at ET minute (945 = 15:45)", group=grpS)
+
+grpE = "Entry confluence"
+rvolLen  = input.int(20,   "RVOL lookback (bars)", minval=2, group=grpE)
+rvolMin  = input.float(1.4,"RVOL minimum",         minval=1.0, step=0.1, group=grpE)
+trendLen = input.int(20,   "Trend EMA length",     minval=2, group=grpE)
+allowShort = input.bool(true, "Allow shorts (VWAP loss)", group=grpE)
+
+grpBT = "Backtest window"
+useDates = input.bool(false, "Limit to a date range", group=grpBT)
+fromDate = input.time(timestamp("2026-01-01 00:00"), "From", group=grpBT)
+toDate   = input.time(timestamp("2027-01-01 00:00"), "To",   group=grpBT)
+showTable= input.bool(true, "Show real-stats table", group=grpBT)
+
+grpR = "Risk & exits"
+riskPct   = input.float(2.5, "Risk % of equity / trade", minval=0.1, step=0.1, group=grpR)
+swingLen  = input.int(10,  "Structural stop lookback", minval=2, group=grpR)
+minStopPct= input.float(0.35,"Min stop as % of price", step=0.05, group=grpR)
+scaleAtR  = input.float(1.0, "Scale half at +R",  minval=0.1, step=0.1, group=grpR)
+trailGive = input.float(30,  "Runner trail: give back % of peak profit", minval=5, maxval=95, group=grpR)
+
+// --- Session / time gating ---------------------------------------------------
+etH   = hour(time, "America/New_York")
+etM   = minute(time, "America/New_York")
+mins  = etH * 60 + etM
+openM = 9*60 + 30            // 570
+closeM= 16*60               // 960
+inRTH = not useSession or (mins >= openM and mins < closeM)
+inDates = not useDates or (time >= fromDate and time <= toDate)
+canEnter = inRTH and inDates and mins >= (openM + noEntryOpen) and mins < flattenMinInp
+doFlatten = useSession and mins >= flattenMinInp and mins < closeM
+
+// --- Indicators --------------------------------------------------------------
+vwap   = ta.vwap(hlc3)
+ema    = ta.ema(close, trendLen)
+rvol   = volume / math.max(ta.sma(volume, rvolLen), 1e-9)
+
+longSig  = ta.crossover(close, vwap)  and close > ema and rvol >= rvolMin
+shortSig = allowShort and ta.crossunder(close, vwap) and close < ema and rvol >= rvolMin
+
+// --- Per-trade state ---------------------------------------------------------
+var float entryPx = na
+var float stopPx  = na
+var float riskU   = na      // R in price units
+var bool  scaled  = false
+var float peak    = na      // best favorable price since entry
+
+flat = strategy.position_size == 0
+
+// --- Entries -----------------------------------------------------------------
+if flat and canEnter and (longSig or shortSig)
+    isLong = longSig
+    struct = isLong ? ta.lowest(low, swingLen) : ta.highest(high, swingLen)
+    // structural stop, floored so a too-tight stop can't oversize the trade
+    rRaw   = math.abs(close - struct)
+    rMin   = close * (minStopPct / 100.0)
+    r      = math.max(rRaw, rMin)
+    entryPx := close
+    riskU   := r
+    stopPx  := isLong ? close - r : close + r
+    scaled  := false
+    peak    := close
+    // size so that (risk % of equity) is lost at the structural stop
+    qty = math.max(1, math.floor((strategy.equity * riskPct / 100.0) / r))
+    if isLong
+        strategy.entry("L", strategy.long, qty=qty)
+    else
+        strategy.entry("S", strategy.short, qty=qty)
+
+// --- Management --------------------------------------------------------------
+longPos  = strategy.position_size > 0
+shortPos = strategy.position_size < 0
+
+if longPos or shortPos
+    isLong = longPos
+    // ratchet the peak favorable excursion
+    peak := na(peak) ? close : (isLong ? math.max(peak, high) : math.min(peak, low))
+    tgt1 = isLong ? entryPx + scaleAtR * riskU : entryPx - scaleAtR * riskU
+
+    // 1) scale half at +1R (once)
+    if not scaled and ((isLong and high >= tgt1) or (not isLong and low <= tgt1))
+        strategy.order("scale", isLong ? strategy.short : strategy.long,
+             qty=math.max(1, math.floor(math.abs(strategy.position_size) / 2)),
+             limit=tgt1, comment="scale +1R")
+        scaled := true
+
+    // 2) trailing stop on the runner — give back trailGive% of the peak profit,
+    //    but never looser than the fixed structural stop.
+    trailStop = isLong ? entryPx + (peak - entryPx) * (1 - trailGive/100.0)
+                       : entryPx - (entryPx - peak) * (1 - trailGive/100.0)
+    runStop   = isLong ? math.max(stopPx, scaled ? trailStop : stopPx)
+                       : math.min(stopPx, scaled ? trailStop : stopPx)
+    strategy.exit("x", isLong ? "L" : "S", stop=runStop, comment="stop/trail")
+
+// --- 15:45 ET force-flatten (never hold to the bell) -------------------------
+if doFlatten and (longPos or shortPos)
+    strategy.close_all(comment="15:45 flatten")
+
+// --- Plots -------------------------------------------------------------------
+plot(vwap, "VWAP", color=color.new(color.aqua, 0), linewidth=1)
+plot(ema,  "Trend EMA", color=color.new(color.orange, 40))
+plotshape(flat and canEnter and longSig,  title="Long",  style=shape.triangleup,
+     location=location.belowbar, color=color.new(color.green,0), size=size.tiny)
+plotshape(flat and canEnter and shortSig, title="Short", style=shape.triangledown,
+     location=location.abovebar, color=color.new(color.red,0), size=size.tiny)
+bgcolor(canEnter ? na : color.new(color.gray, 92), title="Outside entry window")
+
+// --- Real backtest stats (straight from the Strategy Tester, on real bars) ----
+// These are MEASURED results on the underlying, not an assumed win rate. Read
+// them as the setup's honest edge; map R-multiples to your 0DTE premium
+// separately (options add ~1.9x payoff and theta — not modeled here).
+if barstate.islast and showTable
+    var table t = table.new(position.top_right, 2, 8, border_width=1,
+         frame_color=color.new(color.gray, 40), frame_width=1)
+    wr  = strategy.closedtrades > 0 ? strategy.wintrades / strategy.closedtrades * 100 : 0.0
+    pf  = strategy.grossloss != 0 ? strategy.grossprofit / math.abs(strategy.grossloss) : na
+    avg = strategy.closedtrades > 0 ? strategy.netprofit / strategy.closedtrades : 0.0
+    netP= strategy.netprofit / strategy.initial_capital * 100
+    ddP = strategy.max_drawdown / strategy.initial_capital * 100
+    g = color.gray
+    w = color.white
+    table.cell(t, 0, 0, "SuperTrades — REAL backtest", text_color=w, text_size=size.small, bgcolor=color.new(color.teal, 30))
+    table.cell(t, 1, 0, "(underlying)",                 text_color=g, text_size=size.small, bgcolor=color.new(color.teal, 30))
+    table.cell(t, 0, 1, "Net %",         text_color=g, text_size=size.small, text_halign=text.align_left)
+    table.cell(t, 1, 1, str.tostring(netP, "#.#") + "%", text_color=w, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 2, "Trades",        text_color=g, text_size=size.small, text_halign=text.align_left)
+    table.cell(t, 1, 2, str.tostring(strategy.closedtrades), text_color=w, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 3, "Win %",         text_color=g, text_size=size.small, text_halign=text.align_left)
+    table.cell(t, 1, 3, str.tostring(wr, "#.#") + "%", text_color=w, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 4, "Profit factor", text_color=g, text_size=size.small, text_halign=text.align_left)
+    table.cell(t, 1, 4, na(pf) ? "—" : str.tostring(pf, "#.##"), text_color=w, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 5, "Max DD %",      text_color=g, text_size=size.small, text_halign=text.align_left)
+    table.cell(t, 1, 5, str.tostring(ddP, "#.#") + "%", text_color=w, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 6, "Avg trade $",   text_color=g, text_size=size.small, text_halign=text.align_left)
+    table.cell(t, 1, 6, str.tostring(avg, "#.##"), text_color=w, text_size=size.small, text_halign=text.align_right)
+    table.cell(t, 0, 7, "Read as",       text_color=g, text_size=size.small, text_halign=text.align_left)
+    table.cell(t, 1, 7, "R-edge, not 0DTE $", text_color=color.yellow, text_size=size.small, text_halign=text.align_right)
