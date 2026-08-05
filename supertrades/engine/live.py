@@ -106,6 +106,7 @@ _LAST_KEYS = ("last_trade_price", "price", "last", "last_price", "last_trade")
 _PCT_KEYS = ("day_pct", "percent_change", "pct_change", "change_pct", "change_percent")
 _VOL_KEYS = ("volume", "cum_volume", "day_volume")
 _AVGVOL_KEYS = ("avg_volume", "average_volume", "avg_daily_volume", "average_daily_volume")
+_MCAP_KEYS = ("market_cap", "Market cap", "marketcap", "mkt_cap")
 
 
 def _first(row: dict, keys: tuple):
@@ -140,7 +141,8 @@ def funnel_candidates(scan_rows: list, quotes_meta: dict | None = None) -> list:
         if rvol is None:
             rvol = rvol_now(_f(_first(r, _VOL_KEYS)), _f(_first(r, _AVGVOL_KEYS)), frac)
         out.append({"sym": str(sym).upper(), "last": last,
-                    "day_pct": _f(_first(r, _PCT_KEYS)), "rvol": rvol})
+                    "day_pct": _f(_first(r, _PCT_KEYS)), "rvol": rvol,
+                    "market_cap": _f(_first(r, _MCAP_KEYS))})
     return out
 
 
@@ -164,6 +166,7 @@ def funnel_filter(cands: list, bp: float, per_setup_usd: float, guardrails: dict
     lo = guardrails["funnel_min_underlying_usd"]
     hi = guardrails["funnel_max_underlying_usd"]
     out = []
+    mcap_floor = guardrails["funnel_min_market_cap_usd"]
     for c in cands:
         if not (lo <= c["last"] <= hi):
             continue
@@ -171,6 +174,11 @@ def funnel_filter(cands: list, bp: float, per_setup_usd: float, guardrails: dict
             continue
         day = c.get("day_pct")
         if day is not None and abs(day) > guardrails["funnel_day_pct_max_abs"]:
+            continue
+        # v4.14.1 recognition floor (8/5 live-run finding): unknown or sub-floor
+        # market cap = meme-thin options + no recognition — never worth a chain fetch.
+        mc = c.get("market_cap")
+        if mc is None or mc < mcap_floor:
             continue
         out.append(c)
     return out

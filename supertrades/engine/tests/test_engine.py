@@ -1050,14 +1050,17 @@ class TestUniverseFunnelV414(unittest.TestCase):
 
     def test_funnel_filter_drops_untradable_keeps_clean_mover(self):
         g = GUARDRAILS
-        mk = lambda sym, last, rvol, day: {"sym": sym, "last": last,
-                                           "rvol": rvol, "day_pct": day}
+        mk = lambda sym, last, rvol, day, mcap=20e9: {"sym": sym, "last": last,
+                                                     "rvol": rvol, "day_pct": day,
+                                                     "market_cap": mcap}
         cands = [
             mk("PENNY", 3.50, 2.0, 2.0),     # under $5 -> junk options
             mk("RICH", 1500.0, 2.0, 2.0),    # over $1000 -> can't fit per-setup budget
             mk("DEAD", 120.0, 0.8, 2.0),     # rvol below funnel floor
             mk("NOVOL", 120.0, None, 2.0),   # unknown rvol never passes the sieve
             mk("GAPPED", 120.0, 2.0, 9.5),   # |day %| > gap-trap rail
+            mk("MEME", 12.0, 4.5, 0.3, mcap=1e9),   # v4.14.1: sub-$5B anomaly (the 8/5 BLMN case)
+            mk("NOCAP", 40.0, 3.0, 1.0, mcap=None), # v4.14.1: unknown cap = unrecognized, drop
             mk("CLEAN", 120.0, 2.0, 2.5),    # the mover the funnel exists to find
         ]
         kept = live.funnel_filter(cands, bp=500.0, per_setup_usd=110.0, guardrails=g)
@@ -1069,6 +1072,16 @@ class TestUniverseFunnelV414(unittest.TestCase):
         self.assertEqual(g["funnel_max_underlying_usd"], 1000.0)
         self.assertEqual(g["funnel_rvol_min"], 1.2)
         self.assertEqual(g["funnel_day_pct_max_abs"], 8.0)
+        self.assertEqual(g["funnel_min_market_cap_usd"], 5e9)
+
+    def test_funnel_candidates_carry_market_cap(self):
+        rows = [{"symbol": "NVDA", "last": 220.0, "market_cap": "5.45e12"},
+                {"symbol": "SHOP", "last": 147.9, "Market cap": 1.6e11},
+                {"symbol": "TINY", "last": 12.0}]
+        cands = live.funnel_candidates(rows)
+        self.assertEqual(cands[0]["market_cap"], 5.45e12)
+        self.assertEqual(cands[1]["market_cap"], 1.6e11)   # scanner-column dialect
+        self.assertIsNone(cands[2]["market_cap"])          # unknown stays None (filter drops it)
 
     def test_funnel_rank_returns_top_n_by_conviction(self):
         cands = [{"sym": "MEH", "last": 50.0, "rvol": 1.3, "day_pct": 0.5},

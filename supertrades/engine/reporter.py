@@ -62,6 +62,10 @@ GUARDRAILS = {
     "funnel_max_underlying_usd": 1000.0,  # over ~$1000 -> contracts can't fit per-setup budget
     "funnel_rvol_min": 1.2,             # funnel participation floor (looser than breakout's 1.5)
     "funnel_day_pct_max_abs": 8.0,      # |day %| beyond this = gap-trap, chase risk — skip
+    "funnel_min_market_cap_usd": 5e9,   # v4.14.1 (8/5 live-run finding): recognized names only —
+                                        #   sub-$5B / unknown-cap tickers surfaced as top-ranked
+                                        #   volume anomalies (BLMN/CRCT/DGICB) with meme-thin
+                                        #   options; cap floor keeps the ranked list tradable
     # v4.14 (8/5): UNUSUAL-FLOW FLAG — today's volume dwarfing existing OI = fresh
     #   positioning. CONFIRMATION ONLY (small conviction bonus), never a solo trigger.
     "flow_vol_oi_min": 3.0,             # volume >= 3x OI to flag unusual flow
