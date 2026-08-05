@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-05T18:38:00Z",
+  "updated_at": "2026-08-05T18:40:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -446,6 +446,11 @@
   },
   "log": [
     {
+      "t": "2026-08-05T18:40Z",
+      "event": "rule",
+      "detail": "WATCHLIST LIFECYCLE PHASES codified (user): OPEN=trade premarket list as-tailored; LUNCH=monitor level breaks + adapt/promote-demote by live action; AFTERNOON=refreshed from morning movement, trade what the morning VALIDATED not the stale thesis. Feeds the regime_shift + dynamic re-rank. Date confirmed Wed 8/5 EST. Flat, 0 trades."
+    },
+    {
       "t": "2026-08-05T18:38Z",
       "event": "analysis",
       "detail": "INTRADAY REGIME SHIFT (user: base off morning clues but detect NEW trends + re-tailor for afternoon to live sentiment). Morning risk-on green gap -> afternoon GAP-AND-FADE/distribution: breadth deteriorated (SPY faded to flat, QQQ/IWM red, META full reversal -0.86%), leadership NARROWED to NVDA alone (+4.6%, decoupled). Morning buy-the-gap thesis INVALIDATED. Re-tailor: longs fight the tape (NVDA needs decisive confirm), shorts now aligned (QQQ 720 break credible), +GEX pin caps moves = grind-lower bias. Favor put side on clean break or high-conviction NVDA reclaim only; else stand down. Flat, 0 trades."
@@ -780,6 +785,13 @@
         "Index +GEX pin still caps big directional moves (SPY 770-773); combine with weak breadth = low-vol grind-lower bias, not a trend-up.",
         "Net: fade/distribution afternoon. Favor the SHORT/put side on a clean index break OR a HIGH-conviction NVDA reclaim; do not buy weak-breadth strength on a marginal signal. Stand down if neither is clean."
       ]
+    },
+    "lifecycle_phases": {
+      "set_by": "user 8/5: morning list tailored for the OPEN, adapt to level breaks into LUNCH, refreshed & ready for the AFTERNOON based on the morning's movement",
+      "OPEN_0930_1130": "Trade the PREMARKET watchlist as-is (SPY/QQQ/IWM/NVDA/META) \u2014 it's tailored to overnight/premarket clues. First clean read 9:40 (RVOL/VWAP settle). Take the morning's cleanest gate-passing setup.",
+      "LUNCH_1130_1400": "MONITOR level breaks (flip/wall reclaims & fails, VWAP holds/losses). Adapt: mark which morning theses held vs broke, promote/demote by live action, note breadth. Lower-conviction chop window \u2014 usually observe, rarely enter.",
+      "AFTERNOON_1400_close": "REFRESH from the morning's movement: re-tailored watchlist + regime_shift diff drives the power-hour plan. Trade the names/side that the morning's action VALIDATED (leaders that held, breaks that confirmed), not the stale premarket thesis. Afternoon posture (tighten-only) + hard flats apply.",
+      "carryforward": "Each phase feeds the next: the AFTERNOON list = morning seed, minus what died at lunch, plus what led \u2014 so by power hour we're trading proven intraday character, refreshed and ready."
     }
   }
 }
