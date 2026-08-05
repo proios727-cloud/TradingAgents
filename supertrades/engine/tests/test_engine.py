@@ -610,7 +610,7 @@ class TestSizingAndMaterializeV45(unittest.TestCase):
         cd = load_state()["class_defaults"]
         rules = materialize_exit_rules("day_trade", 1, cd)
         types = {r["type"] for r in rules}
-        self.assertEqual(types, {"progressive_stop", "target"})   # one stop equation + runner
+        self.assertEqual(types, {"progressive_stop", "target", "giveback"})  # stop + runner + trail
         target = next(r for r in rules if r["type"] == "target")
         self.assertTrue(target.get("runner"))
         self.assertNotIn("scale_out_frac", target)
@@ -621,7 +621,9 @@ class TestSizingAndMaterializeV45(unittest.TestCase):
         target = next(r for r in rules if r["type"] == "target")
         self.assertEqual(target["scale_out_frac"], 0.5)          # leg A: bank half
         gb = next(r for r in rules if r["type"] == "giveback")
-        self.assertEqual(gb["peak_frac"], 0.20)                  # leg B: strict moonshot trail
+        self.assertEqual(gb["peak_frac"], 0.40)                  # loose while developing
+        tiers = {t["peak_gte"]: t["frac"] for t in gb["tiers"]}
+        self.assertEqual(tiers[200], 0.05)                       # +200% -> near-full lock
 
     def test_materialize_index_scalp_adds_vwap_trail(self):
         cd = load_state()["class_defaults"]
@@ -814,7 +816,7 @@ class TestProgressiveStopV48(unittest.TestCase):
     def test_materialized_ladder_is_lean(self):
         cd = load_state()["class_defaults"]
         self.assertEqual({r["type"] for r in materialize_exit_rules("day_trade", 1, cd)},
-                         {"progressive_stop", "target"})
+                         {"progressive_stop", "target", "giveback"})
 
 
 class TestGreeksIvRvolV49(unittest.TestCase):
@@ -863,6 +865,40 @@ class TestGreeksIvRvolV49(unittest.TestCase):
         # the materialized stop uses the EM-derived level, not a flat -30
         ps = next(r for r in entry["exit_rules"] if r["type"] == "progressive_stop")
         self.assertEqual(ps["initial_pct"], entry["expected_move"]["stop_pct"])
+
+
+class TestTieredTrailV410(unittest.TestCase):
+    """v4.10: the runner trail TIGHTENS at extreme gains (loose early, near-full lock >200%)."""
+
+    TRAIL = {"type": "giveback", "arm_gain_pct": 50, "peak_frac": 0.40,
+             "tiers": [{"peak_gte": 100, "frac": 0.20}, {"peak_gte": 200, "frac": 0.05}]}
+
+    def _exits(self, entry, hwm, mark, bid):
+        state = copy.deepcopy(load_state())
+        state["positions"] = {"p": {"contract": "QQQ 8/4 $724C", "account": AGENTIC_ACCT,
+                                    "qty": 1, "entry": entry, "hwm": hwm, "ratchet_engaged": False,
+                                    "class": "0dte_scalp", "expiry": "2026-08-04",
+                                    "exit_rules": [self.TRAIL]}}
+        state["watchlist"] = []
+        snap = synthetic_snapshot(state, et_time="10:15", bp=500.0)
+        snap["option_quotes"]["p"].update({"mark": mark, "bid": bid})
+        return [e for e in run(state, snap)["actions"]["exits"] if e["id"] == "p"]
+
+    def test_developing_runner_gets_room(self):
+        # entry 1.00, peak +80% (1.80), pulled to +50% (1.50): gave back 0.30 of a 0.80 peak
+        # = 37.5% < 40% base frac -> HOLD, let it run
+        self.assertFalse(self._exits(1.00, 1.80, 1.50, 1.49))
+
+    def test_mega_winner_locks_tight(self):
+        # entry 1.00, peak +300% (4.00), slips to +270% (3.70): gave back 0.30 of a 3.00 peak
+        # = 10% > the 5% frac at the +200% tier -> EXIT, locking ~all of the huge gain
+        ex = self._exits(1.00, 4.00, 3.70, 3.68)
+        self.assertTrue(ex and ex[0]["order"] == "sell_limit_at_bid")
+
+    def test_mid_tier_tightens_vs_base(self):
+        # peak +120% (2.20), pulled to +90% (1.90): gave back 0.30 of 1.20 = 25% > 20% (+100 tier)
+        # -> exits, where the loose 40% base would still be holding
+        self.assertTrue(self._exits(1.00, 2.20, 1.90, 1.89))
 
 
 class TestReliableOpsV4(unittest.TestCase):

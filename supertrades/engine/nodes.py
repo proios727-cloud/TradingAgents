@@ -186,16 +186,23 @@ async def position_exit(payload: dict, snapshot: dict) -> dict:
                               "detail": f"peak {peak_pct:+.0f}% -> stop {sp:+.1f}%; back to {pct:+.1f}%"})
         elif t == "giveback":
             # trailing profit-lock: once the peak gain clears arm_gain_pct, exit if the
-            # position gives back more than peak_frac of that peak gain (QQQ 8/4 lesson —
-            # +123% peak round-tripped toward the exit before the poll caught it).
+            # position gives back more than the active peak_frac of that peak gain. The frac
+            # can TIGHTEN at higher peaks via `tiers` (loose while a runner develops, near-full
+            # lock once it's a mega-winner) so a +300% -> +150% collapse can't happen (user 8/4:
+            # ">200% -> trail at ~100% of gains under peak"). Base peak_frac applies below the
+            # first tier. (QQQ 8/4 lesson: +123% round-tripped before the single-frac caught it.)
             peak_gain = hwm - entry
-            armed = entry and peak_gain > 0 \
-                and peak_gain / entry * 100 >= rule["arm_gain_pct"]
-            if armed and (hwm - mark) >= rule["peak_frac"] * peak_gain:
+            peak_pct = peak_gain / entry * 100 if entry else 0.0
+            armed = entry and peak_gain > 0 and peak_pct >= rule["arm_gain_pct"]
+            frac = rule["peak_frac"]
+            for tier in sorted(rule.get("tiers", []), key=lambda x: x["peak_gte"]):
+                if peak_pct >= tier["peak_gte"]:
+                    frac = tier["frac"]
+            if armed and (hwm - mark) >= frac * peak_gain:
                 locked = (mark - entry) / entry * 100
                 trips.append({"rule": "giveback",
-                              "detail": f"gave back {rule['peak_frac']*100:.0f}% of peak "
-                                        f"+{peak_gain/entry*100:.0f}% -> lock +{locked:.0f}%"})
+                              "detail": f"gave back {frac*100:.0f}% of peak "
+                                        f"+{peak_pct:.0f}% -> lock +{locked:.0f}%"})
         elif t == "underlying_vwap_stop":
             # trend-trailing stop for morning index scalps: stay in while the underlying
             # holds the right side of VWAP; exit on a break. VWAP rises through an uptrend,

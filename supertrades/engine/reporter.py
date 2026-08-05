@@ -168,18 +168,22 @@ def materialize_exit_rules(class_name: str, qty: int, class_defaults: dict,
         {"type": "progressive_stop", "base": 3.25, "slope": 0.35,
          "initial_pct": stp, "mech": "sell_marketable_through_bid"},
     ]
-    barbell = qty >= GUARDRAILS["barbell_min_lots"]
-    if barbell:
-        # leg A: bank half at the (reachable) target. leg B: strict moonshot trail tightens
-        # the remainder beyond the progressive stop once it's a big winner.
+    # TIERED runner trail: armed after the target, loose while a winner develops, TIGHTENS at
+    # extreme gains so a mega-winner locks ~all of it (give back 40% -> 20% at +100% -> 5% at
+    # +200%, i.e. ~"trail at 100% of gains under peak"). Shared by single-lot and barbell.
+    trail = {"type": "giveback", "arm_gain_pct": tgt, "peak_frac": 0.40,
+             "tiers": [{"peak_gte": 100, "frac": 0.20}, {"peak_gte": 200, "frac": 0.05}],
+             "mech": "tiered_trail_tightens_at_extreme_gains"}
+    if qty >= GUARDRAILS["barbell_min_lots"]:
+        # leg A: bank half at the (reachable) target -> locks the day. leg B: the rest runs
+        # under the progressive stop + the tightening trail.
         rules.append({"type": "target", "pct": tgt,
                       "scale_out_frac": 0.5, "mech": "scale_out_lock_day"})
-        rules.append({"type": "giveback", "arm_gain_pct": 100, "peak_frac": 0.20,
-                      "mech": "strict_moonshot_trail"})
     else:
-        # single lot: runner that doesn't cap at target; the progressive stop is the trail.
+        # single lot: runner that doesn't cap at target; progressive stop + tightening trail.
         rules.append({"type": "target", "pct": tgt,
                       "runner": True, "mech": "hold_runner_trail_no_cap"})
+    rules.append(trail)
     if is_index and class_name == "0dte_scalp":
         trail = cd.get("am_index_trail", {}).get("materialize_rule",
                                                  {"type": "underlying_vwap_stop", "buffer_pct": 0.1})

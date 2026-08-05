@@ -318,6 +318,11 @@ Flat +50/−30 is arbitrary — it ignores what the option can do. Now the greek
   σ/hold knobs are evolution hypotheses tuned toward the objective score.
 
 ## Changelog
+- v4.10 (2026-08-04): TIERED RUNNER TRAIL. Generalized the `giveback` rule to take `tiers` so the
+  give-back fraction TIGHTENS at extreme gains — 40% while a runner develops, 20% past +100%, 5%
+  past +200% ("trail at ~100% of gains under peak") — preventing a +300%→+150% collapse.
+  `materialize_exit_rules` stamps this shared trail on single-lot runners and the barbell (after
+  scale-out at target). Reuses the existing rule, no new type. +3 tests; suite 90/90.
 - v4.9 (2026-08-04): GREEK/IV/RVOL ENTRIES + EXPECTED-MOVE EXITS. `conviction_score` ranks entries
   by delta + RVOL + momentum + VWAP + IV-fit; `expected_move_exits` sets a reachable target and a
   vol-appropriate stop from IV/delta/gamma, replacing the arbitrary flat +50/−30. +6 tests; 87/87.
