@@ -90,65 +90,66 @@
 <div class="wrap">
   <header>
     <h1>SUPERTRADES · CONSOLE</h1>
-    <span class="flat">FLAT · EOD</span>
-    <span class="stamp mono">Mon 2026-08-04 · post-close (16:00 ET) · rules v4.6</span>
+    <span class="flat">LIVE · WATCHING</span>
+    <span class="stamp mono">Wed 2026-08-05 · ~14:40 ET (power hour) · rules v4.12</span>
   </header>
 
   <section class="kpis" aria-label="Day summary">
-    <div class="kpi hero"><div class="v mono pl-pos">+$93</div><div class="l">Day P&amp;L — realized</div><div class="s">all closed · nothing overnight</div></div>
-    <div class="kpi"><div class="v mono">3 / 3</div><div class="l">Today's trades — green</div><div class="s">SPY · QQQ · INTC</div></div>
-    <div class="kpi"><div class="v mono">0</div><div class="l">Open positions</div><div class="s">account flat · no pending triggers</div></div>
-    <div class="kpi"><div class="v mono">43%</div><div class="l">Win rate — all-time</div><div class="s">3 W · 4 L · expectancy +$0.30/trade</div></div>
-    <div class="kpi"><div class="v mono" style="color:var(--accent)">v4.6</div><div class="l">Rule engine</div><div class="s">72/72 tests · engine-driven entries</div></div>
+    <div class="kpi"><div class="v mono">$0</div><div class="l">Day P&amp;L — realized</div><div class="s">flat · 0 trades · no drawdown</div></div>
+    <div class="kpi"><div class="v mono">0</div><div class="l">Open positions</div><div class="s">$634 BP · pure cash · account flat</div></div>
+    <div class="kpi"><div class="v mono" style="color:var(--warn)">STANDBY</div><div class="l">Gate</div><div class="s">armed · no setup has passed yet</div></div>
+    <div class="kpi"><div class="v mono">$200</div><div class="l">Size / setup</div><div class="s">high-score only · ≤2 clean trades</div></div>
+    <div class="kpi"><div class="v mono" style="color:var(--accent)">v4.12</div><div class="l">Rule engine</div><div class="s">90/90 tests · backtest-proven</div></div>
   </section>
 
   <section class="panel">
-    <p class="eyebrow">End-of-day conclusion — 2026-08-04</p>
+    <p class="eyebrow">Live watchlist — dynamic re-rank · ~14:40 ET</p>
     <div class="scroll">
     <table>
       <thead><tr>
-        <th>Contract</th><th>Class</th><th class="num">In</th><th class="num">Out</th>
-        <th class="num">P&amp;L</th><th class="num">%</th><th>How it closed</th>
+        <th>Name</th><th class="num">Day %</th><th>Structure / GEX</th><th>Live read</th><th>Status</th>
       </tr></thead>
       <tbody>
         <tr>
-          <td class="mono">SPY 8/4 $771C</td><td><span class="chip mut">0DTE</span></td>
-          <td class="num">0.75</td><td class="num">1.23</td>
-          <td class="num pl-pos">+$48</td><td class="num pl-pos">+64%</td>
-          <td>Target hit — clean sell into strength</td>
+          <td class="mono">NVDA</td><td class="num pl-pos">+4.6%</td>
+          <td>above rising VWAP ~220</td><td>Lone leader; at HOD, breakout pending decisive confirm</td>
+          <td><span class="chip good">#1 long-watch</span></td>
         </tr>
         <tr>
-          <td class="mono">QQQ 8/4 $724C</td><td><span class="chip mut">0DTE</span></td>
-          <td class="num">0.64</td><td class="num">1.00</td>
-          <td class="num pl-pos">+$36</td><td class="num pl-pos">+56%</td>
-          <td>Peaked +123%; locked on the way down, no round-trip</td>
+          <td class="mono">QQQ</td><td class="num pl-neg">−0.5%</td>
+          <td>below flip 724.4 · put wall 720</td><td>Weakest index; short if 720 breaks → 717/715</td>
+          <td><span class="chip warn">short-watch</span></td>
         </tr>
         <tr>
-          <td class="mono">INTC 8/5 $102C</td><td><span class="chip mut">day / 1-DTE</span></td>
-          <td class="num">1.99</td><td class="num">2.08</td>
-          <td class="num pl-pos">+$9</td><td class="num pl-pos">+4.5%</td>
-          <td><span class="chip crit">early</span> Cut by a competing trigger — see note</td>
+          <td class="mono">SPY</td><td class="num">≈0%</td>
+          <td>pinned 770–773 · +GEX</td><td>Call wall collapsed 780→773; capped, damped</td>
+          <td><span class="chip mut">anchor</span></td>
+        </tr>
+        <tr>
+          <td class="mono">IWM</td><td class="num pl-neg">−0.4%</td>
+          <td>below VWAP</td><td>Lagging, no edge</td>
+          <td><span class="chip mut">monitor</span></td>
+        </tr>
+        <tr>
+          <td class="mono">META</td><td class="num pl-neg">−0.9%</td>
+          <td>lost VWAP · rolled over</td><td>Premarket +1.5% thesis dead — full gap-and-fade</td>
+          <td><span class="chip crit">demoted</span></td>
         </tr>
       </tbody>
-      <tfoot><tr>
-        <td colspan="4">Realized · all green</td>
-        <td class="num pl-pos">+$93</td><td class="num"></td>
-        <td>Win rate today 3/3 · no overnight risk</td>
-      </tr></tfoot>
     </table>
     </div>
-    <p class="note"><strong>INTC footnote:</strong> the runner was flattened at 3:15 ET (+$9) by a <em>0DTE hard-exit trigger from another session</em> — not this chain, which was holding at +14.8% with a strong score. The option ran to +18% afterward, so the early exit cost ~$26 of upside. Fixed: the competing triggers were deleted and single-executor discipline is now enforced. Green held, but this is why one session must own execution.</p>
+    <p class="note"><strong>Regime shift:</strong> morning risk-on green gap → afternoon <strong>gap-and-fade / distribution</strong>. Breadth deteriorated (3 of 5 red), leadership narrowed to NVDA alone, decoupled from a heavy tape; VIX 15.73 (quiet distribution, no fear flush). <strong>Why no trade:</strong> the SPY 770 bounce sliced (never held), the index pin + capped call walls kill the A+ long, and NVDA's new highs are a slow creep on a +4.6% extension — no <em>clean</em> gate-passing setup. Longs fight the tape; the credible side is a QQQ 720 break (puts) or a genuinely decisive NVDA reclaim. Flat is the correct outcome, not a missed one.</p>
   </section>
 
   <div class="cols wide">
     <section class="panel">
       <p class="eyebrow">Exit framework — the arsenal now in place</p>
       <ul class="rules">
-        <li><span class="tick">▸</span><strong>Never-red floor</strong> — once green, a loose milestone floor guarantees a green close; ratchets up, never down.</li>
-        <li><span class="tick">▸</span><strong>Green-lock</strong> — past ~+20% peak, a small-green floor makes a brief winner unable to become a loss.</li>
-        <li><span class="tick">▸</span><strong>Give-back trail + runner</strong> — winners aren't capped at +50%; they run and trail off the high-water mark.</li>
-        <li><span class="tick">▸</span><strong>Barbell</strong> (≥2 lots) — scale out to lock the day, run the rest for the moonshot on a strict 20% trail.</li>
-        <li><span class="tick">▸</span><strong>Morning-index VWAP trail</strong> — SPY/QQQ scalps ride the trend, exit on a VWAP break.</li>
+        <li><span class="tick">▸</span><strong>Progressive-stop equation</strong> — one ratcheting stop = peak − (base + slope·peak); breakeven by ~+5%, tight when small-green, looser for runners. Subsumes never-red + green-lock (pruned).</li>
+        <li><span class="tick">▸</span><strong>Expected-move exits</strong> — target &amp; stop derived from IV + greeks (EM = spot·IV·√t), not a flat ±%. Reachable target, vol-appropriate stop.</li>
+        <li><span class="tick">▸</span><strong>Tiered runner trail</strong> — give-back tightens 40%→20% (past +100%)→5% (past +200%); a mega-winner can't round-trip.</li>
+        <li><span class="tick">▸</span><strong>Barbell</strong> (≥2 lots) — scale out to lock the day, run the rest on the tiered trail.</li>
+        <li><span class="tick">▸</span><strong>Peak-aware cadence</strong> — polls tighten 15min→90s as a position extends, so the trail catches fast reversals.</li>
         <li><span class="tick">▸</span><strong>Hard exit-time</strong> — index flat by 3:00 ET; marketable exits; DTE is a first-class exit input.</li>
       </ul>
     </section>
@@ -156,38 +157,40 @@
     <section class="panel">
       <p class="eyebrow">Discipline &amp; risk — the single gate</p>
       <ul class="rules">
-        <li><span class="tick">▸</span>Entries ≤ <span class="mono">2/day</span> · ≤ <span class="mono">22%</span> BP each · Δ ≥ <span class="mono">0.35</span> · spread ≤ 12% · OI ≥ 500</li>
+        <li><span class="tick">▸</span>Entries ≤ <span class="mono">2/day</span> · <span class="mono">$200</span>/setup (high-score only) · Δ ≥ <span class="mono">0.35</span> · spread ≤ 12% · OI ≥ 500</li>
         <li><span class="tick">▸</span>IV &gt; 90% → prefer a spread; short-DTE cost ≤ 35% BP (binds under overrides)</li>
-        <li><span class="tick">▸</span>Daily halt at <span class="mono">−$60</span> · churn brake at 3 round-trips · agentic acct only</li>
-        <li><span class="tick">▸</span><strong>Read:</strong> wins are clean (+50–64%); the all-time drag was 2 oversized losses (NVDA −55%, DIS −42%). Levers: lock wins early, cap losses hard, keep runner upside.</li>
+        <li><span class="tick">▸</span>Daily halt at <span class="mono">−$60</span> · churn brake at 3 round-trips · pure cash · agentic acct only</li>
+        <li><span class="tick">▸</span><strong>Afternoon posture (post-noon):</strong> tighten-only — exits compress, entry bar rises, hard flats; never loosen the gate to force a late trade.</li>
+        <li><span class="tick">▸</span><strong>Objective:</strong> 0.45·win-rate + 0.30·expectancy − 0.25·|drawdown|. Backtest: current rules +34.8 vs flat baseline −2.2.</li>
       </ul>
     </section>
   </div>
 
   <div class="cols">
     <section class="panel">
-      <p class="eyebrow">Execution layer — engine-driven (v4.6)</p>
+      <p class="eyebrow">Execution layer — engine-driven (v4.12)</p>
       <div class="steps" aria-label="Cycle steps">
         <span class="step on">fetch MCP</span><span class="step on">assemble snapshot</span>
-        <span class="step on">run engine</span><span class="step on">execute · exits→entry</span><span class="step on">commit</span>
+        <span class="step on">re-screen watchlist</span><span class="step on">run engine</span><span class="step on">exits→entry</span><span class="step on">commit</span>
       </div>
-      <p class="note">The entry decision now comes from running the tested engine on live data, not hand judgment — sized, with barbell exit-rules auto-stamped, and refused whenever any guardrail fires. <strong>One session is the only executor</strong> (audit triggers at session start). Next session: populate the watchlist and run the first live cycle, review-gated.</p>
+      <p class="note">Each scan re-scores &amp; re-ranks the whole watchlist live (dynamic, open→EOD), runs the tested engine, and places only a gate-passing setup — sized, barbell exit-rules auto-stamped, refused whenever any guardrail fires. <strong>One session is the only executor.</strong> Watchlist lifecycle: OPEN trades the premarket list · LUNCH adapts to level breaks · AFTERNOON trades what the morning validated.</p>
     </section>
 
     <section class="panel">
       <p class="eyebrow">Build progression — this session</p>
       <div class="ver">
-        <div class="row"><span class="tag">v4.2</span><span class="desc">Vol-aware pricing + short-DTE concentration ceiling</span></div>
-        <div class="row"><span class="tag">v4.3</span><span class="desc">Give-back trail + runner + scale-out</span></div>
-        <div class="row"><span class="tag">v4.4</span><span class="desc">Green-lock win-rate + VWAP trail + performance tracker</span></div>
-        <div class="row"><span class="tag">v4.5</span><span class="desc">Multi-lot sizing + barbell auto-materializer</span></div>
-        <div class="row"><span class="tag">v4.6</span><span class="desc">Execution layer — engine-driven entries</span></div>
+        <div class="row"><span class="tag">v4.7</span><span class="desc">Evolution loop — continuous self-tuning</span></div>
+        <div class="row"><span class="tag">v4.8</span><span class="desc">Objective score + progressive-stop equation</span></div>
+        <div class="row"><span class="tag">v4.9</span><span class="desc">Greeks/IV/RVOL entries + expected-move exits</span></div>
+        <div class="row"><span class="tag">v4.10</span><span class="desc">Tiered runner trail</span></div>
+        <div class="row"><span class="tag">v4.11</span><span class="desc">Pruned legacy rules + peak-aware cadence</span></div>
+        <div class="row"><span class="tag">v4.12</span><span class="desc">Backtest harness — expectancy proven, not just tested</span></div>
       </div>
     </section>
   </div>
 
   <footer>
     Decision-support console for a self-directed account; auto-execution runs on user-authorized rails, agentic account only.
-    Regenerated at end of day and on request. Fills and the overnight-gate decision also arrive via push and chat.
+    Regenerated live during the session and on request. Fills and armed setups also arrive via push and chat.
   </footer>
 </div>
