@@ -168,10 +168,11 @@ def materialize_exit_rules(class_name: str, qty: int, class_defaults: dict,
         {"type": "progressive_stop", "base": 3.25, "slope": 0.35,
          "initial_pct": stp, "mech": "sell_marketable_through_bid"},
     ]
-    # TIERED runner trail: armed after the target, loose while a winner develops, TIGHTENS at
+    # TIERED runner trail: arms once it's a solid winner, loose while developing, TIGHTENS at
     # extreme gains so a mega-winner locks ~all of it (give back 40% -> 20% at +100% -> 5% at
-    # +200%, i.e. ~"trail at 100% of gains under peak"). Shared by single-lot and barbell.
-    trail = {"type": "giveback", "arm_gain_pct": tgt, "peak_frac": 0.40,
+    # +200%, i.e. ~"trail at 100% of gains under peak"). Arm at min(target, +50%) so it engages
+    # even when a high-IV EM target is huge (the QQQ +123% backtest miss). Shared single/barbell.
+    trail = {"type": "giveback", "arm_gain_pct": min(tgt, 50), "peak_frac": 0.40,
              "tiers": [{"peak_gte": 100, "frac": 0.20}, {"peak_gte": 200, "frac": 0.05}],
              "mech": "tiered_trail_tightens_at_extreme_gains"}
     if qty >= GUARDRAILS["barbell_min_lots"]:
