@@ -1026,5 +1026,87 @@ class TestExecutionAccuracyV413(unittest.TestCase):
         self.assertEqual(ops.poll_interval_seconds(30), 480)
 
 
+class TestUniverseFunnelV414(unittest.TestCase):
+    """v4.14: universe funnel (screen wide, execute narrow) + unusual-flow confirmation."""
+
+    def test_funnel_shapes_flexible_scanner_rows(self):
+        # three key dialects: canonical, terse, volume-pair (rvol derived via rvol_now)
+        rows = [
+            {"symbol": "intc", "last_trade_price": "100.57", "percent_change": "2.4",
+             "volume": "40000000", "avg_volume": "80000000"},          # 0.5 frac -> rvol 1.0
+            {"sym": "AMD", "price": 180.0, "day_pct": 1.2, "rvol": 2.1},
+            {"quote": {"ticker": "NVDA", "last": "220.5", "change_pct": "3.1"}},
+            {"price": 50.0},                                            # no symbol -> dropped
+            {"symbol": "ZERO", "last": 0},                              # no price -> dropped
+        ]
+        cands = live.funnel_candidates(rows, quotes_meta={"frac_of_day": 0.5})
+        self.assertEqual([c["sym"] for c in cands], ["INTC", "AMD", "NVDA"])
+        intc = cands[0]
+        self.assertEqual(intc["last"], 100.57)
+        self.assertEqual(intc["day_pct"], 2.4)
+        self.assertEqual(intc["rvol"], 1.0)          # 40M vs 80M*0.5 elapsed
+        self.assertEqual(cands[1]["rvol"], 2.1)      # direct rvol passes through
+        self.assertIsNone(cands[2]["rvol"])          # no volume data -> unknown, not invented
+
+    def test_funnel_filter_drops_untradable_keeps_clean_mover(self):
+        g = GUARDRAILS
+        mk = lambda sym, last, rvol, day: {"sym": sym, "last": last,
+                                           "rvol": rvol, "day_pct": day}
+        cands = [
+            mk("PENNY", 3.50, 2.0, 2.0),     # under $5 -> junk options
+            mk("RICH", 1500.0, 2.0, 2.0),    # over $1000 -> can't fit per-setup budget
+            mk("DEAD", 120.0, 0.8, 2.0),     # rvol below funnel floor
+            mk("NOVOL", 120.0, None, 2.0),   # unknown rvol never passes the sieve
+            mk("GAPPED", 120.0, 2.0, 9.5),   # |day %| > gap-trap rail
+            mk("CLEAN", 120.0, 2.0, 2.5),    # the mover the funnel exists to find
+        ]
+        kept = live.funnel_filter(cands, bp=500.0, per_setup_usd=110.0, guardrails=g)
+        self.assertEqual([c["sym"] for c in kept], ["CLEAN"])
+        # per-setup budget beyond BP -> nothing is fundable, funnel yields nothing
+        self.assertEqual(live.funnel_filter(cands, 90.0, 110.0, g), [])
+        # thresholds live ONLY in GUARDRAILS
+        self.assertEqual(g["funnel_min_underlying_usd"], 5.0)
+        self.assertEqual(g["funnel_max_underlying_usd"], 1000.0)
+        self.assertEqual(g["funnel_rvol_min"], 1.2)
+        self.assertEqual(g["funnel_day_pct_max_abs"], 8.0)
+
+    def test_funnel_rank_returns_top_n_by_conviction(self):
+        cands = [{"sym": "MEH", "last": 50.0, "rvol": 1.3, "day_pct": 0.5},
+                 {"sym": "HOT", "last": 120.0, "rvol": 3.0, "day_pct": 4.0},
+                 {"sym": "WARM", "last": 80.0, "rvol": 2.0, "day_pct": 2.0}]
+        top2 = live.funnel_rank(cands, top_n=2)
+        self.assertEqual([c["sym"] for c in top2], ["HOT", "WARM"])
+        for c in top2:                                   # score rides along for the console
+            self.assertIn("conviction", c)
+        self.assertGreater(top2[0]["conviction"], top2[1]["conviction"])
+        # top_n wider than the field just returns everyone, still sorted
+        self.assertEqual(len(live.funnel_rank(cands, top_n=10)), 3)
+
+    def test_unusual_flow_needs_3x_oi_and_known_inputs(self):
+        from supertrades.engine.reporter import unusual_flow
+        self.assertTrue(unusual_flow(3000, 1000))        # exactly 3x confirms
+        self.assertTrue(unusual_flow(9000, 1000))
+        self.assertFalse(unusual_flow(2000, 1000))       # 2x = active, not unusual
+        self.assertFalse(unusual_flow(None, 1000))       # unknown never confirms
+        self.assertFalse(unusual_flow(3000, None))
+        self.assertFalse(unusual_flow(0, 0))
+        self.assertEqual(GUARDRAILS["flow_vol_oi_min"], 3.0)
+
+    def test_conviction_flow_bonus_is_small_and_additive(self):
+        from supertrades.engine.reporter import conviction_score
+        base = {"delta": 0.42, "rvol": 2.0, "underlying_day_pct": 2.0,
+                "above_vwap": True, "iv": 0.5}
+        plain = conviction_score(base)
+        flagged = conviction_score({**base, "flow_unusual": True})
+        self.assertAlmostEqual(flagged - plain, 0.05, places=3)   # exactly the small bonus
+        # confirmation, never a solo trigger: flow alone barely moves a weak candidate
+        weak = {"delta": 0.2, "rvol": 0.8, "underlying_day_pct": -1.0,
+                "above_vwap": False, "iv": 1.5}
+        self.assertLess(conviction_score({**weak, "flow_unusual": True}),
+                        conviction_score(base))
+        # explicit False / absent are identical (no penalty either way)
+        self.assertEqual(conviction_score({**base, "flow_unusual": False}), plain)
+
+
 if __name__ == "__main__":
     unittest.main()

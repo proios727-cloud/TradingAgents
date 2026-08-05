@@ -55,6 +55,16 @@ GUARDRAILS = {
     #   qualitative "no volume thrust" judgment call; a slow creep at rvol < min = fakeout
     #   risk, stand down (the 8/5 NVDA 221.7 creep). Holds/reclaims still require the hold.
     "breakout_rvol_min": 1.5,           # rvol >= 1.5x average participation to confirm a break
+    # v4.14 (8/5): UNIVERSE FUNNEL — screen wide, execute narrow. Cheap equity-level
+    #   pre-checks (live.funnel_filter) that decide which scanner names are even worth
+    #   an option-chain fetch. Option-level gates (spread/OI/delta/IV) still bind later.
+    "funnel_min_underlying_usd": 5.0,   # under ~$5 underlying -> junk options, skip
+    "funnel_max_underlying_usd": 1000.0,  # over ~$1000 -> contracts can't fit per-setup budget
+    "funnel_rvol_min": 1.2,             # funnel participation floor (looser than breakout's 1.5)
+    "funnel_day_pct_max_abs": 8.0,      # |day %| beyond this = gap-trap, chase risk — skip
+    # v4.14 (8/5): UNUSUAL-FLOW FLAG — today's volume dwarfing existing OI = fresh
+    #   positioning. CONFIRMATION ONLY (small conviction bonus), never a solo trigger.
+    "flow_vol_oi_min": 3.0,             # volume >= 3x OI to flag unusual flow
 }
 
 _GROUPS = ("signals", "gex", "whale", "gates", "exits", "entries")
@@ -120,6 +130,11 @@ def conviction_score(c: dict) -> float:
     Blends delta (win-probability proxy), RVOL (volume conviction), positive momentum +
     above-VWAP (trend), and an IV-fit penalty (don't overpay for vol). 0..1, higher = stronger.
     Missing inputs contribute neutrally so a sparse candidate isn't unfairly buried.
+
+    v4.14: optional c["flow_unusual"] (see unusual_flow) adds a small flat +0.05
+    CONFIRMATION bonus on top — a tie-breaker between otherwise-comparable names,
+    deliberately too small to lift a below-gate candidate meaningfully. Flow is
+    never a solo trigger; the entry gates in final_report are untouched by it.
     """
     delta = c.get("delta") or 0.0
     rvol = c.get("rvol")
@@ -130,8 +145,9 @@ def conviction_score(c: dict) -> float:
     s_mom = (min(day / 5.0, 1.0) if day > 0 else 0.0)      # positive momentum only
     s_vwap = 1.0 if c.get("above_vwap") else 0.0
     s_iv = 1.0 - min(max((iv or 0.5) - 0.90, 0.0) / 1.6, 1.0)   # penalize rich IV
+    s_flow = 0.05 if c.get("flow_unusual") else 0.0        # v4.14 confirmation bonus
     return round(0.35 * s_delta + 0.30 * s_rvol + 0.20 * s_mom
-                 + 0.10 * s_vwap + 0.05 * s_iv, 3)
+                 + 0.10 * s_vwap + 0.05 * s_iv + s_flow, 3)
 
 
 def breakout_confirmed(rvol: float | None) -> bool:
@@ -144,6 +160,19 @@ def breakout_confirmed(rvol: float | None) -> bool:
     (put-wall hold, VWAP pullback-hold) are gated by the hold itself, not this.
     """
     return rvol is not None and rvol >= GUARDRAILS["breakout_rvol_min"]
+
+
+def unusual_flow(volume, oi) -> bool:
+    """Unusual-options-flow flag (v4.14): today's contract volume DWARFS existing
+    open interest (>= flow_vol_oi_min x) — fresh positioning, not churn of old OI.
+
+    CONFIRMATION ONLY: feeds conviction_score's small flow_unusual bonus and is
+    never a solo entry trigger. Unknown/zero inputs never confirm (same posture
+    as breakout_confirmed): both volume and OI must be known and positive.
+    """
+    if not volume or not oi:
+        return False
+    return volume >= GUARDRAILS["flow_vol_oi_min"] * oi
 
 
 def size_order(cost_per_contract_usd: float, bp: float) -> int:
