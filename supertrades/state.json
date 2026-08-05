@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T22:45:00Z",
+  "updated_at": "2026-08-04T23:00:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -170,7 +170,8 @@
     "leg_A_day_lock": "SCALE OUT ~half at the first target (+30-50%) to BANK guaranteed profit -> secures the DAY green for sure (target.scale_out_frac). Once realized day P&L is green and covers this trade's cost, the remainder is HOUSE MONEY.",
     "leg_B_moonshot": "Runner rides for big gains on a TIERED trailing stop that TIGHTENS at extreme gains: give back 40% of peak while developing, 20% past +100%, and only 5% past +200% (~'trail at 100% of gains under peak') so a +300%->+150% collapse can't happen. Armed after the target; never-red + progressive_stop underneath. Marketable exits.",
     "why": "Barbell = guaranteed green day (leg A) + a continuously-realized, protected moonshot (leg B). You always lock/realize growth on the way up AND keep a piece for the 10x; the strict trail protects the big number without paperhanding it. Single-contract positions can't scale - they use never-red + give-back (or size to 2-3 lots to enable tranche realization).",
-    "engine": "BUILT v4.5: reporter.size_order() fills the per-trade cap with up to 3 lots (same risk envelope, enables scale-out); reporter.materialize_exit_rules() auto-stamps leg-A scale-out + leg-B strict giveback (0.20) on any >=2-lot entry (single lot -> never-red runner), index scalps get the VWAP trail. Wired into the entry action (qty + exit_rules). Small live BP (~$200) usually resolves to 1 lot until cheaper contracts / more BP."
+    "engine": "BUILT v4.5: reporter.size_order() fills the per-trade cap with up to 3 lots (same risk envelope, enables scale-out); reporter.materialize_exit_rules() auto-stamps leg-A scale-out + leg-B strict giveback (0.20) on any >=2-lot entry (single lot -> never-red runner), index scalps get the VWAP trail. Wired into the entry action (qty + exit_rules). Small live BP (~$200) usually resolves to 1 lot until cheaper contracts / more BP.",
+    "default_2lot_style": "BARBELL - confirmed (user 8/4). Scale out 1 at the reachable target (recovers most of cost -> house-money-ish), run 1 on the tiered tightening trail with the progressive stop underneath. free_roll (sell 1 at +100% -> runner fully free) is available as a one-flag alternative for high-conviction days, not the default."
   },
   "trading_date": "2026-08-04",
   "rule_version": "v4.11",
