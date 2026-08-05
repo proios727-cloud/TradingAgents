@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-05T18:36:00Z",
+  "updated_at": "2026-08-05T18:38:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -446,6 +446,11 @@
   },
   "log": [
     {
+      "t": "2026-08-05T18:38Z",
+      "event": "analysis",
+      "detail": "INTRADAY REGIME SHIFT (user: base off morning clues but detect NEW trends + re-tailor for afternoon to live sentiment). Morning risk-on green gap -> afternoon GAP-AND-FADE/distribution: breadth deteriorated (SPY faded to flat, QQQ/IWM red, META full reversal -0.86%), leadership NARROWED to NVDA alone (+4.6%, decoupled). Morning buy-the-gap thesis INVALIDATED. Re-tailor: longs fight the tape (NVDA needs decisive confirm), shorts now aligned (QQQ 720 break credible), +GEX pin caps moves = grind-lower bias. Favor put side on clean break or high-conviction NVDA reclaim only; else stand down. Flat, 0 trades."
+    },
+    {
       "t": "2026-08-05T18:36Z",
       "event": "rule",
       "detail": "DYNAMIC WATCHLIST enabled (user: constantly re-screen open->EOD, re-rank all names for best-scoring setups that STILL pass all tests, not force a trade). Each scan re-scores + re-ranks; promote leaders / demote dead / add emergent movers; strict gate unchanged. Live re-rank 14:35 ET: NVDA #1 (leader, at HOD), QQQ #2 (short-watch, testing 720 wall), SPY anchor (pinned), IWM monitor, META DEMOTED (broke down -0.86%, thesis dead). Flat, 0 trades."
@@ -761,6 +766,20 @@
         "status": "demoted_off_active"
       }
     ],
-    "note": "Static premarket list would still be watching META for calls; dynamic screen demotes it and promotes NVDA. This runs every scan through EOD."
+    "note": "Static premarket list would still be watching META for calls; dynamic screen demotes it and promotes NVDA. This runs every scan through EOD.",
+    "regime_shift": {
+      "as_of": "2026-08-05 ~14:37 ET",
+      "method": "diff morning premarket clues vs live afternoon: track breadth, leadership, and sentiment shifts; re-tailor the plan to what the tape ACTUALLY became, not the premarket thesis.",
+      "morning_clues": "Broad GREEN gap, risk-on: SPY +0.4, QQQ +0.2, IWM +0.2, NVDA +1.9, META +1.5. Thesis = buy-the-gap tech/AI leadership.",
+      "afternoon_now": "SPY 0.0 (faded gap), QQQ -0.47 (turned red), IWM -0.38 (red), NVDA +4.6 (EXTENDED further), META -0.86 (full gap-and-fade reversal).",
+      "shift": "GAP-UP-AND-FADE / DISTRIBUTION character. Breadth DETERIORATED \u2014 3 of 5 red, indices gave back the open. Sentiment rotated risk-on -> cautious/neutral (VIX 15.73 low = quiet distribution, not a fear flush). LEADERSHIP NARROWED to a single name: NVDA strengthened while everything else leaked = isolated AI/semis bid decoupled from weak index breadth.",
+      "morning_thesis_status": "INVALIDATED intraday. 'Buy the green gap' is dead (META proves it \u2014 full reversal). QQQ/IWM/META red confirm heavy tape.",
+      "afternoon_tailoring": [
+        "LONGS fight the tape: NVDA long is a single-name story AGAINST deteriorating breadth = LOWER conviction -> requires a DECISIVE break+hold or VWAP reclaim (reinforces current strict bar, no chasing the creep).",
+        "SHORTS now aligned with breadth: QQQ below flip testing the 720 put wall is CONFIRMED by the weak tape -> a momentum break of 720 is MORE credible for puts (717/715).",
+        "Index +GEX pin still caps big directional moves (SPY 770-773); combine with weak breadth = low-vol grind-lower bias, not a trend-up.",
+        "Net: fade/distribution afternoon. Favor the SHORT/put side on a clean index break OR a HIGH-conviction NVDA reclaim; do not buy weak-breadth strength on a marginal signal. Stand down if neither is clean."
+      ]
+    }
   }
 }
