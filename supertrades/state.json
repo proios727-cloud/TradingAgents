@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-04T22:25:00Z",
+  "updated_at": "2026-08-04T22:45:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-04",
@@ -156,7 +156,7 @@
       "per_session_start": "read state, audit list_triggers (ONE executor), adopt latest rails + open_hypotheses"
     },
     "open_hypotheses": [
-      "green_lock arm at +15% vs +20% - does earlier locking raise win rate without clipping runners?",
+      "progressive_stop base/slope: tune where breakeven lands (+5% now) for win rate vs DD",
       "default 2-3 lot sizing when BP allows -> unlock barbell scale-out (needs more BP than ~$200)",
       "structure/ATR trail vs fixed give-back % - does swing-low trailing capture more of trends?",
       "EM exits: tune target_sigma/stop_sigma/hold_days per class toward the objective score (win rate vs size)."
@@ -173,7 +173,7 @@
     "engine": "BUILT v4.5: reporter.size_order() fills the per-trade cap with up to 3 lots (same risk envelope, enables scale-out); reporter.materialize_exit_rules() auto-stamps leg-A scale-out + leg-B strict giveback (0.20) on any >=2-lot entry (single lot -> never-red runner), index scalps get the VWAP trail. Wired into the entry action (qty + exit_rules). Small live BP (~$200) usually resolves to 1 lot until cheaper contracts / more BP."
   },
   "trading_date": "2026-08-04",
-  "rule_version": "v4.10",
+  "rule_version": "v4.11",
   "mode": {
     "cadence_min": 30,
     "dnd": true,
@@ -237,17 +237,13 @@
       "target_pct": 50,
       "stop_pct": -30,
       "ratchet_pct": 25,
-      "green_lock": {
-        "arm_pct": 20,
-        "floor_pct": 8
-      },
       "am_index_trail": {
         "applies_to": "morning index scalps (SPY/QQQ entered ~09:40-11:00)",
         "materialize_rule": {
           "type": "underlying_vwap_stop",
           "buffer_pct": 0.1
         },
-        "note": "USER 8/4 'trailing stop for morning entries on indices'. Trend-trailing stop: hold while the index holds the right side of VWAP (0.1% buffer); exit marketable on a VWAP break. VWAP rises through an uptrend so the stop trails the trend and does NOT cap upside like the fixed +50% target - lets a morning index runner ride the whole move. Composes with green_lock (lock +8% once peak +20%), give-back trail, and the HARD 15:00 index close. Add {type:underlying_vwap_stop,buffer_pct:0.1} to the scalp's exit_rules at entry."
+        "note": "USER 8/4 'trailing stop for morning entries on indices'. Trend-trailing stop: hold while the index holds the right side of VWAP (0.1% buffer); exit marketable on a VWAP break. VWAP rises through an uptrend so the stop trails the trend and does NOT cap upside like the fixed +50% target - lets a morning index runner ride the whole move. Composes with the progressive stop + tiered give-back trail, and the HARD 15:00 index close. Add {type:underlying_vwap_stop,buffer_pct:0.1} to the scalp's exit_rules at entry."
       },
       "hard_exit_et": "15:15",
       "index_hard_close_et": "15:00",
@@ -268,10 +264,6 @@
       "target_pct": 50,
       "stop_pct": -30,
       "ratchet_pct": 25,
-      "green_lock": {
-        "arm_pct": 20,
-        "floor_pct": 5
-      },
       "flatten_et": "15:45",
       "profit_max": {
         "runner": true,
@@ -289,10 +281,6 @@
       "target_pct": 50,
       "stop_pct": -30,
       "ratchet_pct": 25,
-      "green_lock": {
-        "arm_pct": 30,
-        "floor_pct": 10
-      },
       "time_stop": {
         "days_before_expiry": 14
       },
@@ -321,10 +309,6 @@
     "swing_overnight": {
       "stop_pct": -30,
       "ratchet_pct": 25,
-      "green_lock": {
-        "arm_pct": 20,
-        "floor_pct": 8
-      },
       "profit_max": {
         "runner": true,
         "giveback": {
@@ -453,6 +437,11 @@
     "notes": "Live 8/4. v4 discipline governor active. ONE high-conviction setup or none. User trades own PineScript signals; engine manages rails + single guardrail gate."
   },
   "log": [
+    {
+      "t": "2026-08-04T22:45Z",
+      "event": "build",
+      "detail": "v4.11 PRUNE + PEAK-AWARE CADENCE (user 'prune legacy rules and tighten near-peak cadence'). PRUNED green_lock entirely (node branch, reporter routing, per-class defaults, tests) - progressive_stop subsumes it (locks +9.7% at +20% peak vs green_lock's +5%). never_red_floor already gone from code. ADDED ops.poll_interval_seconds: cadence tightens with extension (15min baseline -> 8min past target -> 3min at +100% -> ~90s at +200%) so the tight trail actually catches fast reversals - the real binding constraint. +management_cadence block. Leaner engine. v4.10->v4.11."
+    },
     {
       "t": "2026-08-04T22:25Z",
       "event": "build",
@@ -678,5 +667,15 @@
       "event": "premarket",
       "detail": "Day rolled. BP 303.20 settled ($282 landed; $250 deposit NOT YET). Cap $121. QQQ gap -0.87 = gate PRE-ARMED (DND: chat+pages only, no push). Lead candidate XLE 7/24 59c conditional. INTC put priced out by earnings IV."
     }
-  ]
+  ],
+  "management_cadence": {
+    "principle": "poll faster the more extended a position, so the tightening trail catches a fast reversal near a peak (QQQ 8/4 +123%->+56% lesson). ops.poll_interval_seconds(peak_pct, extended).",
+    "tiers": [
+      "baseline 15min",
+      "past target / near a trail trigger -> 8min",
+      "peak >= +100% -> 3min",
+      "peak >= +200% (5% trail) -> ~90s / near-continuous"
+    ],
+    "exits": "marketable-through-bid when extended; a resting bid misses fast reversals."
+  }
 }

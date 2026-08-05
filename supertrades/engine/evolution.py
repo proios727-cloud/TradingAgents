@@ -97,7 +97,7 @@ def reflect(state: dict) -> list[dict]:
                     "suggestion": "marketable stops + no single-name overnight gap; consider a -25% hard cap on low-conviction",
                     "auto_safe": True})
 
-    # 2. Winners round-tripping => green_lock / trail is the fix (tighten = safe).
+    # 2. Winners round-tripping => tighten the progressive stop / trail (tighten = safe).
     gave_back = [t for t in closed
                  if isinstance(t.get("peak_pct"), (int, float))
                  and isinstance(t.get("pct"), (int, float))
@@ -106,7 +106,7 @@ def reflect(state: dict) -> list[dict]:
         names = ", ".join(t.get("contract", "?") for t in gave_back)
         out.append({"area": "give_back",
                     "observation": f"{len(gave_back)} winner(s) round-tripped >=40% of peak ({names})",
-                    "suggestion": "green_lock earlier and/or a stricter give-back peak_frac on the runner",
+                    "suggestion": "a faster progressive-stop ratchet and/or a stricter give-back tier on the runner",
                     "auto_safe": True})
 
     # 3. Low win rate with positive expectancy => scale-out earlier to bank more wins.

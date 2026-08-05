@@ -163,16 +163,6 @@ async def position_exit(payload: dict, snapshot: dict) -> dict:
         elif t == "ratchet" and not pos.get("ratchet_engaged") \
                 and (hwm - entry) / entry * 100 >= rule["arm_pct"]:
             trips.append({"rule": "ratchet_arm", "detail": f"HWM +{(hwm-entry)/entry*100:.0f}%"})
-        elif t == "green_lock":
-            # win-rate lever: once the peak first clears arm_pct, a small-green floor at
-            # floor_pct goes live - converts "reached +arm%" into a guaranteed win, so a
-            # winner can't round-trip into a loss (the DIS/NVDA/QQQ-giveback lesson).
-            peak_pct = (hwm - entry) / entry * 100 if entry else 0.0
-            floor_pct = rule.get("floor_pct", 0.0)
-            if peak_pct >= rule["arm_pct"] and pct <= floor_pct:
-                trips.append({"rule": "green_lock",
-                              "detail": f"peak +{peak_pct:.0f}% -> back to +{pct:.0f}% "
-                                        f"<= locked +{floor_pct:.0f}%"})
         elif t == "progressive_stop":
             # ONE ratcheting-stop equation for the whole life (minimal-DD, user 8/4):
             # give-back room R = base + slope*peak GROWS with the move, so a small green locks

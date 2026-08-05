@@ -268,8 +268,7 @@ def final_report(summary: dict, snapshot: dict, state: dict) -> dict:
                 actions["exits"].append(
                     {"id": ex["id"], "contract": ex["contract"], "qty": qty,
                      "order": "sell_limit_at_bid", "why": f"give-back trail: {trip['detail']}"})
-            elif rule in ("stop", "ratchet_stop", "green_lock", "underlying_vwap_stop",
-                          "progressive_stop"):
+            elif rule in ("stop", "ratchet_stop", "underlying_vwap_stop", "progressive_stop"):
                 actions["exits"].append(
                     {"id": ex["id"], "contract": ex["contract"], "qty": qty,
                      "order": "sell_limit_at_bid", "why": f"{rule}: {trip['detail']}"})

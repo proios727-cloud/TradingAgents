@@ -82,6 +82,24 @@ def stale(updated_at_iso: str | None, now_iso: str | None,
         return True
 
 
+def poll_interval_seconds(peak_pct: float, extended: bool = False) -> int:
+    """Management poll cadence that TIGHTENS as a position extends, so the tightening trail
+    actually catches a fast reversal near a peak (the QQQ 8/4 +123%->+56% lesson).
+
+    peak_pct = peak gain % (hwm-based). The bigger the winner - and the tighter its trail tier
+    (5% give-back past +200%) - the faster we must re-check, because a resting poll is the real
+    binding constraint on any trail. `extended` (past the target / near a trail trigger) pulls a
+    still-developing position onto the faster cadence too.
+    """
+    if peak_pct >= 200:
+        return 90          # tight 5% trail — near-continuous watch
+    if peak_pct >= 100:
+        return 180
+    if peak_pct >= 25 or extended:
+        return 480         # past ratchet / target — 8 min
+    return 900             # 15 min baseline
+
+
 def cycle_intent(et_time: str, weekday: bool, trading_date: str, today_iso: str,
                  state: dict, updated_at: str | None = None,
                  now: str | None = None) -> dict:

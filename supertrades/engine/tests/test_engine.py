@@ -502,53 +502,34 @@ class TestProfitMaxGivebackV43(unittest.TestCase):
         self.assertIn("ta_fundamental_gate", cd["swing"]["profit_max"])
 
 
-class TestWinRateGreenLockV44(unittest.TestCase):
-    """v4.4 (8/4): green_lock converts a brief winner into a guaranteed small win.
+class TestPeakAwareCadenceV411(unittest.TestCase):
+    """v4.11: poll cadence tightens as a position extends, so the trail catches fast reversals."""
 
-    Review found win rate ~33% (2/6) with the edge erased by winners round-tripping
-    to losses. green_lock arms a small-green floor once the peak clears arm_pct.
-    """
+    def test_cadence_tightens_with_peak(self):
+        self.assertEqual(ops.poll_interval_seconds(0), 900)      # baseline 15 min
+        self.assertEqual(ops.poll_interval_seconds(10), 900)
+        self.assertEqual(ops.poll_interval_seconds(30), 480)     # past ratchet -> 8 min
+        self.assertEqual(ops.poll_interval_seconds(120), 180)    # mega-winner -> 3 min
+        self.assertEqual(ops.poll_interval_seconds(250), 90)     # +200% tight trail -> ~90s
 
-    def _run_pos(self, exit_rules, *, entry=0.64, hwm=None, mark=None, bid=None):
-        state = copy.deepcopy(load_state())
-        state["positions"] = {
-            "pos-agentic": {"contract": "QQQ 8/4 $724C", "account": AGENTIC_ACCT,
-                            "qty": 1, "entry": entry, "hwm": hwm if hwm else entry,
-                            "ratchet_engaged": False, "class": "day_trade",
-                            "expiry": "2026-08-04", "exit_rules": exit_rules}}
-        state["watchlist"] = []
-        snap = synthetic_snapshot(state, et_time="10:15", bp=500.0)
-        snap["option_quotes"]["pos-agentic"].update(
-            {"mark": mark, "bid": bid if bid is not None else mark})
-        return run(state, snap)
+    def test_extended_flag_pulls_onto_faster_cadence(self):
+        self.assertEqual(ops.poll_interval_seconds(10, extended=True), 480)
 
-    def _exits(self, r):
-        return [e for e in r["actions"]["exits"] if e["id"] == "pos-agentic"]
+    def test_monotone_non_increasing(self):
+        prev = 10_000
+        for pk in (0, 25, 50, 100, 150, 200, 300):
+            cur = ops.poll_interval_seconds(pk)
+            self.assertLessEqual(cur, prev)
+            prev = cur
 
-    GL = {"type": "green_lock", "arm_pct": 20, "floor_pct": 5}
-
-    def test_green_lock_exits_when_winner_round_trips(self):
-        # peaked +25% (0.80), fell back to +3% (0.66) <= +5% lock -> exit a WIN
-        r = self._run_pos([self.GL], hwm=0.80, mark=0.66, bid=0.65)
-        ex = self._exits(r)
-        self.assertTrue(ex and ex[0]["order"] == "sell_limit_at_bid")
-        self.assertIn("green_lock", ex[0]["why"])
-
-    def test_green_lock_dormant_until_armed(self):
-        # peak only +12% (< 20% arm): floor not live, no exit at +3%
-        r = self._run_pos([self.GL], hwm=0.72, mark=0.66, bid=0.65)
-        self.assertFalse(self._exits(r))
-
-    def test_green_lock_holds_above_floor(self):
-        # armed (peak +25%) but still +15% (> +5% floor): keep holding
-        r = self._run_pos([self.GL], hwm=0.80, mark=0.735, bid=0.73)
-        self.assertFalse(self._exits(r))
-
-    def test_class_defaults_carry_green_lock(self):
+    def test_green_lock_fully_pruned(self):
+        # the legacy rule type is gone from the node branch, reporter routing, and class defaults
+        import supertrades.engine.nodes as n
+        import supertrades.engine.reporter as rp
+        self.assertNotIn('"green_lock"', Path(n.__file__).read_text())
+        self.assertNotIn('"green_lock"', Path(rp.__file__).read_text())
         cd = load_state()["class_defaults"]
-        self.assertEqual(cd["0dte_scalp"]["green_lock"]["floor_pct"], 8)
-        self.assertEqual(cd["day_trade"]["green_lock"]["floor_pct"], 5)
-        self.assertEqual(cd["swing"]["green_lock"]["arm_pct"], 30)
+        self.assertNotIn("green_lock", cd["day_trade"])
 
 
 class TestAmIndexVwapTrailV44(unittest.TestCase):
