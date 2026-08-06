@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T17:10:00Z",
+  "updated_at": "2026-08-06T17:20:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -55,14 +55,14 @@
   },
   "performance": {
     "window": "2026-07-21..2026-08-04 (visible log)",
-    "trades_closed": 8,
+    "trades_closed": 9,
     "wins": 3,
-    "losses": 5,
-    "win_rate": 0.38,
-    "gross_pnl_usd": -86,
+    "losses": 6,
+    "win_rate": 0.33,
+    "gross_pnl_usd": -99,
     "avg_win_usd": 31.0,
-    "avg_loss_usd": -35.8,
-    "expectancy_per_trade_usd": -10.75,
+    "avg_loss_usd": -32.0,
+    "expectancy_per_trade_usd": -11.0,
     "read": "8/4 all 3 GREEN (+48/+36/+9). INTC's +9 was cut short by a competing session's hard-exit (would've been ~+35 as a runner) - a CONTRADICTION, not a strategy failure. Wins are clean; earlier edge was erased by 2 oversized losses (NVDA -55%, DIS -42%). Levers: green_lock, cap loss size (marketable stops, no gap), keep runner upside. Goal = raise win rate WITHOUT shrinking winners. Single-executor discipline matters as much as the rails.",
     "recompute": "AUTO via engine/evolution.py::recompute_performance(state.trades) on each close (v4.7)."
   },
@@ -71,10 +71,10 @@
     "equation": "score = 0.45*win_rate*100 + 0.30*expectancy_$ - 0.25*|max_drawdown_$|  (engine/evolution.py::score_objective; weights in OBJECTIVE_WEIGHTS)",
     "resolves_the_tension": "win rate and big wins can conflict; the answer is EXPECTANCY (win_rate x avg_win - loss_rate x avg_loss) raised via green-lock/scale-out WITHOUT shrinking winners, while drawdown is a heavy penalty so you never buy win rate or profit with DD.",
     "current": {
-      "win_rate": 0.38,
-      "expectancy_per_trade_usd": -10.75,
-      "max_drawdown_usd": -91.0,
-      "score": -8.87
+      "win_rate": 0.33,
+      "expectancy_per_trade_usd": -11.0,
+      "max_drawdown_usd": -101.0,
+      "score": -13.7
     },
     "read": "score is negative because the -$91 cumulative drawdown (4 early losses before the wins) dominates. Priority: cut drawdown (marketable stops, the progressive-stop ratchet, no oversized losses) AND lift win rate (green-lock / scale-out) - both push the score up.",
     "min_dd_mechanisms": "progressive_stop equation (ratchets the stop up once green, ~breakeven by +5%), never-red floor, -$60 daily halt, short-DTE + per-trade concentration caps, no single-name overnight gap."
@@ -154,6 +154,15 @@
       "peak_pct": 0.0,
       "result": "loss",
       "note": "squeeze long off 718-king break; stalled immediately, 717 broke + premium hit -45/-48 simultaneously at 10:53; exited marketable w/ cancel-replace chase (0.97->0.90 limit, filled 0.94). Entry valid per gate; management contained it at the stops."
+    },
+    {
+      "date": "2026-08-06",
+      "contract": "QQQ 8/6 $715C",
+      "pnl_usd": -13,
+      "pct": -7.8,
+      "peak_pct": 13.9,
+      "result": "loss",
+      "note": "reversal reclaim-hold entry 1.66; ran to 1.89 (+13.9%), ratchet locked +5.8%; fast fade blew through the ratchet mid-chase (bid 1.74->1.50 in ~40s), filled 1.53. Peak-to-exit slippage ~$21 vs theoretical stop - same fast-0DTE-fade mechanics as QQQ 8/4, but contained: -7.8% on a +14% peak."
     }
   ],
   "evolution": {
@@ -343,16 +352,16 @@
     }
   },
   "day": {
-    "realized_pnl": -88.0,
+    "realized_pnl": -101.0,
     "auto_entries_used": 2,
     "manual_entries_today": 0,
     "manual_round_trips": 0,
     "entries_today_total": 2,
     "churn_threshold_hit": false,
     "halted": false,
-    "open_pnl_est": 23.0,
-    "day_pnl_est": -88.0,
-    "note": "8/6: QQQ 719C -88 (-48.4%). Halt RECALIBRATED -60 -> -120 (USER-AUTHORIZED 11:00 ET: 'use 200 and override') and LIFTED: entries re-enabled, 1/2 used. Next halt line: day P&L <= -120 (one more full stop ends the day). $200/setup unchanged.",
+    "open_pnl_est": 0.0,
+    "day_pnl_est": -101.0,
+    "note": "8/6: 2 trades, both losses (-88 squeeze stall, -13 reversal ratchet-fade). Day -101, above the -120 halt line but 2/2 entries used = DONE trading today. Flat, $532.88.",
     "entry_preference": {
       "set_by": "user 8/6 ~12:00 ET: 'wait till best calls when flip of gamma or reversal'",
       "rule": "PUT-side entries STOOD DOWN for the remaining session (capability exists - long puts fire fine - but the last bullet is reserved). The one remaining entry (2/2) fires ONLY on an A+ CALL setup at a REGIME CHANGE: (a) GAMMA FLIP RECLAIM - QQQ reclaims+holds 720-721 (regime turns positive -> 725 call wall opens) or SPY reclaims+holds 772.5-773 (-> 775/780); the highest-quality long in the playbook; or (b) CONFIRMED REVERSAL - a wall tag that HOLDS with basing + reclaim structure (not a first touch, not a poke). Anything else = no trade; -88 stands as the day.",
@@ -384,59 +393,7 @@
       "unchanged": "A+ confirm bar, one bullet, $200, halt -120, puts OFF, 15:00 hard flat (default)"
     }
   },
-  "positions": {
-    "qqq-715c-0806": {
-      "contract": "QQQ 8/6 $715C",
-      "account": "902341866",
-      "qty": 1,
-      "entry": 1.66,
-      "hwm": 1.89,
-      "ratchet_engaged": true,
-      "scaled_out": false,
-      "class": "0dte_scalp",
-      "expiry": "2026-08-06",
-      "option_id": "04e19071-736e-4bba-9b3c-3e1556c2e75d",
-      "order_id": "6a74bcec",
-      "entry_thesis": "reversal reclaim-HOLD of 715 after coiling base w/ rising lows (714.06->714.24->714.33) and third-visit break; velocity confirmed (ask lifting at entry). Path: 716 -> 718 king (274x trapped-call fuel) -> 721 flip.",
-      "exit_rules": [
-        {
-          "type": "progressive_stop",
-          "base": 3.25,
-          "slope": 0.35,
-          "initial_pct": -45.0,
-          "mech": "sell_marketable_through_bid"
-        },
-        {
-          "type": "target",
-          "pct": 76.4,
-          "runner": true,
-          "mech": "hold_runner_trail_no_cap"
-        },
-        {
-          "type": "giveback",
-          "arm_gain_pct": 50,
-          "peak_frac": 0.4,
-          "tiers": [
-            {
-              "peak_gte": 100,
-              "frac": 0.2
-            },
-            {
-              "peak_gte": 200,
-              "frac": 0.05
-            }
-          ],
-          "mech": "tiered_trail_tightens_at_extreme_gains"
-        },
-        {
-          "type": "underlying_vwap_stop",
-          "buffer_pct": 0.1
-        }
-      ],
-      "underlying_stop": "loss of 714 (the rising-low base) = exit marketable",
-      "hard_flat_et": "15:00 (green-only extension to 15:30 if ratcheted green - ACTIVE per user)"
-    }
-  },
+  "positions": {},
   "watchlist": [],
   "pool": [
     {
@@ -519,6 +476,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T17:20Z",
+      "event": "fill",
+      "detail": "EXIT: QQQ 8/6 715C sold 1 @1.53 (order 6a74c114; fill raced the cancel during the chase) = -13 (-7.8%). Peak was +13.9% (1.89); ratchet tripped at ~1.756 but the fade moved faster than the chase (1.74 rest -> bid 1.50 in ~40s) - ~$21 slippage vs theoretical lock. Day -101 (2/2 entries used, done today). Contained: -7.8% exit on a +14% peak beats riding it red. AH review 16:15 owns the retro (ratchet-vs-velocity is the finding). PUSH sent."
+    },
     {
       "t": "2026-08-06T17:00Z",
       "event": "fill",
