@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T08:10:00Z",
+  "updated_at": "2026-08-06T12:20:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -175,7 +175,7 @@
     "engine": "BUILT v4.5: reporter.size_order() fills the per-trade cap with up to 3 lots (same risk envelope, enables scale-out); reporter.materialize_exit_rules() auto-stamps leg-A scale-out + leg-B strict giveback (0.20) on any >=2-lot entry (single lot -> never-red runner), index scalps get the VWAP trail. Wired into the entry action (qty + exit_rules). Small live BP (~$200) usually resolves to 1 lot until cheaper contracts / more BP.",
     "default_2lot_style": "BARBELL - confirmed (user 8/4). Scale out 1 at the reachable target (recovers most of cost -> house-money-ish), run 1 on the tiered tightening trail with the progressive stop underneath. free_roll (sell 1 at +100% -> runner fully free) is available as a one-flag alternative for high-conviction days, not the default."
   },
-  "trading_date": "2026-08-05",
+  "trading_date": "2026-08-06",
   "rule_version": "v4.14.2",
   "mode": {
     "cadence_min": 30,
@@ -343,7 +343,7 @@
     "halted": false,
     "open_pnl_est": 0.0,
     "day_pnl_est": 0.0,
-    "note": "8/5: DISCIPLINED NO-TRADE DAY. 0 trades, $0 P&L, ZERO drawdown, $633.88 intact. Gate never passed on a pinned +GEX distribution tape."
+    "note": "8/6 rollover premarket: flat, $633.88 settled, counters zeroed."
   },
   "positions": {},
   "watchlist": [],
@@ -426,6 +426,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T12:20Z",
+      "event": "premarket",
+      "detail": "PREMARKET CHECKPOINT 8/6 (~8:10 ET): broker flat $633.88, day rolled over. Funnel (units-correct): premarket sweep = mostly SPAC/ETF noise EXCEPT SKHY -6.8% on 40M shares (semis risk-off leader). Seed: SPY/QQQ + SKHY(put-watch, verify chain) + SHOP(+17% holder, call-watch) + WDC(-13.6% AH, reaction) + NVDA(conditional). Earnings vetted clear on all (SKHY 7/29, SHOP 8/5am beat, WDC 8/5pm miss, NVDA 8/26). Negative-gamma open expected (QQQ 713.6 below broken 720 wall). GEX subagent building maps. 9:40 open-read wakeup armed (sched 9:30 latency buffer). No entries before 9:40."
+    },
     {
       "t": "2026-08-06T08:10Z",
       "event": "ops",
@@ -877,5 +882,36 @@
     },
     "flow": "08:00 premarket seed -> 09:40 open read (PING) -> intraday scans (at-level cadence) -> 12:00 lunch re-screen -> afternoon posture -> hard flats -> 16:15 AH review (PING) -> next day",
     "user_pings": "9:40 open read + 16:15 AH digest + fills/armed setups. Everything else silent."
+  },
+  "watchlist_today": {
+    "date": "2026-08-06",
+    "permanent": [
+      "SPY",
+      "QQQ"
+    ],
+    "singles": [
+      {
+        "sym": "SKHY",
+        "why": "SK hynix ADR -6.8% premarket on 40M shares ($828B cap) - memory/semis risk-off leader (WDC sympathy). Earnings CLEAR (reported 7/29 beat). SHORT-side candidate; MUST verify options liquidity at open (new ADR, chain may be thin).",
+        "side": "put_watch"
+      },
+      {
+        "sym": "SHOP",
+        "why": "+17% post-earnings (8/5 AM beat) and HELD the gain into AH - day-after continuation candidate if it holds VWAP with RVOL.",
+        "side": "call_watch"
+      },
+      {
+        "sym": "WDC",
+        "why": "earnings miss, -13.6% AH to ~448 (from 548) - capitulation/day-after reaction play EITHER direction: bounce only on a hold+reclaim, continuation only on a clean break lower with volume.",
+        "side": "reaction_watch"
+      },
+      {
+        "sym": "NVDA",
+        "why": "CONDITIONAL (downgraded after 8/5 fade to 219.21): needs gap-hold + rvol>=1.5x to re-arm; else ordinary candidate.",
+        "side": "conditional"
+      }
+    ],
+    "premarket_tape": "QQQ ~713.6 (-0.5% overnight, below broken 720 wall = negative gamma), SPY ~770.2 flat at its broken wall. Semis risk-off (SKHY -6.8%, WDC -13.6% AH, AMD day-2 bleed). SHOP/DIS holding gains = dispersion tape.",
+    "regime": "NEGATIVE-GAMMA open expected -> moves travel; rails matter MORE (full gate, RVOL confirm, resting brackets, hard flats). GEX rebuild in flight - levels stamp at the 9:40 read."
   }
 }
