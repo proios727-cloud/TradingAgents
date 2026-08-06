@@ -19,7 +19,10 @@ AGENTIC_ACCT = "902341866"   # execute here ONLY
 MARGIN_ACCT = "812234458"    # READ-ONLY: alerts, never trade
 
 GUARDRAILS = {
-    "daily_halt_usd": -60.0,            # day P&L (realized + open) at/below -> halt
+    "daily_halt_usd": -120.0,           # day P&L (realized + open) at/below -> halt.
+                                        #   v4.14.3 (8/6, USER-AUTHORIZED): recalibrated -60 -> -120
+                                        #   (~2 full stops at the $200/setup budget); -60 predated
+                                        #   $200 sizing and tripped on a single planned stop.
     "max_auto_entries_per_day": 1,      # engine-initiated auto entries
     "max_entries_per_day_total": 2,     # v4 governor: auto + manual combined; alert on the 3rd
     "max_contracts_per_order": 1,      # legacy default (single-lot floor)

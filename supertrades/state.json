@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T14:58:00Z",
+  "updated_at": "2026-08-06T15:05:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -185,7 +185,7 @@
     "default_2lot_style": "BARBELL - confirmed (user 8/4). Scale out 1 at the reachable target (recovers most of cost -> house-money-ish), run 1 on the tiered tightening trail with the progressive stop underneath. free_roll (sell 1 at +100% -> runner fully free) is available as a one-flag alternative for high-conviction days, not the default."
   },
   "trading_date": "2026-08-06",
-  "rule_version": "v4.14.2",
+  "rule_version": "v4.14.3",
   "mode": {
     "cadence_min": 30,
     "dnd": true,
@@ -349,10 +349,10 @@
     "manual_round_trips": 0,
     "entries_today_total": 1,
     "churn_threshold_hit": false,
-    "halted": true,
+    "halted": false,
     "open_pnl_est": 0.0,
     "day_pnl_est": -88.0,
-    "note": "8/6: QQQ 719C squeeze long stopped -88 (-48.4%). DAILY HALT TRIPPED (-88 <= -60): NO further entries today; exits n/a (flat). Design tension flagged: one full stop-out at $200 sizing (-45% = ~-$85) trips the -$60 halt by itself -> halt/sizing incompatible, needs user decision (raise halt to ~-100/-120 or cut per-setup size)."
+    "note": "8/6: QQQ 719C -88 (-48.4%). Halt RECALIBRATED -60 -> -120 (USER-AUTHORIZED 11:00 ET: 'use 200 and override') and LIFTED: entries re-enabled, 1/2 used. Next halt line: day P&L <= -120 (one more full stop ends the day). $200/setup unchanged."
   },
   "positions": {},
   "watchlist": [],
@@ -435,6 +435,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T15:05Z",
+      "event": "rule",
+      "detail": "v4.14.3 HALT RECALIBRATION (USER-AUTHORIZED loosening: 'lift halt, raise to -120, use 200 and override'). GUARDRAILS.daily_halt_usd -60 -> -120 (~2 full stops at $200/setup; -60 predated the sizing and tripped on one planned stop). Halt LIFTED for 8/6: entries re-enabled (1/2 used, -88 realized; one more full stop = day over at -120... effectively -88-85=-173? no: halt checks day P&L <= -120, so next entry's stop -85 puts day at -173, halt fires DURING, blocking further only). Tests updated (-130 fixtures), 101/101, selftest 14/0."
+    },
     {
       "t": "2026-08-06T14:58Z",
       "event": "fill",

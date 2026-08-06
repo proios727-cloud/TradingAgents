@@ -96,7 +96,7 @@ class TestSingleGuardrailGate(unittest.TestCase):
         self.assertIsNotNone(healthy["actions"]["entry"])
         self.assertEqual(healthy["actions"]["entry"]["id"], "cand-nvda")
         # halted: identical node inputs, day P&L below threshold
-        halted = run(state, perfect_candidate(state, day_realized=-80.0))
+        halted = run(state, perfect_candidate(state, day_realized=-130.0))
         self.assertTrue(halted["guardrail_audit"]["halted"])
         self.assertIsNone(halted["actions"]["entry"])
         for audit in halted["guardrail_audit"]["per_candidate"]:
@@ -105,7 +105,7 @@ class TestSingleGuardrailGate(unittest.TestCase):
 
     def test_exits_stay_live_during_halt(self):
         state = entry_ready_state(load_state())
-        snap = perfect_candidate(state, day_realized=-80.0)
+        snap = perfect_candidate(state, day_realized=-130.0)
         snap["option_quotes"]["pos-agentic"].update(
             {"mark": 0.26, "bid": 0.25})           # -35% -> stop
         report = run(state, snap)
