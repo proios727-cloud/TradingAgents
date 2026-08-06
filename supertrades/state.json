@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T17:00:00Z",
+  "updated_at": "2026-08-06T17:10:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -350,7 +350,7 @@
     "entries_today_total": 2,
     "churn_threshold_hit": false,
     "halted": false,
-    "open_pnl_est": 0.0,
+    "open_pnl_est": 23.0,
     "day_pnl_est": -88.0,
     "note": "8/6: QQQ 719C -88 (-48.4%). Halt RECALIBRATED -60 -> -120 (USER-AUTHORIZED 11:00 ET: 'use 200 and override') and LIFTED: entries re-enabled, 1/2 used. Next halt line: day P&L <= -120 (one more full stop ends the day). $200/setup unchanged.",
     "entry_preference": {
@@ -390,8 +390,8 @@
       "account": "902341866",
       "qty": 1,
       "entry": 1.66,
-      "hwm": 1.66,
-      "ratchet_engaged": false,
+      "hwm": 1.89,
+      "ratchet_engaged": true,
       "scaled_out": false,
       "class": "0dte_scalp",
       "expiry": "2026-08-06",
