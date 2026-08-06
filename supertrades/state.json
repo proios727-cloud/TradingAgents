@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T12:40:00Z",
+  "updated_at": "2026-08-06T14:25:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -335,17 +335,69 @@
   },
   "day": {
     "realized_pnl": 0.0,
-    "auto_entries_used": 0,
+    "auto_entries_used": 1,
     "manual_entries_today": 0,
     "manual_round_trips": 0,
-    "entries_today_total": 0,
+    "entries_today_total": 1,
     "churn_threshold_hit": false,
     "halted": false,
     "open_pnl_est": 0.0,
     "day_pnl_est": 0.0,
     "note": "8/6 rollover premarket: flat, $633.88 settled, counters zeroed."
   },
-  "positions": {},
+  "positions": {
+    "qqq-719c-0806": {
+      "contract": "QQQ 8/6 $719C",
+      "account": "902341866",
+      "qty": 1,
+      "entry": 1.82,
+      "hwm": 1.82,
+      "ratchet_engaged": false,
+      "scaled_out": false,
+      "class": "0dte_scalp",
+      "expiry": "2026-08-06",
+      "option_id": "2edfe28c-68ef-4602-ad4f-8640504277e6",
+      "order_id": "6a749866",
+      "entry_thesis": "negative-gamma squeeze: reclaimed 715 -> broke 718 king w/ momentum (+9pts off 709.4 low), green on day, above rising VWAP. Targets: 720-721 flip (regime turn) -> 725 call wall.",
+      "exit_rules": [
+        {
+          "type": "progressive_stop",
+          "base": 3.25,
+          "slope": 0.35,
+          "initial_pct": -45.0,
+          "mech": "sell_marketable_through_bid"
+        },
+        {
+          "type": "target",
+          "pct": 62.4,
+          "runner": true,
+          "mech": "hold_runner_trail_no_cap"
+        },
+        {
+          "type": "giveback",
+          "arm_gain_pct": 50,
+          "peak_frac": 0.4,
+          "tiers": [
+            {
+              "peak_gte": 100,
+              "frac": 0.2
+            },
+            {
+              "peak_gte": 200,
+              "frac": 0.05
+            }
+          ],
+          "mech": "tiered_trail_tightens_at_extreme_gains"
+        },
+        {
+          "type": "underlying_vwap_stop",
+          "buffer_pct": 0.1
+        }
+      ],
+      "underlying_stop": "5-min back under ~717 (king reclaim fail) = exit marketable",
+      "hard_flat_et": "15:00"
+    }
+  },
   "watchlist": [],
   "pool": [
     {
@@ -426,6 +478,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T14:25Z",
+      "event": "fill",
+      "detail": "ENTRY FILLED: QQQ 8/6 719C bought 1 @1.82 ($182, order 6a749866, agentic, filled 10:21:36 ET). Setup: negative-gamma squeeze long - 715 reclaim -> 718 king break w/ momentum, full gate pass (penny spread, d0.44, OI 1781, budget ok). EM exits: target +62.4% runner, stop -45 progressive, trail arms +50 tiered, VWAP stop, hard flat 15:00. First end-to-end engine trade (funnel->GEX->gate->review->place->managed). PUSH sent."
+    },
     {
       "t": "2026-08-06T12:40Z",
       "event": "gex",
