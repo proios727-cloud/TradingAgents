@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T16:02:00Z",
+  "updated_at": "2026-08-06T16:12:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -357,6 +357,14 @@
       "set_by": "user 8/6 ~12:00 ET: 'wait till best calls when flip of gamma or reversal'",
       "rule": "PUT-side entries STOOD DOWN for the remaining session (capability exists - long puts fire fine - but the last bullet is reserved). The one remaining entry (2/2) fires ONLY on an A+ CALL setup at a REGIME CHANGE: (a) GAMMA FLIP RECLAIM - QQQ reclaims+holds 720-721 (regime turns positive -> 725 call wall opens) or SPY reclaims+holds 772.5-773 (-> 775/780); the highest-quality long in the playbook; or (b) CONFIRMED REVERSAL - a wall tag that HOLDS with basing + reclaim structure (not a first touch, not a poke). Anything else = no trade; -88 stands as the day.",
       "why": "morning whipsaw burned the momentum-chase side; flip reclaims flip dealer flow from amplifying to SUPPORTING the move - structurally the best risk/reward left, and it matches the capital reality (one bullet, halt line -120)."
+    },
+    "armed_play": {
+      "authorized": "USER 8/6 ~12:10 ET: 'go' (after selecting 'Arm at reversal confirm')",
+      "play": "QQQ CALLS at CONFIRMED REVERSAL \u2014 auto-execute on confirm, PING on fill. Last bullet (2/2), halt line -120.",
+      "entry_trigger": "BASING + RECLAIM of a broken level per the FRESH midday GEX map (in flight): reversal structure = higher low + reclaim-hold of the nearest broken level (715/718 zone or map update), OR the 720-721 flip reclaim. NOT a first touch, NOT a drift - needs velocity + hold.",
+      "sizing": "$200, 0DTE ~0.35-0.45 delta at/near the reclaim strike, penny-spread/OI gates as always",
+      "exits": "MAX-UPSIDE per user: RUNNER (no cap at target), progressive stop (ratchets breakeven by ~+5% peak then locks green), tiered give-back trail 40%->20%(+100%)->5%(+200%), underlying stop = loss of the reclaimed level, HARD FLAT 15:00.",
+      "stand_down": "put-side stays OFF; if no confirmed reversal appears, no trade - the -88 day stands."
     }
   },
   "positions": {},
@@ -440,6 +448,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T16:12Z",
+      "event": "rule",
+      "detail": "USER GO: QQQ call play ARMED at reversal-confirm (auto-execute + ping on fill). Max-upside exits (runner + ratchet + tiered trail). Awaiting fresh midday GEX+flow map for exact trigger levels; scans tight until confirm or stand-down."
+    },
     {
       "t": "2026-08-06T16:02Z",
       "event": "rule",
