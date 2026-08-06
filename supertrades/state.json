@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T16:12:00Z",
+  "updated_at": "2026-08-06T16:18:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -361,10 +361,12 @@
     "armed_play": {
       "authorized": "USER 8/6 ~12:10 ET: 'go' (after selecting 'Arm at reversal confirm')",
       "play": "QQQ CALLS at CONFIRMED REVERSAL \u2014 auto-execute on confirm, PING on fill. Last bullet (2/2), halt line -120.",
-      "entry_trigger": "BASING + RECLAIM of a broken level per the FRESH midday GEX map (in flight): reversal structure = higher low + reclaim-hold of the nearest broken level (715/718 zone or map update), OR the 720-721 flip reclaim. NOT a first touch, NOT a drift - needs velocity + hold.",
+      "entry_trigger": "MIDDAY-MAP REFINED: (a) QQQ higher-low + reclaim-HOLD of 715-716 (first tell; squeezes the fresh 711-716 put crowd) with velocity -> enter; 718-king reclaim = add-conviction confirmation (trapped 274x-churn calls above = fuel to 721 flip); or (b) 710 put-wall tag that BASES then reclaims. NOT first touch, NOT drift.",
       "sizing": "$200, 0DTE ~0.35-0.45 delta at/near the reclaim strike, penny-spread/OI gates as always",
       "exits": "MAX-UPSIDE per user: RUNNER (no cap at target), progressive stop (ratchets breakeven by ~+5% peak then locks green), tiered give-back trail 40%->20%(+100%)->5%(+200%), underlying stop = loss of the reclaimed level, HARD FLAT 15:00.",
-      "stand_down": "put-side stays OFF; if no confirmed reversal appears, no trade - the -88 day stands."
+      "stand_down": "put-side stays OFF; if no confirmed reversal appears, no trade - the -88 day stands.",
+      "underlying_stop_map": "loss of the reclaimed level (715 entry -> stop under ~713.8; 710-bounce entry -> stop under 709.5)",
+      "upside_map": "715-716 -> 718 king (squeeze fuel) -> 721 flip -> beyond = positive gamma"
     }
   },
   "positions": {},
@@ -402,31 +404,33 @@
     "note": "9:40 ET 8/5 OPEN READ. Indices GREEN above flip pushing call walls (SPY 776.66 btwn 773 flip & 780 wall; QQQ 727.38 btwn 725 flip & 730 wall) -> POSITIVE gamma grind, NOT a pullback -> gex-pullback gate FAIL 0/4 both. NVDA +4.48% gap, price 221.43 ABOVE vwap 218.91 (+1.15%) but EXTENDED = chase risk (day-1 mistake), not a clean entry; watch for VWAP retest ~219 hold. META +1.18% but BELOW vwap 595.74 = fails above-VWAP gate. DECISION: STAND DOWN at open, nothing clears the gate with runway. Watch NVDA VWAP-hold pullback + any index dip below flip. Flat, BP 634."
   },
   "gex_map": {
-    "as_of": "2026-08-06 ~08:30 ET premarket (T-1 OI still updating; QQQ greeks ~4pts stale - true gamma peak shifted toward 713-714)",
-    "vix": "15.99 (+0.18 premarket, drifting up but subdued - no panic bid; 0DTE premium cheap for squeeze plays)",
+    "as_of": "2026-08-06 ~12:05 ET MIDDAY (live intraday OI + volume/flow overlay)",
+    "vix": "15.61 DOWN from 15.99 - vol softening into the slide: ORDERLY hedged distribution, not panic; favors mean-reversion attempts but negative gamma still accelerates any break",
     "SPY": {
-      "spot_pm": 770.81,
-      "gamma_flip": "772.5-773",
-      "put_wall": 770,
-      "deep_shelf": 760,
-      "call_wall": "772 (gamma) / 775 (OI); lotto magnet 780",
-      "king_node": "771 (net -836, put-dominated - spot pinned under it)",
-      "regime": "NEGATIVE gamma through 758-772",
-      "vacuum": "764->761 and <760 = air",
-      "triggers": "Reclaim+HOLD 771-772 (king+flip cluster) = short-gamma SQUEEZE long to 773->775. Rejection at 771/772 + loss of 770 = continuation through 768 into the 764-761 vacuum toward the 760 mega-shelf (16.5k put OI)."
+      "spot": 767.86,
+      "flip": 771.5,
+      "call_wall": 772,
+      "put_wall": 765,
+      "hard_shelf": 760,
+      "king": "768 (net -914, put-dominated) - MIGRATED DOWN from 771; 770 wall GONE (battleground)",
+      "regime": "negative gamma, deeply negative strip",
+      "vacuum": "761-762 thin + 756-759 air below the 760 shelf",
+      "flow": "put flow stacked 765-770 (10-43x OI) + new tails 761P/764P; call-side 771-773 = reversal lottos (771C 66x)",
+      "triggers": "Long only on reclaim-hold of 768 king then acceptance >770; through 771.5-772 = positive gamma squeeze. Slide magnets: 765 -> 760 shelf -> vacuum 756."
     },
     "QQQ": {
-      "spot_pm": 713.43,
-      "gamma_flip": "720-721 (~7pts above spot)",
-      "put_wall": 710,
-      "secondary": "708/705, deep anchor 700 (8.6k put OI)",
-      "call_wall": "725; interim resistance 718/720 (old wall)",
-      "king_node": "718 (net -275, put-dominated, now OVERHEAD = magnet/sell zone)",
-      "regime": "DEEP NEGATIVE gamma (worst prints 713-720; dealers chase both ways)",
-      "vacuum": "713->710 thin, 709->705, and 704->700 AIR POCKET (almost no put OI 701-704)",
-      "triggers": "Bounce arms ONLY on reclaim of 715 then the 718 king (718-720 = fade zone until reclaimed; 720-721 reclaim flips the regime). Losing the 710 put wall opens the 709-705 slide and the 704-700 air pocket - fast."
+      "spot": 714.49,
+      "flip": "~721+ (no positive shelf inside 700-722)",
+      "call_wall": "none real (721 weak +34)",
+      "put_wall": "710 CONFIRMED (put vol 129k @ 23x OI)",
+      "hard_floor": 700,
+      "king": "718 (net -454) - SAME strike but FLIPPED CHARACTER: now the biggest REJECTION zone (trapped calls from the failed V-bounce: 718C 274x/235k vol churn, 717C 148x, 716C 112x)",
+      "regime": "negative gamma, NO support shelf until 710",
+      "vacuum": "704-700 air pocket persists + thin 706-707",
+      "flow": "fresh PUT positioning AT/below spot 711-716 (60x+ vol/OI) targeting the 710 wall; deeper tails 709P/703-704P; call bottom-fishing only 719-722",
+      "triggers": "First reclaim tell = 715-716 (small positive node + heaviest churn). REAL flip-reclaim entry = reclaim-HOLD of the 718 king (trapped calls above = squeeze fuel). 710 base-and-bounce = alternative confirm. 710 cracks -> 705 -> 704-700 air, floor 700."
     },
-    "read": "NEGATIVE-GAMMA morning both names: moves travel, both directions. SPY premarket already reclaimed its broken 770 wall (constructive); QQQ is the weak one, 7pts below flip with an air pocket underneath. VIX subdued = squeeze fuel is cheap if reclaims trigger."
+    "read": "Structure shifted DOWN ~3pts on SPY; QQQ's 718 king flipped from magnet to rejection. Fresh put flow is chasing price (711-716) - crowded shorts just below spot means a 715-716 reclaim can squeeze THEM first, then the 718 trapped-call fuel above. That two-stage squeeze is exactly the armed reversal play's fuel IF the base forms."
   },
   "open_plan": {
     "date": "2026-08-06",
@@ -448,6 +452,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T16:18Z",
+      "event": "gex",
+      "detail": "MIDDAY GEX+FLOW stamped: SPY king migrated DOWN to 768 (770 wall gone, put wall 765, shelf 760); QQQ 718 king flipped to REJECTION (trapped calls 274x churn), put wall 710 confirmed, fresh put flow crowded 711-716 AT spot = squeeze fuel if 715-716 reclaims. VIX 15.61 softening (orderly distribution). Armed play refined: QQQ reversal = 715-716 reclaim-hold (put-crowd squeeze) -> 718 king -> 721 flip; alt = 710 base-bounce. Watch-scan loop live."
+    },
     {
       "t": "2026-08-06T16:12Z",
       "event": "rule",
