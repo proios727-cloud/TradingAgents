@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T12:20:00Z",
+  "updated_at": "2026-08-06T12:40:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -380,31 +380,31 @@
     "note": "9:40 ET 8/5 OPEN READ. Indices GREEN above flip pushing call walls (SPY 776.66 btwn 773 flip & 780 wall; QQQ 727.38 btwn 725 flip & 730 wall) -> POSITIVE gamma grind, NOT a pullback -> gex-pullback gate FAIL 0/4 both. NVDA +4.48% gap, price 221.43 ABOVE vwap 218.91 (+1.15%) but EXTENDED = chase risk (day-1 mistake), not a clean entry; watch for VWAP retest ~219 hold. META +1.18% but BELOW vwap 595.74 = fails above-VWAP gate. DECISION: STAND DOWN at open, nothing clears the gate with runway. Watch NVDA VWAP-hold pullback + any index dip below flip. Flat, BP 634."
   },
   "gex_map": {
-    "as_of": "2026-08-05T18:13:00Z (14:13 ET, live intraday OI)",
-    "source": "RH 0DTE chain reconstruction, +call_gamma/-put_gamma net GEX; VIX via get_index_quotes",
-    "vix": 15.73,
-    "vix_read": "low/subdued, fear OFF -> damped +GEX pin environment, no flush conviction",
+    "as_of": "2026-08-06 ~08:30 ET premarket (T-1 OI still updating; QQQ greeks ~4pts stale - true gamma peak shifted toward 713-714)",
+    "vix": "15.99 (+0.18 premarket, drifting up but subdued - no panic bid; 0DTE premium cheap for squeeze plays)",
     "SPY": {
-      "spot": 772.1,
-      "gamma_flip": 772.5,
-      "call_wall": 773,
+      "spot_pm": 770.81,
+      "gamma_flip": "772.5-773",
       "put_wall": 770,
-      "king_node": 773,
-      "regime": "PINNED at flip, total +GEX (+$1.86bn/1%), dealers damping",
-      "morning_vs_now": "call wall/king COLLAPSED 780->773; put wall held 770; compressed to 770-773 pin",
-      "triggers": "Long ONLY on reclaim+HOLD >773 but 773 is now call wall/king = capped: magnet 775, then 780 only if 775 breaks (weaker than AM thesis). Short = lose 770 put wall -> air 767/765. +GEX = FADE extremes of 770-773, NO breakout chase. Secondary 780 still holds largest raw call OI (upside only if 775 gives)."
+      "deep_shelf": 760,
+      "call_wall": "772 (gamma) / 775 (OI); lotto magnet 780",
+      "king_node": "771 (net -836, put-dominated - spot pinned under it)",
+      "regime": "NEGATIVE gamma through 758-772",
+      "vacuum": "764->761 and <760 = air",
+      "triggers": "Reclaim+HOLD 771-772 (king+flip cluster) = short-gamma SQUEEZE long to 773->775. Rejection at 771/772 + loss of 770 = continuation through 768 into the 764-761 vacuum toward the 760 mega-shelf (16.5k put OI)."
     },
     "QQQ": {
-      "spot": 721.49,
-      "gamma_flip": 724.4,
-      "call_wall": 725,
-      "put_wall": 720,
-      "king_node": 725,
-      "regime": "BELOW flip = negative/chop pocket 720-724, bearish-below-flip",
-      "morning_vs_now": "call wall 730->725, put wall 715->720 (both squeezed inward); king 725 at flip",
-      "triggers": "Bearish below 724.4: FAIL to reclaim 724-725 = short bias, put wall 720 then air 717/715. Bullish only on reclaim+hold >724.5 -> 725 king, above 725 opens 730."
+      "spot_pm": 713.43,
+      "gamma_flip": "720-721 (~7pts above spot)",
+      "put_wall": 710,
+      "secondary": "708/705, deep anchor 700 (8.6k put OI)",
+      "call_wall": "725; interim resistance 718/720 (old wall)",
+      "king_node": "718 (net -275, put-dominated, now OVERHEAD = magnet/sell zone)",
+      "regime": "DEEP NEGATIVE gamma (worst prints 713-720; dealers chase both ways)",
+      "vacuum": "713->710 thin, 709->705, and 704->700 AIR POCKET (almost no put OI 701-704)",
+      "triggers": "Bounce arms ONLY on reclaim of 715 then the 718 king (718-720 = fade zone until reclaimed; 720-721 reclaim flips the regime). Losing the 710 put wall opens the 709-705 slide and the 704-700 air pocket - fast."
     },
-    "net": "No big flip migration but call walls/king migrated DOWN to spot + put walls tightened UP -> board COMPRESSED into pins (SPY 770-773, QQQ 720-725). Morning 780/730 call walls were the stale error; real ceilings now 773/725. Reinforces STAND DOWN: capped upside + low VIX + tight pins = low-probability trending scalp; take only a clean momentum break of a pin edge, else no-trade."
+    "read": "NEGATIVE-GAMMA morning both names: moves travel, both directions. SPY premarket already reclaimed its broken 770 wall (constructive); QQQ is the weak one, 7pts below flip with an air pocket underneath. VIX subdued = squeeze fuel is cheap if reclaims trigger."
   },
   "open_plan": {
     "date": "2026-08-06",
@@ -426,6 +426,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T12:40Z",
+      "event": "gex",
+      "detail": "PREMARKET GEX 8/6 stamped: SPY neg-gamma, spot 770.81 pinned under 771 king, squeeze long on 771-772 reclaim-hold (->773/775), continuation short on 770 loss (->764-761 vacuum, 760 shelf). QQQ DEEP neg-gamma 7pts below 720-721 flip, 718 king overhead = fade zone, 710 put wall over a 704-700 air pocket. VIX 15.99 subdued. 9:40 read will trade off these levels."
+    },
     {
       "t": "2026-08-06T12:20Z",
       "event": "premarket",
