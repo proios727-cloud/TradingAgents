@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T16:25:00Z",
+  "updated_at": "2026-08-06T16:28:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -458,6 +458,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T16:28Z",
+      "event": "lunch_checkpoint",
+      "detail": "LUNCH 8/6 (~12:25 ET): funnel re-run (units-correct, intraday rvol frac 0.45): 8 survivors, top DEO +5.0%/1.3x (Diageo ADR earnings pop), TS -7.1%/2.7x, AS +1.4%/2.0x \u2014 none beats the armed index plays and all face the same single-name option-gate wall (ADR liquidity/IV cost); NO promotions, afternoon posture favors known structure. Watchlist: indices primary (armed QQQ reversal + SPY alternate), SHOP/WDC/SKHY confirmed untradable at $200, META/NVDA dropped. GEX already refreshed 12:05 (midday map). Morning plan vs reality: vacuum invalidated by V-bounce, squeeze stalled and stopped (-88), now hunting the reversal. STATUS: QQQ 714.06 drifting (no base yet); SPY 768.09 AT the 768 king line (first trigger of the alternate) \u2014 needs HOLD + acceptance >770. Watch tight."
+    },
     {
       "t": "2026-08-06T16:25Z",
       "event": "rule",
