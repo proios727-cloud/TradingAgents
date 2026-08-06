@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T16:50:00Z",
+  "updated_at": "2026-08-06T16:55:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -246,7 +246,7 @@
       },
       "hard_exit_et": "15:15",
       "index_hard_close_et": "15:00",
-      "exit_time_discipline": "HARD (user 8/4 'hard on exit time ... always close before best target time for indexes'). INDEX positions (SPY/QQQ) MUST be flat by index_hard_close_et 15:00 - non-discretionary buffer BEFORE the 15:15 backstop; never ride to the deadline (late-day gamma/pin/theta risk). Non-index 0dte: hard-exit 15:15. No ratchet-keep discretion for indexes into the close.",
+      "exit_time_discipline": "HARD (user 8/4 'hard on exit time ... always close before best target time for indexes'). INDEX positions (SPY/QQQ) MUST be flat by index_hard_close_et 15:00 - non-discretionary buffer BEFORE the 15:15 backstop; never ride to the deadline (late-day gamma/pin/theta risk). Non-index 0dte: hard-exit 15:15. No ratchet-keep discretion for indexes into the close. v4.14.4 (USER-APPROVED 8/6 'extend'): GREEN-ONLY EXTENSION - a position that is RATCHETED GREEN at 15:00 (progressive stop at/above breakeven, trail armed) may trail to 15:30 MAX on 90s cadence with the trail forced to the 5% tier; red/flat positions still HARD FLAT 15:00, no exceptions. Never past 15:30 (RH force-sellout 15:45). Asymmetric: only winners can use it.",
       "profit_max": {
         "runner": true,
         "giveback": {
@@ -380,7 +380,7 @@
       "cadence": "13:45+ scans every 3-4 min regardless of proximity (14:00-14:30 = the resolution window); 90s at levels",
       "entry_cutoff": "14:30 HARD - no new 0DTE entry after (can't develop before the flat); watch converts to observation + tomorrow-prep",
       "vix_on_confirm": "pull VIX at any confirm: falling = orderly reversion (normal handling); popping during reclaim = squeeze fuel (trail can breathe early)",
-      "pending_user_ok": "green-only 15:30 extension (ratcheted-green positions may trail 15:00->15:30 max on 90s cadence, 5%-tier trail; red/flat still hard-flat 15:00). NOT active until user approves.",
+      "pending_user_ok": "APPROVED 8/6 ~12:45 ET ('extend'): green-only 15:30 extension ACTIVE.",
       "unchanged": "A+ confirm bar, one bullet, $200, halt -120, puts OFF, 15:00 hard flat (default)"
     }
   },
@@ -467,6 +467,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T16:55Z",
+      "event": "rule",
+      "detail": "v4.14.4 GREEN-ONLY 15:30 EXTENSION approved+active (user 'extend'): ratcheted-green 0DTE may trail 15:00->15:30 max (90s cadence, 5%-tier trail); red/flat still hard-flat 15:00. Asymmetric by design - only winners qualify, worst-case risk unchanged."
+    },
     {
       "t": "2026-08-06T16:50Z",
       "event": "rule",
