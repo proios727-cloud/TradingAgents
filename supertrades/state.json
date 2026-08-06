@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-05T20:25:00Z",
+  "updated_at": "2026-08-06T08:10:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -426,6 +426,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T08:10Z",
+      "event": "ops",
+      "detail": "DAILY RHYTHM COMPLETED: created premarket 8:00 ET (trig_01MxPW) + lunch 12:00 ET (trig_015CT) crons, joining the 16:15 AH review \u2014 the full day now runs itself (self-bound, connector-inherited, latency-buffered). First premarket fire ~8:06 ET today 8/6. User pings: 9:40 read + AH digest + fills/armed only."
+    },
     {
       "t": "2026-08-05T20:25Z",
       "event": "ah_review",
@@ -862,5 +867,15 @@
     },
     "regime": "RISK-OFF into the close: breadth negative, BOTH indices closed below their put walls = tomorrow opens in NEGATIVE-GAMMA territory (dealers amplify, moves run further) - the opposite of today's pin. Heavy AH earnings reactions (DASH/APP/DDOG/TTD/ABNB cohort reported tonight) = gappers for the premarket funnel.",
     "tomorrow_bias": "Volatile open likely: negative gamma + earnings gap cohort. GEX map premarket is CRITICAL (walls will have migrated on the breakdown). Index plays now favor downside-continuation/put-wall-bounce structures; NVDA carry needs a fresh look after its fade (219.21, below its old VWAP zone)."
+  },
+  "daily_rhythm": {
+    "complete": "2026-08-06 \u2014 the trading day now runs itself end-to-end (all self-bound to the executor session; broker connector inherited; wakeup-latency buffer applied)",
+    "triggers": {
+      "premarket_0800": "trig_01MxPWpyNkj92tkBrCbPYkUh \u2014 funnel seed + earnings check + GEX-first (negative-gamma aware) + arms the 9:40 open-read ping",
+      "lunch_1200": "trig_015CT6rQMCn9SADPVWuMThZR \u2014 funnel re-screen w/ intraday rvol + GEX refresh + promote/demote; silent unless armed",
+      "ah_review_1615": "trig_01RZACkTdLaqms6ESMnyM1Yk \u2014 daily retro digest, slight tweaks only"
+    },
+    "flow": "08:00 premarket seed -> 09:40 open read (PING) -> intraday scans (at-level cadence) -> 12:00 lunch re-screen -> afternoon posture -> hard flats -> 16:15 AH review (PING) -> next day",
+    "user_pings": "9:40 open read + 16:15 AH digest + fills/armed setups. Everything else silent."
   }
 }
