@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T17:20:00Z",
+  "updated_at": "2026-08-06T17:25:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-05",
@@ -194,7 +194,7 @@
     "default_2lot_style": "BARBELL - confirmed (user 8/4). Scale out 1 at the reachable target (recovers most of cost -> house-money-ish), run 1 on the tiered tightening trail with the progressive stop underneath. free_roll (sell 1 at +100% -> runner fully free) is available as a one-flag alternative for high-conviction days, not the default."
   },
   "trading_date": "2026-08-06",
-  "rule_version": "v4.14.3",
+  "rule_version": "v4.14.5",
   "mode": {
     "cadence_min": 30,
     "dnd": true,
@@ -476,6 +476,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T17:25Z",
+      "event": "rule",
+      "detail": "v4.14.5 RESTING RATCHET shipped (tightening, from today's -13 fade): on ratchet arm, the locked stop RESTS broker-side as GTC sell-limit, replaced upward as peak grows - no chase latency. Poll loop still owns trail/target. Effective immediately for all future positions."
+    },
     {
       "t": "2026-08-06T17:20Z",
       "event": "fill",
@@ -871,7 +876,11 @@
       "peak >= +200% (5% trail) -> ~90s / near-continuous"
     ],
     "exits": "marketable-through-bid when extended; a resting bid misses fast reversals.",
-    "wakeup_latency_buffer": "schedule time-critical wakeups 10-15 min EARLY (observed 8/5: fires drifted 30 min); exits NEVER depend on wakeups - resting brackets are broker-side truth."
+    "wakeup_latency_buffer": "schedule time-critical wakeups 10-15 min EARLY (observed 8/5: fires drifted 30 min); exits NEVER depend on wakeups - resting brackets are broker-side truth.",
+    "resting_ratchet": {
+      "set": "v4.14.5 (8/6, from the -13 ratchet-fade): when the progressive stop RATCHETS (peak >= +5%), REST the stop broker-side - place a GTC sell-limit at the locked level immediately, cancel/replace UPWARD ONLY as the peak grows (never down). The broker's matching engine has no chase latency; the poll loop keeps managing trail/target on top. Marketable chase = fallback only if the resting order is somehow gone.",
+      "impact": "today's -13 becomes ~+8; 8/4's QQQ +56 becomes ~+75. Applies to every future ratcheted position."
+    }
   },
   "next_session": {
     "priority": "WIRE THE v4.14 FUNNEL INTO THE PREMARKET TUNE (engine code SHIPPED; tomorrow's tune should USE it): run_scan market-wide -> funnel_candidates -> funnel_filter -> funnel_rank top ~5 -> seed the day's active watchlist (SPY/QQQ permanent). Midday refresh re-runs it. Flow flag: pass flow_unusual (reporter.unusual_flow on chain volume/OI) into conviction inputs near GEX levels.",
