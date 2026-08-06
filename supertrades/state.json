@@ -1,14 +1,13 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T17:25:00Z",
+  "updated_at": "2026-08-06T20:25:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
-    "date": "2026-08-05",
-    "status": "CLOSED-ish (~15:30 ET wrap; final-minutes watch armed to ~15:40) - account FLAT, 0 orders, $633.88 BP, no overnight positions",
-    "day_result": "NO-TRADE DAY (a win under the objective: 0 DD). Tape: gap-up-and-fade distribution - SPY pinned 770-773 all day (+0.04% at wrap), QQQ -0.41% below flip (720 wall held 2x), NVDA lone leader +4.7% but rvol 1.01x ALL DAY (no institutional thrust - objective gate held us out of the fizzling creep), META full gap-and-fade reversal -0.97%.",
-    "discipline_ledger": "Every stand-down verified: SPY 770 bounce sliced (no hold); NVDA 4 breakout pokes all volume-unconfirmed; QQQ wall never broke with force; last-hour 200-name funnel sweep found zero gate-passers. Caps never approached.",
-    "shipped_today": "v4.13 (resting brackets, objective breakout RVOL gate 1.5x, at-level 90s cadence) + v4.14 (universe funnel + unusual-flow flag, built by background agent, reviewed 99/99 tests) + funnel checkpoints codified (premarket broad screen / lunch re-screen) + $200-per-setup sizing + afternoon posture + dynamic watchlist + regime-shift re-tailoring. Console refreshed live. 12 commits.",
-    "settlement": "no trades -> nothing to settle; $633.88 all settled for tomorrow."
+    "date": "2026-08-06",
+    "status": "CLOSED - flat, $532.88 settled for 8/7, no overnight positions",
+    "day_result": "-$101 (2 trades: -88 squeeze stall at the 718 break; -13 ratchet-fade on the 715 reversal that peaked +14%). Week: +93, 0, -101 = -8 net.",
+    "discipline_ledger": "Both entries full-gate confirms; both exits at planned rails; 3 knife-catches declined; halt honored at -101 vs -120 line; no 3rd trade despite BP. Two execution lessons bought and SHIPPED same-day (halt recalibration, resting ratchet).",
+    "shipped_today": "v4.14.3 halt -120 (user), v4.14.4 green-only 15:30 ext (user), v4.14.5 resting ratchet (code+tests). 102/102."
   },
   "execution_layer": {
     "mode": "engine_driven (v4.6)",
@@ -476,6 +475,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T20:25Z",
+      "event": "ah_review",
+      "detail": "DAILY AH REVIEW #2: resting ratchet formalized in code (progressive_stop resting=True, 102/102); posture note - basing/reclaim entries > momentum-breaks below the flip; SHOP validated the funnel (+2.3% close, cost-gated only). Closes: SPY held 768 king, QQQ closed AT 715 (AH 715.8), WDC/SKHY stabilizing, week -8 net. 8/7 prepped. Digest sent."
+    },
     {
       "t": "2026-08-06T17:25Z",
       "event": "rule",
@@ -966,36 +970,31 @@
     }
   },
   "session_retro": {
-    "date": "2026-08-05",
-    "mode": "daily AH review (light-touch)",
+    "date": "2026-08-06",
+    "mode": "daily AH review #2 (light-touch)",
     "findings": [
-      "1) UNITS BUG (proven miss, FIXED v4.14.2): RH scanner '% Change' is a FRACTION (0.199=+19.9%); funnel read SHOP's +19.9% earnings rip as +0.2% and reported 'no movers'. Fix: live.rh_scan_rows canonical mapper (fraction->percent, one mapper for all scan consumers) + test. Re-run of the 15:25 sweep with correct units shows ~12 real >5B movers (all >8% earnings gap-traps = correctly non-tradable, but now VISIBLE).",
-      "2) WAKEUP LATENCY (procedural): 15:15 trigger fired ~15:45, 15:40 fired ~16:10. Time-critical checks must be scheduled 10-15 min EARLY; exits never depend on wakeups (resting brackets are broker-side truth, v4.13). Noted in management_cadence.",
-      "3) LATE-DAY BREAKDOWN after the watch wound down: QQQ broke its 720 put wall into the close (-0.91%, closed 717.28), SPY closed below 770 (-0.21%). The short-bias read was RIGHT but resolved post-window - structurally fine (index 0DTE closes 15:00) yet keep at-level cadence running to ~15:55 for INFORMATION (tomorrow-prep value), even when entries are off."
+      "1) RATCHET-CHASE LATENCY (proven, FIXED v4.14.5 in code): the +14%-peak trade lost -7.8% because the fade outran the polled chase (bid 1.74->1.50 in ~40s). progressive_stop now carries resting=True \u2014 once ratcheted, the locked stop RESTS broker-side (GTC, replaced upward-only). Turns today's -13 into ~+8 and 8/4's +56 into ~+75. 102/102 tests.",
+      "2) ENTRY STYLE IN DEEP NEGATIVE GAMMA (posture note): the breakout-style entry (718-king break) stalled and died instantly (-88); the basing-reversal entry (715 coil, rising lows) worked (+14% peak) and only lost to execution latency. Below the flip, BASING/RECLAIM entries > momentum-break entries \u2014 breaks in dealer-short territory attract immediate fade. Encoded as afternoon preference, not a hard rail.",
+      "3) FUNNEL VALIDATION: SHOP closed +2.3% (day-after continuation exactly as call-watched \u2014 blocked only by option cost gates). The discovery layer is picking right; the $532 BP is what locks us out of single-names. Not a rule change - a capital note."
     ],
     "vindications": [
-      "NVDA no-chase fully vindicated: faded 222.2 HOD -> 219.21 close (+3.4%); every declined entry (221.5-221.9) would have closed red. The objective rvol gate (1.01x all day) was the correct tell.",
-      "WDC 700C whale-follow discipline vindicated: earnings MISSED, AH -9.1% to ~472. The 'large order' was not a bullish tell (spread/hedge/roll) - following it = torched. Flow stays CONFIRMATION-ONLY.",
-      "Strength-hold entry hypothesis (gap leader holds VWAP -> starter) DISPROVEN by today's tape: NVDA's late fade would have stopped it out red. Not added."
+      "Both losses contained by rails (-48% planned stop, -7.8% ratchet exit on +14% peak). Week -8 net with 2 hostile days.",
+      "Halt discipline held at day -101 despite user pressure + remaining BP - the $532 survives to tomorrow.",
+      "Reversal-confirm patience avoided 3 knife-catches before the valid entry."
     ]
   },
   "ah_pm_read": {
-    "as_of": "2026-08-05T20:15Z (~16:15 ET)",
+    "as_of": "2026-08-06 ~16:16 ET",
     "closes": {
-      "SPY": "769.74 (-0.21%) - closed BELOW the 770 put wall",
-      "QQQ": "717.28 (-0.91%) - BROKE the 720 put wall into the close",
-      "NVDA": "219.21 (+3.4%, faded from 222.2 HOD)",
-      "META": "588.80 (+0.15%, late recovery)",
-      "AMD": "481.73 (-7.1%, day-2 bleed)"
+      "SPY": "768.56 (-0.16%) - HELD the 768 king into the close",
+      "QQQ": "714.56 (-0.38%) - closed AT the 715 battle line; AH 715.84 (+1.28 AH = bid under it)",
+      "NVDA": "218.99 flat",
+      "WDC": "451.52 (-13.0%) but bounced off 407 low and stabilizing AH",
+      "SHOP": "147.54 (+2.3%) - day-after continuation held all day",
+      "SKHY": "143.58 (-4.9%) stabilized off -8.3% low"
     },
-    "ah_prints": {
-      "WDC": "~472 (-9.1% AH) - earnings MISS after -5.4% RTH",
-      "SHOP": "145.44 AH after +17% RTH (reported, strong)",
-      "DIS": "+3.7% RTH held (reported)",
-      "NVDA": "220.08 AH (stable)"
-    },
-    "regime": "RISK-OFF into the close: breadth negative, BOTH indices closed below their put walls = tomorrow opens in NEGATIVE-GAMMA territory (dealers amplify, moves run further) - the opposite of today's pin. Heavy AH earnings reactions (DASH/APP/DDOG/TTD/ABNB cohort reported tonight) = gappers for the premarket funnel.",
-    "tomorrow_bias": "Volatile open likely: negative gamma + earnings gap cohort. GEX map premarket is CRITICAL (walls will have migrated on the breakdown). Index plays now favor downside-continuation/put-wall-bounce structures; NVDA carry needs a fresh look after its fade (219.21, below its old VWAP zone)."
+    "regime": "Two-day risk-off pause: indices holding key GEX levels into the close (SPY 768 king, QQQ 715), VIX softened intraday, WDC/SKHY carnage stabilizing, SHOP accumulating. Fed-speak remains the floating catalyst. Set-up for a mean-reversion attempt tomorrow IF no new shoe drops.",
+    "tomorrow_bias": "8/7 Friday: fresh GEX premarket (levels will migrate again), funnel screen, SHOP stays call-watch (still gated by cost - check IV compression, spreads may normalize a day+ after earnings), QQQ 715/718 structure carries over if futures flat. Resting-ratchet live on all positions."
   },
   "daily_rhythm": {
     "complete": "2026-08-06 \u2014 the trading day now runs itself end-to-end (all self-bound to the executor session; broker connector inherited; wakeup-latency buffer applied)",

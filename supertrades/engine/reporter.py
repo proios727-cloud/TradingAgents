@@ -218,8 +218,12 @@ def materialize_exit_rules(class_name: str, qty: int, class_defaults: dict,
     # ONE ratcheting-stop equation covers the whole life (initial stop -> ~breakeven by +5%
     # -> locks growing green -> looser room for big runners). Minimal drawdown, fewer parts.
     rules: list[dict] = [
+        # resting=True (v4.14.5, 8/6 ratchet-fade lesson): once the stop RATCHETS
+        # (peak >= ~+5%), the executor RESTS it broker-side as a GTC sell-limit at the
+        # locked level, replaced upward-only as the peak grows — no poll/chase latency.
+        # Marketable chase remains the fallback path only.
         {"type": "progressive_stop", "base": 3.25, "slope": 0.35,
-         "initial_pct": stp, "mech": "sell_marketable_through_bid"},
+         "initial_pct": stp, "resting": True, "mech": "rest_ratchet_gtc_else_marketable"},
     ]
     # TIERED runner trail: arms once it's a solid winner, loose while developing, TIGHTENS at
     # extreme gains so a mega-winner locks ~all of it (give back 40% -> 20% at +100% -> 5% at

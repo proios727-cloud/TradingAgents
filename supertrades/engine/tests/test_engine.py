@@ -997,6 +997,16 @@ class TestExecutionAccuracyV413(unittest.TestCase):
         self.assertFalse(stgt.get("resting_bracket", False))
         self.assertTrue(stgt.get("runner"))
 
+    def test_progressive_stop_rests_broker_side(self):
+        # v4.14.5 (8/6 ratchet-fade, -$13 on a +14% peak): once ratcheted, the locked
+        # stop RESTS broker-side (GTC, replaced upward-only) — no poll/chase latency
+        from supertrades.engine.reporter import materialize_exit_rules
+        for qty in (1, 2):
+            rules = materialize_exit_rules("0dte_scalp", qty, {}, is_index=True,
+                                           target_pct=60, stop_pct=-45)
+            ps = next(r for r in rules if r["type"] == "progressive_stop")
+            self.assertTrue(ps.get("resting"))
+
     def test_breakout_needs_objective_rvol(self):
         # a level-break only confirms with real participation; a quiet creep or
         # UNKNOWN volume does not (the 8/5 NVDA 221.7 slow-creep fakeout)
