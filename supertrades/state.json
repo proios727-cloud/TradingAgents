@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-07T14:30:00Z",
+  "updated_at": "2026-08-07T15:28:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-06",
@@ -368,7 +368,7 @@
     "entries_today_total": 2,
     "churn_threshold_hit": false,
     "halted": false,
-    "open_pnl_est": 0.0,
+    "open_pnl_est": 30.0,
     "day_pnl_est": 0.0,
     "note": "8/7: trade 1 = SCRATCH (SPY 772C, resting ratchet stop worked perfectly - breakeven exit on a violent reversal). 1/2 entries used, $532.68 intact, watching for re-arm.",
     "third_bullet": {
@@ -382,8 +382,8 @@
       "account": "902341866",
       "qty": 1,
       "entry": 1.86,
-      "hwm": 1.86,
-      "ratchet_engaged": false,
+      "hwm": 2.165,
+      "ratchet_engaged": true,
       "scaled_out": false,
       "class": "0dte_scalp",
       "expiry": "2026-08-07",
@@ -424,7 +424,13 @@
       ],
       "underlying_stop": "SPY loss of 770 (flip/re-base floor) = exit marketable",
       "wall_plan": "HARVEST 774.3-775.0 into the +173k wall (cancel any resting stop FIRST, sell marketable). Runner only on 5-min acceptance >775.40 w/ flow migrated 777-780. Aborts: VIX>15.8, put flow overtake, 770 loss.",
-      "hard_flat_et": "15:00 (green-ext 15:30 if ratcheted)"
+      "hard_flat_et": "15:00 (green-ext 15:30 if ratcheted)",
+      "resting_stop": {
+        "order_id": "6a75f911-6b0a-4ad1-b1c2-844a64874fae",
+        "type": "stop_market",
+        "stop_price": 2.0,
+        "note": "ratchet lock +7.4% over entry; replace UPWARD-only as peak grows; cancel before any other exit"
+      }
     }
   },
   "watchlist": [],
@@ -511,6 +517,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-07T15:28Z",
+      "event": "ratchet",
+      "detail": "BREAKOUT+RATCHET: SPY broke 773 (773.71), 772C mark 2.165 (+16.4%) - stop ratcheted to 2.00 (+7.5% locked) and RESTED broker-side (order 6a75f911). Recovery from -25% complete; position now structurally GREEN. Harvest zone 774.3-775 is $0.6 away (delta 0.735). 90s cadence."
+    },
     {
       "t": "2026-08-07T14:30Z",
       "event": "fill",
