@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-07T13:55:00Z",
+  "updated_at": "2026-08-07T13:54:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-06",
@@ -359,7 +359,7 @@
     "entries_today_total": 1,
     "churn_threshold_hit": false,
     "halted": false,
-    "open_pnl_est": 0.0,
+    "open_pnl_est": 7.5,
     "day_pnl_est": 0.0,
     "note": "8/7 Friday rollover: flat, $532.68 settled, counters zeroed, halt -120, resting ratchet LIVE, GEX-headroom gate applied as judgment."
   },
@@ -369,8 +369,8 @@
       "account": "902341866",
       "qty": 1,
       "entry": 1.33,
-      "hwm": 1.33,
-      "ratchet_engaged": false,
+      "hwm": 1.405,
+      "ratchet_engaged": true,
       "scaled_out": false,
       "class": "0dte_scalp",
       "expiry": "2026-08-07",
@@ -422,6 +422,12 @@
         "runner_exception": "hold ONLY on 5-min ACCEPTANCE >775.40 AND call flow visibly migrating 777-780 (currently lotto-sized, not wall-breaking)",
         "aborts": "VIX reverses >15.8; put volume 771-773 overtakes calls; SPY loses 770 (flip) = exit",
         "time_note": "775 not tagged by ~10:30 = tighten stop to breakeven"
+      },
+      "resting_stop": {
+        "order_id": "6a75e315-25f5-417f-8306-45ab7e3620d6",
+        "type": "stop_market",
+        "stop_price": 1.34,
+        "rule": "REST BROKER-SIDE (v4.14.5, refined: STOP order not limit - a sell-limit below market pre-fills). Replace UPWARD-ONLY as peak grows (cancel old -> place new higher stop). MUST cancel before any other exit sell (no double-sell). GFD (stop_market cannot be GTC)."
       }
     }
   },
@@ -509,6 +515,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-07T13:54Z",
+      "event": "ratchet",
+      "detail": "RATCHET LOCKED + RESTED: SPY 772C peak 1.405 (+5.6%) -> stop ratcheted to ~1.34 (breakeven+) and placed BROKER-SIDE as stop_market (order 6a75e315) per v4.14.5. Rule refined: resting stop = STOP order, not sell-limit (limit below market would pre-fill); GFD; upward-only replaces; cancel-before-other-exits. Position structurally green. SPY 771.77 grinding toward the 774.3-775 harvest zone."
+    },
     {
       "t": "2026-08-07T13:55Z",
       "event": "flow",
