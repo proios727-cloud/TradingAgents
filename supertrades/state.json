@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-07T12:15:00Z",
+  "updated_at": "2026-08-07T12:30:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-06",
@@ -398,33 +398,33 @@
     "note": "9:40 ET 8/5 OPEN READ. Indices GREEN above flip pushing call walls (SPY 776.66 btwn 773 flip & 780 wall; QQQ 727.38 btwn 725 flip & 730 wall) -> POSITIVE gamma grind, NOT a pullback -> gex-pullback gate FAIL 0/4 both. NVDA +4.48% gap, price 221.43 ABOVE vwap 218.91 (+1.15%) but EXTENDED = chase risk (day-1 mistake), not a clean entry; watch for VWAP retest ~219 hold. META +1.18% but BELOW vwap 595.74 = fails above-VWAP gate. DECISION: STAND DOWN at open, nothing clears the gate with runway. Watch NVDA VWAP-hold pullback + any index dip below flip. Flat, BP 634."
   },
   "gex_map": {
-    "as_of": "2026-08-06 ~12:05 ET MIDDAY (live intraday OI + volume/flow overlay)",
-    "vix": "15.61 DOWN from 15.99 - vol softening into the slide: ORDERLY hedged distribution, not panic; favors mean-reversion attempts but negative gamma still accelerates any break",
+    "as_of": "2026-08-07 ~8:10 ET premarket (T-1 OI, Friday weekly expiry; re-pull after open - 0DTE positioning reshapes fast)",
+    "vix": "15.22, down 0.39 (-2.5%) - vol compressing premarket; supports gap-hold/pin behavior into Friday expiry",
     "SPY": {
-      "spot": 767.86,
-      "flip": 771.5,
-      "call_wall": 772,
-      "put_wall": 765,
-      "hard_shelf": 760,
-      "king": "768 (net -914, put-dominated) - MIGRATED DOWN from 771; 770 wall GONE (battleground)",
-      "regime": "negative gamma, deeply negative strip",
-      "vacuum": "761-762 thin + 756-759 air below the 760 shelf",
-      "flow": "put flow stacked 765-770 (10-43x OI) + new tails 761P/764P; call-side 771-773 = reversal lottos (771C 66x)",
-      "triggers": "Long only on reclaim-hold of 768 king then acceptance >770; through 771.5-772 = positive gamma squeeze. Slide magnets: 765 -> 760 shelf -> vacuum 756."
+      "spot_pm": 770.49,
+      "flip": "769.5-770 (SLID DOWN from 771.5 - spot is a hair ABOVE = first regime change in days)",
+      "call_wall": "775 (+97k, DOMINANT node on the whole map; 780 secondary)",
+      "put_wall": "762; backup 760 (biggest raw put OI)",
+      "king": "775 new / 768 old (now first support below)",
+      "regime": "AT flip, marginally POSITIVE gamma above 770 - dealers flip to stabilizers",
+      "vacuum": "763-764 below; 776-779 above (over 775 = air to 780)",
+      "pins": "770 straddle (17.9kC/12.9kP) = prime Friday pin; 765 secondary",
+      "headroom": "above +4.5 to 775 (speed bumps 772/773); below -2.5 to 768",
+      "trigger": "LONG ARMS on hold ABOVE 770 (flip reclaim at open): stop under 769.5 (~1.0), target 772->775 (+4.5) = ~4.5:1 - PASSES headroom gate CLEANLY. Below 770 = yesterday's neg-gamma chop, drain 768->765->762. SPY = the clean LONG structure today."
     },
     "QQQ": {
-      "spot": 714.49,
-      "flip": "~721+ (no positive shelf inside 700-722)",
-      "call_wall": "none real (721 weak +34)",
-      "put_wall": "710 CONFIRMED (put vol 129k @ 23x OI)",
-      "hard_floor": 700,
-      "king": "718 (net -454) - SAME strike but FLIPPED CHARACTER: now the biggest REJECTION zone (trapped calls from the failed V-bounce: 718C 274x/235k vol churn, 717C 148x, 716C 112x)",
-      "regime": "negative gamma, NO support shelf until 710",
-      "vacuum": "704-700 air pocket persists + thin 706-707",
-      "flow": "fresh PUT positioning AT/below spot 711-716 (60x+ vol/OI) targeting the 710 wall; deeper tails 709P/703-704P; call bottom-fishing only 719-722",
-      "triggers": "First reclaim tell = 715-716 (small positive node + heaviest churn). REAL flip-reclaim entry = reclaim-HOLD of the 718 king (trapped calls above = squeeze fuel). 710 base-and-bounce = alternative confirm. 710 cracks -> 705 -> 704-700 air, floor 700."
+      "spot_pm": 718.46,
+      "flip": "717.5-718 (SLID DOWN from 721 - spot dead ON it)",
+      "call_wall": "720 first (+29k, biggest call OI) / 725 main (+38k)",
+      "put_wall": "710; heaviest negative node 714 (-27k)",
+      "king": "720",
+      "regime": "knife-edge AT flip; +gamma only above 718, everything 702-717 negative",
+      "vacuum": "711-713 below; thin 721-723 shelf above (720 break = fast to 722->724/725)",
+      "pins": "715 NEAR-PERFECT straddle (9482C/9506P) = cleanest Friday pin on either map; 710 secondary",
+      "headroom": "above +1.5 to 720 wall only; below -3.5 to 715 pin, -8.5 to 710",
+      "trigger": "LONG DOES NOT ARM at spot - 1.5:1 to the 720 wall FAILS the headroom gate. Long only on ACCEPTED 720 break (then 722->725 = 3-6pts green-gamma runway). Better fade/pin structure otherwise (PUTS remain stood down per user 8/6). If the gap fades, 715 pin gravity is the magnet."
     },
-    "read": "Structure shifted DOWN ~3pts on SPY; QQQ's 718 king flipped from magnet to rejection. Fresh put flow is chasing price (711-716) - crowded shorts just below spot means a 715-716 reclaim can squeeze THEM first, then the 718 trapped-call fuel above. That two-stage squeeze is exactly the armed reversal play's fuel IF the base forms."
+    "read": "Flips MIGRATED DOWN overnight - the gap landed both names AT their new zero-gamma lines: SPY a hair above (constructive, the clean long), QQQ dead on its old rejection shelf (decision point). Friday pins: SPY 770, QQQ 715."
   },
   "open_plan": {
     "date": "2026-08-06",
@@ -446,6 +446,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-07T12:30Z",
+      "event": "gex",
+      "detail": "PREMARKET GEX 8/7 stamped (w/ headroom + Friday pins): SPY = the clean long (hold >770 -> 775 wall, 4.5:1, PASSES gate; flip slid to ~770); QQQ long FAILS headroom at spot (1.5:1 to 720 wall) - arms only on accepted 720 break; QQQ 715 = near-perfect Friday straddle pin; VIX 15.22 compressing. 9:40 read trades off these."
+    },
     {
       "t": "2026-08-07T12:15Z",
       "event": "premarket",
