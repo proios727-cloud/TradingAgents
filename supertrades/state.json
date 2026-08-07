@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-07T13:54:00Z",
+  "updated_at": "2026-08-07T14:00:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-06",
@@ -54,14 +54,14 @@
   },
   "performance": {
     "window": "2026-07-21..2026-08-04 (visible log)",
-    "trades_closed": 9,
+    "trades_closed": 10,
     "wins": 3,
-    "losses": 6,
-    "win_rate": 0.33,
+    "losses": 7,
+    "win_rate": 0.3,
     "gross_pnl_usd": -99,
     "avg_win_usd": 31.0,
-    "avg_loss_usd": -32.0,
-    "expectancy_per_trade_usd": -11.0,
+    "avg_loss_usd": -27.43,
+    "expectancy_per_trade_usd": -9.9,
     "read": "8/4 all 3 GREEN (+48/+36/+9). INTC's +9 was cut short by a competing session's hard-exit (would've been ~+35 as a runner) - a CONTRADICTION, not a strategy failure. Wins are clean; earlier edge was erased by 2 oversized losses (NVDA -55%, DIS -42%). Levers: green_lock, cap loss size (marketable stops, no gap), keep runner upside. Goal = raise win rate WITHOUT shrinking winners. Single-executor discipline matters as much as the rails.",
     "recompute": "AUTO via engine/evolution.py::recompute_performance(state.trades) on each close (v4.7)."
   },
@@ -70,10 +70,10 @@
     "equation": "score = 0.45*win_rate*100 + 0.30*expectancy_$ - 0.25*|max_drawdown_$|  (engine/evolution.py::score_objective; weights in OBJECTIVE_WEIGHTS)",
     "resolves_the_tension": "win rate and big wins can conflict; the answer is EXPECTANCY (win_rate x avg_win - loss_rate x avg_loss) raised via green-lock/scale-out WITHOUT shrinking winners, while drawdown is a heavy penalty so you never buy win rate or profit with DD.",
     "current": {
-      "win_rate": 0.33,
-      "expectancy_per_trade_usd": -11.0,
+      "win_rate": 0.3,
+      "expectancy_per_trade_usd": -9.9,
       "max_drawdown_usd": -101.0,
-      "score": -13.7
+      "score": -14.72
     },
     "read": "score is negative because the -$91 cumulative drawdown (4 early losses before the wins) dominates. Priority: cut drawdown (marketable stops, the progressive-stop ratchet, no oversized losses) AND lift win rate (green-lock / scale-out) - both push the score up.",
     "min_dd_mechanisms": "progressive_stop equation (ratchets the stop up once green, ~breakeven by +5%), never-red floor, -$60 daily halt, short-DTE + per-trade concentration caps, no single-name overnight gap."
@@ -162,6 +162,15 @@
       "peak_pct": 13.9,
       "result": "loss",
       "note": "reversal reclaim-hold entry 1.66; ran to 1.89 (+13.9%), ratchet locked +5.8%; fast fade blew through the ratchet mid-chase (bid 1.74->1.50 in ~40s), filled 1.53. Peak-to-exit slippage ~$21 vs theoretical stop - same fast-0DTE-fade mechanics as QQQ 8/4, but contained: -7.8% on a +14% peak."
+    },
+    {
+      "date": "2026-08-07",
+      "contract": "SPY 8/7 $772C",
+      "pnl_usd": 0,
+      "pct": 0.0,
+      "peak_pct": 5.6,
+      "result": "scratch",
+      "note": "flip-reclaim entry 1.33; peaked 1.405 (+5.6%), ratchet locked + RESTED broker-side (stop_market 1.34); SPY reversed 771.9->770.6, option 1.40->1.02 in ~3min - resting stop filled 1.33 w/ 1c slippage, NO chase. v4.14.5 first live validation: identical scenario cost -13 yesterday, $0 today."
     }
   ],
   "evolution": {
@@ -359,78 +368,11 @@
     "entries_today_total": 1,
     "churn_threshold_hit": false,
     "halted": false,
-    "open_pnl_est": 7.5,
+    "open_pnl_est": 0.0,
     "day_pnl_est": 0.0,
-    "note": "8/7 Friday rollover: flat, $532.68 settled, counters zeroed, halt -120, resting ratchet LIVE, GEX-headroom gate applied as judgment."
+    "note": "8/7: trade 1 = SCRATCH (SPY 772C, resting ratchet stop worked perfectly - breakeven exit on a violent reversal). 1/2 entries used, $532.68 intact, watching for re-arm."
   },
-  "positions": {
-    "spy-772c-0807": {
-      "contract": "SPY 8/7 $772C",
-      "account": "902341866",
-      "qty": 1,
-      "entry": 1.33,
-      "hwm": 1.405,
-      "ratchet_engaged": true,
-      "scaled_out": false,
-      "class": "0dte_scalp",
-      "expiry": "2026-08-07",
-      "option_id": "d22e235c-cfc5-413a-9ded-479efd4931cd",
-      "order_id": "6a75e00f",
-      "entry_thesis": "FLIP-RECLAIM HOLD: SPY held >770 the entire opening range (low 770.63) = first positive-gamma regime in 3 sessions, dealers stabilizing above. Headroom-gate PASS (target 772->775 dominant wall vs stop under 769.5). Friday pin risk at 770 if it fails.",
-      "exit_rules": [
-        {
-          "type": "progressive_stop",
-          "base": 3.25,
-          "slope": 0.35,
-          "initial_pct": -45.0,
-          "resting": true,
-          "mech": "rest_ratchet_gtc_else_marketable"
-        },
-        {
-          "type": "target",
-          "pct": 59.2,
-          "runner": true,
-          "mech": "hold_runner_trail_no_cap"
-        },
-        {
-          "type": "giveback",
-          "arm_gain_pct": 50,
-          "peak_frac": 0.4,
-          "tiers": [
-            {
-              "peak_gte": 100,
-              "frac": 0.2
-            },
-            {
-              "peak_gte": 200,
-              "frac": 0.05
-            }
-          ],
-          "mech": "tiered_trail_tightens_at_extreme_gains"
-        },
-        {
-          "type": "underlying_vwap_stop",
-          "buffer_pct": 0.1
-        }
-      ],
-      "underlying_stop": "SPY loss of 769.5 (below the reclaimed flip) = exit marketable",
-      "upside_map": "772 speed bump -> 773 -> 775 dominant wall (+97k); over 775 = air to 780",
-      "hard_flat_et": "15:00 (green-only ext to 15:30 if ratcheted)",
-      "wall_plan": {
-        "from": "live flow read 9:48 ET",
-        "harvest_zone": "SPY 774.3-775.0 = SELL INTO THE WALL (775 = +173k GEX, GROWING intraday - absorb-and-reject expected; do not pay theta waiting for the break)",
-        "runner_exception": "hold ONLY on 5-min ACCEPTANCE >775.40 AND call flow visibly migrating 777-780 (currently lotto-sized, not wall-breaking)",
-        "aborts": "VIX reverses >15.8; put volume 771-773 overtakes calls; SPY loses 770 (flip) = exit",
-        "time_note": "775 not tagged by ~10:30 = tighten stop to breakeven"
-      },
-      "resting_stop": {
-        "order_id": "6a75e315-25f5-417f-8306-45ab7e3620d6",
-        "type": "stop_market",
-        "stop_price": 1.34,
-        "rule": "REST BROKER-SIDE (v4.14.5, refined: STOP order not limit - a sell-limit below market pre-fills). Replace UPWARD-ONLY as peak grows (cancel old -> place new higher stop). MUST cancel before any other exit sell (no double-sell). GFD (stop_market cannot be GTC)."
-      }
-    }
-  },
+  "positions": {},
   "watchlist": [],
   "pool": [
     {
@@ -515,6 +457,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-07T14:00Z",
+      "event": "fill",
+      "detail": "EXIT (resting stop): SPY 772C stopped 1.33 = $0 SCRATCH (order 6a75e315 fired at broker, 1c slippage, no chase - v4.14.5 validated live; option was 1.02 three min later = saved ~-$31). SPY back testing 770 flip (770.65). 1/2 entries used, bullet 2 available on a FRESH full-gate confirm only: 770 hold + re-base = re-arm candidate; 770 lost = fade rules, stand down. PUSH sent."
+    },
     {
       "t": "2026-08-07T13:54Z",
       "event": "ratchet",
