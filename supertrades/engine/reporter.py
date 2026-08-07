@@ -72,6 +72,12 @@ GUARDRAILS = {
     # v4.14 (8/5): UNUSUAL-FLOW FLAG — today's volume dwarfing existing OI = fresh
     #   positioning. CONFIRMATION ONLY (small conviction bonus), never a solo trigger.
     "flow_vol_oi_min": 3.0,             # volume >= 3x OI to flag unusual flow
+    # v4.15 (8/7): HARVEST AT THE WALL — when live headroom to the next GEX rejection
+    #   node is at/below this, the giveback trail snaps to its tightest tier (5%)
+    #   regardless of peak. 8/7: SPY 772C peaked +16.4% with the 775 wall 1.5 pts
+    #   overhead; the 40% development trail gave back ~11 points that the wall was
+    #   never going to let run. Tighten-only — never loosens a trail.
+    "wall_harvest_headroom_pts": 0.75,
 }
 
 _GROUPS = ("signals", "gex", "whale", "gates", "exits", "entries")
@@ -180,6 +186,21 @@ def unusual_flow(volume, oi) -> bool:
     if not volume or not oi:
         return False
     return volume >= GUARDRAILS["flow_vol_oi_min"] * oi
+
+
+def wall_trail_frac(headroom_pts: float | None, base_frac: float) -> float:
+    """Wall-aware trail tightening (v4.15): the tiered giveback trail is tuned for
+    runners with open air, but a runner pressing into a heavy GEX wall has no air —
+    once live headroom (underlying points to the next rejection node) is at/below
+    wall_harvest_headroom_pts, return the harvest fraction (5%) instead of the
+    peak-based tier. Unknown headroom keeps the base trail (no map, no opinion).
+    Tighten-only: never returns a fraction looser than base_frac.
+    """
+    if headroom_pts is None:
+        return base_frac
+    if headroom_pts <= GUARDRAILS["wall_harvest_headroom_pts"]:
+        return min(base_frac, 0.05)
+    return base_frac
 
 
 def size_order(cost_per_contract_usd: float, bp: float) -> int:

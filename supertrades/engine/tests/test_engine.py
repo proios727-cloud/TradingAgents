@@ -1148,5 +1148,48 @@ class TestUniverseFunnelV414(unittest.TestCase):
         self.assertEqual(conviction_score({**base, "flow_unusual": False}), plain)
 
 
+class TestV415ReplayLessons(unittest.TestCase):
+    """v4.15 (8/7 AH review): three tweaks distilled from the day's replay."""
+
+    def test_rh_scan_rows_time_adjusts_full_day_rvol(self):
+        # the 8/7 proven miss: scanner 'Relative volume' is a FULL-DAY ratio, so at
+        # 12:00 ET a name pacing 1.5x printed ~0.6 and the funnel kept 0 of 200 rows
+        rows = [{"ticker": "MSTR", "instrument_type": "EQUITY",
+                 "columns": {"Last": "101.64", "% Change": "0.0495",
+                             "Relative volume": "1.45", "Market cap": 3.72e10}}]
+        noon = live.rh_scan_rows(rows, frac_of_day=152 / 390)
+        self.assertAlmostEqual(noon[0]["rvol"], 3.72, places=2)   # real intraday pace
+        eod = live.rh_scan_rows(rows)                             # default = full-day, unchanged
+        self.assertAlmostEqual(eod[0]["rvol"], 1.45, places=2)
+        # frac is clamped: a scan at the open never divides by ~0
+        early = live.rh_scan_rows(rows, frac_of_day=0.001)
+        self.assertAlmostEqual(early[0]["rvol"], 29.0, places=1)
+
+    def test_index_leader_picks_stronger_tape(self):
+        # 8/7: QQQ (+1.07%) led SPY (+0.56%) all morning; the identical breakout leg
+        # paid ~8x in the leader's contract. Trade the leader, not the familiar.
+        quotes = {"SPY": {"day_pct": 0.56, "rvol": 1.6},
+                  "QQQ": {"day_pct": 1.07, "rvol": 1.5}}
+        self.assertEqual(live.index_leader(quotes), "QQQ")
+        # rvol breaks a day_pct tie
+        tied = {"SPY": {"day_pct": 1.0, "rvol": 2.0}, "QQQ": {"day_pct": 1.0, "rvol": 1.4}}
+        self.assertEqual(live.index_leader(tied), "SPY")
+        # fewer than two ranked vehicles -> None (nothing to choose between)
+        self.assertIsNone(live.index_leader({"SPY": {"day_pct": 0.5}}))
+        self.assertIsNone(live.index_leader({"SPY": {"day_pct": 0.5}, "QQQ": {}}))
+
+    def test_wall_trail_frac_harvests_at_the_wall(self):
+        from supertrades.engine.reporter import wall_trail_frac
+        # 8/7: SPY 772C peaked +16.4% with the 775 wall 0.75 pts of headroom never
+        # available — the 40% development trail gave back ~11 points at a known ceiling
+        self.assertEqual(wall_trail_frac(0.5, 0.40), 0.05)    # at the wall -> harvest
+        self.assertEqual(wall_trail_frac(0.75, 0.40), 0.05)   # threshold inclusive
+        self.assertEqual(wall_trail_frac(2.1, 0.40), 0.40)    # open air -> base trail
+        self.assertEqual(wall_trail_frac(None, 0.40), 0.40)   # no map -> no opinion
+        # tighten-only: never loosens an already-tight extreme-gains tier
+        self.assertEqual(wall_trail_frac(0.3, 0.05), 0.05)
+        self.assertEqual(GUARDRAILS["wall_harvest_headroom_pts"], 0.75)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -116,7 +116,7 @@ def _first(row: dict, keys: tuple):
     return None
 
 
-def rh_scan_rows(scan_results: list) -> list:
+def rh_scan_rows(scan_results: list, frac_of_day: float = 1.0) -> list:
     """Canonical mapping from run_scan result rows -> funnel_candidates input (v4.14.2).
 
     THE unit trap this exists to fix (8/5 proven miss): the RH scanner's '% Change'
@@ -124,18 +124,50 @@ def rh_scan_rows(scan_results: list) -> list:
     to the funnel as-is, so SHOP's +19.9% earnings-day rip scored as +0.2% and the
     sweep reported 'no movers'. Normalize to PERCENT here — every scan consumer
     goes through this one mapper, never hand-rolls the columns again.
+
+    v4.15 (8/7 proven miss): the scanner's 'Relative volume' column is a FULL-DAY
+    ratio (today's cum volume / avg DAILY volume), so intraday it understates real
+    participation — at 12:00 ET a name pacing 1.5x prints ~0.6 and the funnel kept
+    0 of 200 rows. Pass frac_of_day (minutes since 9:30 / 390) and the mapper
+    converts to time-of-day-relative rvol here, same basis as rvol_now. Default 1.0
+    (EOD / after-hours scans) is the unchanged full-day comparison.
     """
+    frac = min(max(frac_of_day, 0.05), 1.0)
     out = []
     for r in scan_results or []:
         if r.get("instrument_type") not in (None, "EQUITY"):
             continue
         c = r.get("columns", {})
         pct = _f(c.get("% Change"))
+        rvol = _f(c.get("Relative volume"))
         out.append({"symbol": r.get("ticker"), "last": c.get("Last"),
                     "day_pct": None if pct is None else pct * 100.0,
-                    "rvol": c.get("Relative volume"), "volume": c.get("Volume"),
+                    "rvol": None if rvol is None else round(rvol / frac, 2),
+                    "volume": c.get("Volume"),
                     "market_cap": c.get("Market cap")})
     return out
+
+
+def index_leader(quotes: dict, syms: tuple = ("SPY", "QQQ")) -> str | None:
+    """Pick the LEADER among correlated index vehicles (v4.15, 8/7 replay lesson).
+
+    Same thesis, same breakout window: QQQ (+1.07% day, leading all morning) paid
+    ~8x what SPY (+0.56%) did on the identical 10:45-11:30 leg (720C +143% peak vs
+    772C +16%). When more than one index arms on the same signal, trade the one
+    with the stronger tape — rank by day_pct, rvol as tiebreak. Returns None when
+    fewer than two of the syms have quotes (nothing to rank); selection only,
+    every gate still binds on whichever vehicle is chosen.
+    """
+    ranked = []
+    for s in syms:
+        q = quotes.get(s)
+        if not q or q.get("day_pct") is None:
+            continue
+        ranked.append((q["day_pct"], q.get("rvol") or 0.0, s))
+    if len(ranked) < 2:
+        return None
+    ranked.sort(reverse=True)
+    return ranked[0][2]
 
 
 def funnel_candidates(scan_rows: list, quotes_meta: dict | None = None) -> list:

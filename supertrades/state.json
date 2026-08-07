@@ -1,13 +1,20 @@
 {
  "schema": "supertrades-state-v2",
- "updated_at": "2026-08-07T16:05:00Z (12:05 ET lunch checkpoint)",
+ "updated_at": "2026-08-07T20:35:00Z (16:35 ET AH review)",
  "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
  "eod_wrap": {
   "date": "2026-08-06",
   "status": "CLOSED - flat, $532.88 settled for 8/7, no overnight positions",
   "day_result": "-$101 (2 trades: -88 squeeze stall at the 718 break; -13 ratchet-fade on the 715 reversal that peaked +14%). Week: +93, 0, -101 = -8 net.",
   "discipline_ledger": "Both entries full-gate confirms; both exits at planned rails; 3 knife-catches declined; halt honored at -101 vs -120 line; no 3rd trade despite BP. Two execution lessons bought and SHIPPED same-day (halt recalibration, resting ratchet).",
-  "shipped_today": "v4.14.3 halt -120 (user), v4.14.4 green-only 15:30 ext (user), v4.14.5 resting ratchet (code+tests). 102/102."
+  "shipped_today": "v4.14.3 halt -120 (user), v4.14.4 green-only 15:30 ext (user), v4.14.5 resting ratchet (code+tests). 102/102.",
+  "2026-08-07": {
+   "realized": 10.0,
+   "trades": 2,
+   "record": "1W 1 scratch",
+   "mechanism": "resting ratchet 2-for-2 (scratch saved ~$31; win banked +$10 with zero chase)",
+   "note": "First green day of the week. Engine leak analysis moved upstream: entries+selection, not exits."
+  }
  },
  "execution_layer": {
   "mode": "engine_driven (v4.6)",
@@ -212,7 +219,7 @@
   "default_2lot_style": "BARBELL - confirmed (user 8/4). Scale out 1 at the reachable target (recovers most of cost -> house-money-ish), run 1 on the tiered tightening trail with the progressive stop underneath. free_roll (sell 1 at +100% -> runner fully free) is available as a one-flag alternative for high-conviction days, not the default."
  },
  "trading_date": "2026-08-07",
- "rule_version": "v4.14.5",
+ "rule_version": "4.15",
  "mode": {
   "cadence_min": 30,
   "dnd": true,
@@ -379,7 +386,7 @@
   "halted": false,
   "open_pnl_est": 0.0,
   "day_pnl_est": 10.0,
-  "note": "8/7: scratch ($0) + WIN (+$10). Day +$10, 2/3 entries used, flat. Resting-ratchet validated twice live. LUNCH: no armed setup \u2014 MSTR passed equity funnel, failed option gate (spreads/budget). Afternoon arms unchanged: SPY 773.5+ reclaim w/ participation (thin headroom to 775 wall \u2014 full confirm required) or full-gate single-name.",
+  "note": "8/7 FINAL: +$10 day, week +$2, flat into weekend. v4.15 shipped at AH review (leader-select, wall-harvest trail, rvol time-fix). 105 tests OK.",
   "third_bullet": {
    "authorized": "user 8/7 ~10:15 ET ('for a 3rd bullet lets say') - max entries TODAY = 3",
    "condition": "activates ONLY on a single-name that passes EVERY gate (funnel + catalyst + flow + affordability + gap-trap). Current sweep: DOCS/MU/CLRO/UWMC all rejected (gap-trap/cost/cap/put-side). No bending gates to manufacture one."
@@ -940,7 +947,8 @@
    "event": "premarket",
    "detail": "Day rolled. BP 303.20 settled ($282 landed; $250 deposit NOT YET). Cap $121. QQQ gap -0.87 = gate PRE-ARMED (DND: chat+pages only, no push). Lead candidate XLE 7/24 59c conditional. INTC put priced out by earnings IV."
   },
-  "12:05 ET LUNCH CHECKPOINT: funnel 200->7, MSTR top (conv .548) but option-gate FAIL (18-20% spreads 0DTE, weeklies > $200). GEX refresh: pin migrated 770->772-773, 775 call wall 29.9k OI, put support 771-772, 773 heaviest call vol (416k). No trade armed; flat; tighten-only afternoon. SILENT per checkpoint discipline."
+  "12:05 ET LUNCH CHECKPOINT: funnel 200->7, MSTR top (conv .548) but option-gate FAIL (18-20% spreads 0DTE, weeklies > $200). GEX refresh: pin migrated 770->772-773, 775 call wall 29.9k OI, put support 771-772, 773 heaviest call vol (416k). No trade armed; flat; tighten-only afternoon. SILENT per checkpoint discipline.",
+  "16:35 ET AH REVIEW: 3 findings distilled - leader 8x gap, afternoon blind spot, trail-vs-wall. v4.15 code: index_leader + wall_trail_frac + rh_scan_rows frac_of_day. Heartbeat crons 13:45/14:45 to add. Monday plan written. 105 tests OK."
  ],
  "management_cadence": {
   "principle": "poll faster the more extended a position, so the tightening trail catches a fast reversal near a peak (QQQ 8/4 +123%->+56% lesson). ops.poll_interval_seconds(peak_pct, extended).",
@@ -958,8 +966,16 @@
   }
  },
  "next_session": {
-  "priority": "WIRE THE v4.14 FUNNEL INTO THE PREMARKET TUNE (engine code SHIPPED; tomorrow's tune should USE it): run_scan market-wide -> funnel_candidates -> funnel_filter -> funnel_rank top ~5 -> seed the day's active watchlist (SPY/QQQ permanent). Midday refresh re-runs it. Flow flag: pass flow_unusual (reporter.unusual_flow on chain volume/OI) into conviction inputs near GEX levels.",
-  "shipped_tonight": "v4.14 engine code (universe funnel live.funnel_candidates/filter/rank + reporter.unusual_flow + flow conviction bonus + 5 GUARDRAILS keys). 99/99 tests, selftest 14/0."
+  "date": "2026-08-10 (Monday)",
+  "posture": "Flat into the weekend, +$10 Friday, week net +$2. ~$542 settled for Monday.",
+  "plan": [
+   "Premarket: full GEX refresh both indices - Friday closed above 773; if dealers rolled the wall up from 775, continuation has air; if 775 held, Monday opens INSIDE the harvest zone.",
+   "Apply index_leader at every arm: rank SPY vs QQQ tape first, then gates.",
+   "Heartbeats: premarket 8:00, lunch 12:00, NEW 13:45 + 14:45, AH 16:15 (all ET).",
+   "MNDY am gap -> funnel test; PM reporters are Tuesday fuel.",
+   "Entries: 2/day baseline; 3rd only on full-gate single-name (standing)."
+  ],
+  "carry_rules": "v4.15: leader-select, wall-harvest trail, time-true scanner rvol, rest-at-mark re-entries."
  },
  "dynamic_watchlist": {
   "authorized_by": "user 8/5: 'from open to EOD, constantly re-screen & adjust the watchlist, re-analyze all names for the best-scoring setups that STILL PASS ALL TESTS \u2014 not just looking for a trade'",
@@ -1051,31 +1067,45 @@
   }
  },
  "session_retro": {
-  "date": "2026-08-06",
-  "mode": "daily AH review #2 (light-touch)",
+  "date": "2026-08-07",
+  "ran_at": "16:20 ET",
+  "day_result": "+$10 (breakeven scratch + SPY 772C win @1.96 via resting stop). Week net +$2. 2/3 entries used; 3rd bullet correctly never armed (MSTR failed option gate).",
   "findings": [
-   "1) RATCHET-CHASE LATENCY (proven, FIXED v4.14.5 in code): the +14%-peak trade lost -7.8% because the fade outran the polled chase (bid 1.74->1.50 in ~40s). progressive_stop now carries resting=True \u2014 once ratcheted, the locked stop RESTS broker-side (GTC, replaced upward-only). Turns today's -13 into ~+8 and 8/4's +56 into ~+75. 102/102 tests.",
-   "2) ENTRY STYLE IN DEEP NEGATIVE GAMMA (posture note): the breakout-style entry (718-king break) stalled and died instantly (-88); the basing-reversal entry (715 coil, rising lows) worked (+14% peak) and only lost to execution latency. Below the flip, BASING/RECLAIM entries > momentum-break entries \u2014 breaks in dealer-short territory attract immediate fade. Encoded as afternoon preference, not a hard rail.",
-   "3) FUNNEL VALIDATION: SHOP closed +2.3% (day-after continuation exactly as call-watched \u2014 blocked only by option cost gates). The discovery layer is picking right; the $532 BP is what locks us out of single-names. Not a rule change - a capital note."
+   {
+    "f": "VEHICLE SELECTION IS THE BIGGEST LEAK: QQQ led SPY all day (+1.17% vs +0.60% at close); the identical 10:45-11:30 breakout leg paid ~8x in QQQ 720C (+143% peak) vs SPY 772C (+16%). We trade the familiar, not the leader.",
+    "tweak": "v4.15 live.index_leader(): when >1 index arms on the same signal, rank by day_pct (rvol tiebreak) and take the leader. Selection only - every gate still binds."
+   },
+   {
+    "f": "AFTERNOON BLIND SPOT: silent 12:05->16:15 with no watch armed; QQQ flushed into 14:40 (720C to $0.48) then ripped +180% in 10 min at 15:00 - the exact reversal-confirm play, with a bullet loaded. A 30-45min heartbeat would have seen the base forming.",
+    "tweak": "daily_rhythm: add 13:45 ET and 14:45 ET heartbeat scans (light: quotes + funnel + GEX delta only, silent unless armed)."
+   },
+   {
+    "f": "TRAIL VS THE WALL: SPY peak +16.4% banked +5.4%; the 40% development giveback was tuned for open air but the 775 wall (29.9k OI) was 1.5 pts overhead - a known ceiling.",
+    "tweak": "v4.15 reporter.wall_trail_frac() + GUARDRAILS.wall_harvest_headroom_pts=0.75: headroom to the next rejection node <= 0.75 -> trail snaps to 5%. Tighten-only."
+   }
   ],
-  "vindications": [
-   "Both losses contained by rails (-48% planned stop, -7.8% ratchet exit on +14% peak). Week -8 net with 2 hostile days.",
-   "Halt discipline held at day -101 despite user pressure + remaining BP - the $532 survives to tomorrow.",
-   "Reversal-confirm patience avoided 3 knife-catches before the valid entry."
-  ]
+  "also_codified": "rh_scan_rows(frac_of_day=...) - permanent fix for the scanner full-day-rvol time bias (12:00 funnel kept 0/200 raw). Chase-tax rule now doctrine: re-entries REST at mark, accept the miss. Lunch-entry lockout already existed (midday_skip_et).",
+  "tests": "105 OK"
  },
  "ah_pm_read": {
-  "as_of": "2026-08-06 ~16:16 ET",
+  "asof": "2026-08-07 16:20 ET (AH)",
   "closes": {
-   "SPY": "768.56 (-0.16%) - HELD the 768 king into the close",
-   "QQQ": "714.56 (-0.38%) - closed AT the 715 battle line; AH 715.84 (+1.28 AH = bid under it)",
-   "NVDA": "218.99 flat",
-   "WDC": "451.52 (-13.0%) but bounced off 407 low and stabilizing AH",
-   "SHOP": "147.54 (+2.3%) - day-after continuation held all day",
-   "SKHY": "143.58 (-4.9%) stabilized off -8.3% low"
+   "SPY": "+0.60% 773.20 (closed ABOVE the 773 battleground; 775 wall untested)",
+   "QQQ": "+1.17% 723.04 (led all day - the leader lesson)",
+   "NVDA": "+2.24%",
+   "PLTR": "+10.3% (171.99, day standout)",
+   "TSLA": "+2.82%",
+   "AMD": "-1.18%",
+   "MU": "-0.44%",
+   "MSTR": "+3.3% (faded from +5 lunch peak)"
   },
-  "regime": "Two-day risk-off pause: indices holding key GEX levels into the close (SPY 768 king, QQQ 715), VIX softened intraday, WDC/SKHY carnage stabilizing, SHOP accumulating. Fed-speak remains the floating catalyst. Set-up for a mean-reversion attempt tomorrow IF no new shoe drops.",
-  "tomorrow_bias": "8/7 Friday: fresh GEX premarket (levels will migrate again), funnel screen, SHOP stays call-watch (still gated by cost - check IV compression, spreads may normalize a day+ after earnings), QQQ 715/718 structure carries over if futures flat. Resting-ratchet live on all positions."
+  "regime": "Risk-on Friday close, tech-led, indices at/near highs. Green week saved by the power-hour reversal. AH tape quiet/flat.",
+  "monday_catalysts": {
+   "am_0810": "MNDY (monday.com) - only recognized am print; possible open gapper.",
+   "pm_0810": "SPG, HIMS, RKLB, ASTS, ACHR, PLUG, DJT, RUM - Tuesday-gap fuel, funnel candidates for 8/11.",
+   "tue_0811_notable": "SE, CAVA, SMCI, CRWV, LITE, CAH, ONON, HRB (pm heavy - SMCI/CRWV = AI-trade sentiment reads)."
+  },
+  "note": "No index-mover reports Monday am. Structure (GEX) should dominate; refresh map premarket as usual."
  },
  "daily_rhythm": {
   "complete": "2026-08-06 \u2014 the trading day now runs itself end-to-end (all self-bound to the executor session; broker connector inherited; wakeup-latency buffer applied)",
