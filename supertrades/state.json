@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-07T14:22:00Z",
+  "updated_at": "2026-08-07T14:30:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-06",
@@ -362,10 +362,10 @@
   },
   "day": {
     "realized_pnl": 0.0,
-    "auto_entries_used": 1,
+    "auto_entries_used": 2,
     "manual_entries_today": 0,
     "manual_round_trips": 0,
-    "entries_today_total": 1,
+    "entries_today_total": 2,
     "churn_threshold_hit": false,
     "halted": false,
     "open_pnl_est": 0.0,
@@ -376,7 +376,57 @@
       "condition": "activates ONLY on a single-name that passes EVERY gate (funnel + catalyst + flow + affordability + gap-trap). Current sweep: DOCS/MU/CLRO/UWMC all rejected (gap-trap/cost/cap/put-side). No bending gates to manufacture one."
     }
   },
-  "positions": {},
+  "positions": {
+    "spy-772c-0807-2": {
+      "contract": "SPY 8/7 $772C (re-entry)",
+      "account": "902341866",
+      "qty": 1,
+      "entry": 1.86,
+      "hwm": 1.86,
+      "ratchet_engaged": false,
+      "scaled_out": false,
+      "class": "0dte_scalp",
+      "expiry": "2026-08-07",
+      "option_id": "d22e235c-cfc5-413a-9ded-479efd4931cd",
+      "order_id": "6a75eb81",
+      "entry_thesis": "flip-reclaim RE-BASE confirmed (770 proven twice w/ higher low, QQQ divergence resolved 720.96, SPY surged through 772). Momentum entry w/ bounded chase 1.78->1.86.",
+      "exit_rules": [
+        {
+          "type": "progressive_stop",
+          "base": 3.25,
+          "slope": 0.35,
+          "initial_pct": -45.0,
+          "resting": true,
+          "mech": "rest_ratchet_stop_market_else_marketable"
+        },
+        {
+          "type": "target",
+          "pct": 48.6,
+          "runner": true,
+          "mech": "hold_runner_trail_no_cap"
+        },
+        {
+          "type": "giveback",
+          "arm_gain_pct": 50,
+          "peak_frac": 0.4,
+          "tiers": [
+            {
+              "peak_gte": 100,
+              "frac": 0.2
+            },
+            {
+              "peak_gte": 200,
+              "frac": 0.05
+            }
+          ],
+          "mech": "tiered_trail_tightens_at_extreme_gains"
+        }
+      ],
+      "underlying_stop": "SPY loss of 770 (flip/re-base floor) = exit marketable",
+      "wall_plan": "HARVEST 774.3-775.0 into the +173k wall (cancel any resting stop FIRST, sell marketable). Runner only on 5-min acceptance >775.40 w/ flow migrated 777-780. Aborts: VIX>15.8, put flow overtake, 770 loss.",
+      "hard_flat_et": "15:00 (green-ext 15:30 if ratcheted)"
+    }
+  },
   "watchlist": [],
   "pool": [
     {
@@ -461,6 +511,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-07T14:30Z",
+      "event": "fill",
+      "detail": "ENTRY 2 FILLED: SPY 8/7 772C (re-entry) 1 @1.86 ($186, order 6a75eb81, 10:28 ET, bounded chase 1.78->1.86 into momentum). Re-base proven (770 held twice, QQQ 720.96 resolved divergence, SPY through 772). EM: target +48.6%, stop -45.0% resting-ratchet, harvest 774.3-775, underlying stop 770, hard flat 15:00/ext 15:30. Entries 2/3 (user-raised cap). PUSH sent."
+    },
     {
       "t": "2026-08-07T14:22Z",
       "event": "screen",
