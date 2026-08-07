@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-07T14:00:00Z",
+  "updated_at": "2026-08-07T14:22:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-06",
@@ -370,7 +370,11 @@
     "halted": false,
     "open_pnl_est": 0.0,
     "day_pnl_est": 0.0,
-    "note": "8/7: trade 1 = SCRATCH (SPY 772C, resting ratchet stop worked perfectly - breakeven exit on a violent reversal). 1/2 entries used, $532.68 intact, watching for re-arm."
+    "note": "8/7: trade 1 = SCRATCH (SPY 772C, resting ratchet stop worked perfectly - breakeven exit on a violent reversal). 1/2 entries used, $532.68 intact, watching for re-arm.",
+    "third_bullet": {
+      "authorized": "user 8/7 ~10:15 ET ('for a 3rd bullet lets say') - max entries TODAY = 3",
+      "condition": "activates ONLY on a single-name that passes EVERY gate (funnel + catalyst + flow + affordability + gap-trap). Current sweep: DOCS/MU/CLRO/UWMC all rejected (gap-trap/cost/cap/put-side). No bending gates to manufacture one."
+    }
   },
   "positions": {},
   "watchlist": [],
@@ -457,6 +461,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-07T14:22Z",
+      "event": "screen",
+      "detail": "BROADENED SCREEN 10:15 (user: 3rd bullet, rvol/volume/whale/catalyst all accounted): morning topic stocks identified (DOCS +55%, MU $864 most-active memory theme, CLRO +204% micro) - ALL rejected by gates at our size (gap-trap/cost/cap floor/IV). FINDING: scanner RELATIVE_VOLUME filter is time-biased intraday (full-day ratio -> only >10x-pace names pass 45min in, silently excluding mega-caps) - fix queued for AH review (time-adjust scan-side rvol). Combined verdict: indices remain the fluid/tight/high-volume vehicles; bullet 2 = SPY re-base primary / QQQ >722 alternate; 3rd bullet authorized (max 3 today) but only on a full-gate single-name."
+    },
     {
       "t": "2026-08-07T14:00Z",
       "event": "fill",
