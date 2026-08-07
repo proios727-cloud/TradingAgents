@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T20:25:00Z",
+  "updated_at": "2026-08-06T20:40:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-06",
@@ -178,7 +178,8 @@
       "progressive_stop base/slope: tune where breakeven lands (+5% now) for win rate vs DD",
       "default 2-3 lot sizing when BP allows -> unlock barbell scale-out (needs more BP than ~$200)",
       "structure/ATR trail vs fixed give-back % - does swing-low trailing capture more of trends?",
-      "EM exits: tune target_sigma/stop_sigma/hold_days per class toward the objective score (win rate vs size)."
+      "EM exits: tune target_sigma/stop_sigma/hold_days per class toward the objective score (win rate vs size).",
+      "GEX-headroom R:R gate (from 8/6 real-data replay): effective_target = min(EM_target, distance to next major rejection node); skip if headroom < 1.5x stop distance. Backtest against the 10-trade ledger with real paths."
     ],
     "guardrail": "AUTO-APPLY only SAFE tweaks (tighten risk / fix a proven miss). Loosening risk, raising caps, or structural changes need EXPLICIT user OK. Never silently change a cap. Every applied tweak is a logged, reversible edit."
   },
@@ -475,6 +476,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-06T20:40Z",
+      "event": "replay",
+      "detail": "REAL-DATA REPLAY 8/6 (first live use of get_option_historicals in the harness): trade 1 (-88) unsalvageable by ANY exit rules - entry error (break bought in the fade zone); trade 2 (-13) flips to +9..+18 with the shipped resting ratchet (validated). Tape lesson: all rallies died at 716-718 - no long runner existed today; EM targets were structurally capped by GEX ceiling. NEW HYPOTHESIS: GEX-headroom R:R gate (skip if headroom < 1.5x stop). 8/7 plan: apply as premarket judgment + backtest."
+    },
     {
       "t": "2026-08-06T20:25Z",
       "event": "ah_review",
@@ -1036,5 +1042,12 @@
     ],
     "premarket_tape": "QQQ ~713.6 (-0.5% overnight, below broken 720 wall = negative gamma), SPY ~770.2 flat at its broken wall. Semis risk-off (SKHY -6.8%, WDC -13.6% AH, AMD day-2 bleed). SHOP/DIS holding gains = dispersion tape.",
     "regime": "NEGATIVE-GAMMA open expected -> moves travel; rails matter MORE (full gate, RVOL confirm, resting brackets, hard flats). GEX rebuild in flight - levels stamp at the 9:40 read."
+  },
+  "replay_2026_08_06": {
+    "method": "REAL 5-min option bars (get_option_historicals) for both traded contracts, replayed through the actual engine (simulate_trade + materialize_exit_rules) \u2014 the queued real-data upgrade, now proven live.",
+    "trade_1_719C": "engine replay -91 vs actual -88 (match). NO ruleset saves it \u2014 the path never went green after entry (bar low 1.13 within 5 min) and the contract bled to 0.05 by 15:00. The ERROR was the entry itself: a momentum-break bought into the fade zone below the flip. Fix = entry selection, not exits.",
+    "trade_2_715C": "engine replay -16 vs actual -13 (match). By TRADE prints it touched 2.31 (+39%) vs our quote-hwm 1.89 (+14%) \u2014 with the resting ratchet + 90s at-level cadence this trade is +$9 to +$18 instead of -13. The fix we shipped (v4.14.5) is validated by real data.",
+    "tape_lesson": "EVERY rally attempt died at 716-718 all day (incl. a post-exit run to 1.98 at 14:15 that also collapsed). Deep-neg-gamma days below the flip offer NO runner trades on the long side \u2014 the EM target (+76%) was structurally unreachable with the 718-720 rejection ceiling 3 points overhead.",
+    "new_hypothesis": "GEX-HEADROOM R:R GATE: cap the effective target at the distance to the next major rejection node; if that headroom < ~1.5x the stop distance, SKIP \u2014 the trade is structurally capped regardless of EM math. Both of today's trades fail this test (719C: 718-720 ceiling immediately overhead; 715C: same). Needs backtest before becoming a hard rail \u2014 applying as judgment premarket 8/7."
   }
 }
