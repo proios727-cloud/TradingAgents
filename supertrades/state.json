@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-06T20:40:00Z",
+  "updated_at": "2026-08-07T12:15:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-06",
@@ -193,7 +193,7 @@
     "engine": "BUILT v4.5: reporter.size_order() fills the per-trade cap with up to 3 lots (same risk envelope, enables scale-out); reporter.materialize_exit_rules() auto-stamps leg-A scale-out + leg-B strict giveback (0.20) on any >=2-lot entry (single lot -> never-red runner), index scalps get the VWAP trail. Wired into the entry action (qty + exit_rules). Small live BP (~$200) usually resolves to 1 lot until cheaper contracts / more BP.",
     "default_2lot_style": "BARBELL - confirmed (user 8/4). Scale out 1 at the reachable target (recovers most of cost -> house-money-ish), run 1 on the tiered tightening trail with the progressive stop underneath. free_roll (sell 1 at +100% -> runner fully free) is available as a one-flag alternative for high-conviction days, not the default."
   },
-  "trading_date": "2026-08-06",
+  "trading_date": "2026-08-07",
   "rule_version": "v4.14.5",
   "mode": {
     "cadence_min": 30,
@@ -352,46 +352,16 @@
     }
   },
   "day": {
-    "realized_pnl": -101.0,
-    "auto_entries_used": 2,
+    "realized_pnl": 0.0,
+    "auto_entries_used": 0,
     "manual_entries_today": 0,
     "manual_round_trips": 0,
-    "entries_today_total": 2,
+    "entries_today_total": 0,
     "churn_threshold_hit": false,
     "halted": false,
     "open_pnl_est": 0.0,
-    "day_pnl_est": -101.0,
-    "note": "8/6: 2 trades, both losses (-88 squeeze stall, -13 reversal ratchet-fade). Day -101, above the -120 halt line but 2/2 entries used = DONE trading today. Flat, $532.88.",
-    "entry_preference": {
-      "set_by": "user 8/6 ~12:00 ET: 'wait till best calls when flip of gamma or reversal'",
-      "rule": "PUT-side entries STOOD DOWN for the remaining session (capability exists - long puts fire fine - but the last bullet is reserved). The one remaining entry (2/2) fires ONLY on an A+ CALL setup at a REGIME CHANGE: (a) GAMMA FLIP RECLAIM - QQQ reclaims+holds 720-721 (regime turns positive -> 725 call wall opens) or SPY reclaims+holds 772.5-773 (-> 775/780); the highest-quality long in the playbook; or (b) CONFIRMED REVERSAL - a wall tag that HOLDS with basing + reclaim structure (not a first touch, not a poke). Anything else = no trade; -88 stands as the day.",
-      "why": "morning whipsaw burned the momentum-chase side; flip reclaims flip dealer flow from amplifying to SUPPORTING the move - structurally the best risk/reward left, and it matches the capital reality (one bullet, halt line -120)."
-    },
-    "armed_play": {
-      "authorized": "USER 8/6 ~12:10 ET: 'go' (after selecting 'Arm at reversal confirm')",
-      "play": "QQQ CALLS at CONFIRMED REVERSAL \u2014 auto-execute on confirm, PING on fill. Last bullet (2/2), halt line -120.",
-      "entry_trigger": "MIDDAY-MAP REFINED: (a) QQQ higher-low + reclaim-HOLD of 715-716 (first tell; squeezes the fresh 711-716 put crowd) with velocity -> enter; 718-king reclaim = add-conviction confirmation (trapped 274x-churn calls above = fuel to 721 flip); or (b) 710 put-wall tag that BASES then reclaims. NOT first touch, NOT drift.",
-      "sizing": "$200, 0DTE ~0.35-0.45 delta at/near the reclaim strike, penny-spread/OI gates as always",
-      "exits": "MAX-UPSIDE per user: RUNNER (no cap at target), progressive stop (ratchets breakeven by ~+5% peak then locks green), tiered give-back trail 40%->20%(+100%)->5%(+200%), underlying stop = loss of the reclaimed level, HARD FLAT 15:00.",
-      "stand_down": "put-side stays OFF; if no confirmed reversal appears, no trade - the -88 day stands.",
-      "underlying_stop_map": "loss of the reclaimed level (715 entry -> stop under ~713.8; 710-bounce entry -> stop under 709.5)",
-      "upside_map": "715-716 -> 718 king (squeeze fuel) -> 721 flip -> beyond = positive gamma",
-      "backup": {
-        "play": "SPY flip-reclaim CALLS (alternate expression - SAME single bullet, not a second trade)",
-        "trigger": "reclaim-HOLD of 768 king -> acceptance >770 -> 771.5-772 crosses the flip (positive gamma). Flow already shows 771C reversal bets (66x OI).",
-        "when_it_takes_the_bullet": "DIVERGENCE rule: if the turn comes and SPY reclaims its levels while QQQ lags (weak index not participating), the bullet goes to SPY. Both confirm together = QQQ (more squeeze fuel). SPY = higher probability/shorter path; QQQ = higher payoff.",
-        "sizing_exits": "same: $200, ~0.35-0.45 delta, max-upside runner + ratchet + tiered trail, stop = loss of reclaimed level, hard flat 15:00."
-      }
-    },
-    "power_hour_plan": {
-      "set": "~12:50 ET 8/6 (user: readjust for power hour)",
-      "gex_pulse_1400": "targeted 10-strike re-read (QQQ 710-718, SPY 765-772) at ~14:00 to re-verify walls/king before power hour - no full rebuild needed",
-      "cadence": "13:45+ scans every 3-4 min regardless of proximity (14:00-14:30 = the resolution window); 90s at levels",
-      "entry_cutoff": "14:30 HARD - no new 0DTE entry after (can't develop before the flat); watch converts to observation + tomorrow-prep",
-      "vix_on_confirm": "pull VIX at any confirm: falling = orderly reversion (normal handling); popping during reclaim = squeeze fuel (trail can breathe early)",
-      "pending_user_ok": "APPROVED 8/6 ~12:45 ET ('extend'): green-only 15:30 extension ACTIVE.",
-      "unchanged": "A+ confirm bar, one bullet, $200, halt -120, puts OFF, 15:00 hard flat (default)"
-    }
+    "day_pnl_est": 0.0,
+    "note": "8/7 Friday rollover: flat, $532.68 settled, counters zeroed, halt -120, resting ratchet LIVE, GEX-headroom gate applied as judgment."
   },
   "positions": {},
   "watchlist": [],
@@ -476,6 +446,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-07T12:15Z",
+      "event": "premarket",
+      "detail": "PREMARKET 8/7 (~8:10 ET): flat $532.68, rolled over. RISK-ON gap: QQQ 718.48 pm (+0.54%, AT yesterday's rejection ceiling - hold = flip-reclaim setup toward 721), SPY 770.49 (+0.25%, nearing 771.5 flip). Seed: SPY/QQQ + SHOP (day-2, re-price options) + WDC (bounce, verify cost) + NVDA (conditional). Premarket funnel scan empty (1 SPAC, dropped). GEX subagent building Friday 0DTE maps w/ headroom analysis + pin candidates. 9:40 read armed. Rules: resting ratchet live, headroom gate as judgment, basing>breaks below flips, $200/setup, <=2 entries, halt -120."
+    },
     {
       "t": "2026-08-06T20:40Z",
       "event": "replay",
@@ -1013,35 +988,30 @@
     "user_pings": "9:40 open read + 16:15 AH digest + fills/armed setups. Everything else silent."
   },
   "watchlist_today": {
-    "date": "2026-08-06",
+    "date": "2026-08-07",
     "permanent": [
       "SPY",
       "QQQ"
     ],
     "singles": [
       {
-        "sym": "SKHY",
-        "why": "SK hynix ADR -6.8% premarket on 40M shares ($828B cap) - memory/semis risk-off leader (WDC sympathy). Earnings CLEAR (reported 7/29 beat). SHORT-side candidate; MUST verify options liquidity at open (new ADR, chain may be thin).",
-        "side": "put_watch"
-      },
-      {
         "sym": "SHOP",
-        "why": "+17% post-earnings (8/5 AM beat) and HELD the gain into AH - day-after continuation candidate if it holds VWAP with RVOL.",
+        "why": "day-2 post-earnings: +2.3% follow-through yesterday, flat premarket. RE-CHECK option costs at open - IV/spreads often normalize day 2+; if an expression fits $200 it is the top single-name candidate.",
         "side": "call_watch"
       },
       {
         "sym": "WDC",
-        "why": "earnings miss, -13.6% AH to ~448 (from 548) - capitulation/day-after reaction play EITHER direction: bounce only on a hold+reclaim, continuation only on a clean break lower with volume.",
-        "side": "reaction_watch"
+        "why": "bounce continuing premarket +2.2% (461) after the 407 capitulation low. Reaction long only on structure; expression likely still too pricey - verify.",
+        "side": "bounce_watch"
       },
       {
         "sym": "NVDA",
-        "why": "CONDITIONAL (downgraded after 8/5 fade to 219.21): needs gap-hold + rvol>=1.5x to re-arm; else ordinary candidate.",
+        "why": "structure watch only (+0.4% pm); needs rvol>=1.5 to matter.",
         "side": "conditional"
       }
     ],
-    "premarket_tape": "QQQ ~713.6 (-0.5% overnight, below broken 720 wall = negative gamma), SPY ~770.2 flat at its broken wall. Semis risk-off (SKHY -6.8%, WDC -13.6% AH, AMD day-2 bleed). SHOP/DIS holding gains = dispersion tape.",
-    "regime": "NEGATIVE-GAMMA open expected -> moves travel; rails matter MORE (full gate, RVOL confirm, resting brackets, hard flats). GEX rebuild in flight - levels stamp at the 9:40 read."
+    "premarket_tape": "RISK-ON overnight: QQQ +0.54% pm GAPPING INTO 718 (yesterday's kill zone - a hold above converts ceiling to support, 721 flip 2.5pts away = regime-flip candidate); SPY +0.25% pm back above 770, approaching the 771.5 flip. WDC +2.2, NVDA +0.4, SKHY -1.0, SHOP flat. FRIDAY = weekly expiry, pin effects into the close.",
+    "regime": "Gap-up toward the flips after two risk-off days. THE setup today = FLIP RECLAIM with the GEX-headroom gate applied (need headroom >= 1.5x stop to the next rejection node - fresh map in flight). If the gaps fade back below 718/770, yesterday's fade-zone rules reapply."
   },
   "replay_2026_08_06": {
     "method": "REAL 5-min option bars (get_option_historicals) for both traded contracts, replayed through the actual engine (simulate_trade + materialize_exit_rules) \u2014 the queued real-data upgrade, now proven live.",
