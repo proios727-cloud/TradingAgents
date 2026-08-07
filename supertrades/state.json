@@ -1,6 +1,6 @@
 {
   "schema": "supertrades-state-v2",
-  "updated_at": "2026-08-07T13:42:00Z",
+  "updated_at": "2026-08-07T13:55:00Z",
   "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
   "eod_wrap": {
     "date": "2026-08-06",
@@ -415,7 +415,14 @@
       ],
       "underlying_stop": "SPY loss of 769.5 (below the reclaimed flip) = exit marketable",
       "upside_map": "772 speed bump -> 773 -> 775 dominant wall (+97k); over 775 = air to 780",
-      "hard_flat_et": "15:00 (green-only ext to 15:30 if ratcheted)"
+      "hard_flat_et": "15:00 (green-only ext to 15:30 if ratcheted)",
+      "wall_plan": {
+        "from": "live flow read 9:48 ET",
+        "harvest_zone": "SPY 774.3-775.0 = SELL INTO THE WALL (775 = +173k GEX, GROWING intraday - absorb-and-reject expected; do not pay theta waiting for the break)",
+        "runner_exception": "hold ONLY on 5-min ACCEPTANCE >775.40 AND call flow visibly migrating 777-780 (currently lotto-sized, not wall-breaking)",
+        "aborts": "VIX reverses >15.8; put volume 771-773 overtakes calls; SPY loses 770 (flip) = exit",
+        "time_note": "775 not tagged by ~10:30 = tighten stop to breakeven"
+      }
     }
   },
   "watchlist": [],
@@ -464,7 +471,8 @@
       "vacuum": "763-764 below; 776-779 above (over 775 = air to 780)",
       "pins": "770 straddle (17.9kC/12.9kP) = prime Friday pin; 765 secondary",
       "headroom": "above +4.5 to 775 (speed bumps 772/773); below -2.5 to 768",
-      "trigger": "LONG ARMS on hold ABOVE 770 (flip reclaim at open): stop under 769.5 (~1.0), target 772->775 (+4.5) = ~4.5:1 - PASSES headroom gate CLEANLY. Below 770 = yesterday's neg-gamma chop, drain 768->765->762. SPY = the clean LONG structure today."
+      "trigger": "LONG ARMS on hold ABOVE 770 (flip reclaim at open): stop under 769.5 (~1.0), target 772->775 (+4.5) = ~4.5:1 - PASSES headroom gate CLEANLY. Below 770 = yesterday's neg-gamma chop, drain 768->765->762. SPY = the clean LONG structure today.",
+      "intraday_update_0950": "Flow 2.36:1 CALL-DOMINANT (340.8k vs 144.5k). Fresh money stacked 771-775 (772C 5.4x, 773C 5.6x, 771C 5.9x OI). Puts protective under 768-771, collapse above 772. NEW positive shelf 772-774 filling in (premarket air now +46-54k/strike). 775 wall GROWING: +173k, biggest node on board. Flip firm ~770. VIX 15.11 drifting lower."
     },
     "QQQ": {
       "spot_pm": 718.46,
@@ -476,7 +484,8 @@
       "vacuum": "711-713 below; thin 721-723 shelf above (720 break = fast to 722->724/725)",
       "pins": "715 NEAR-PERFECT straddle (9482C/9506P) = cleanest Friday pin on either map; 710 secondary",
       "headroom": "above +1.5 to 720 wall only; below -3.5 to 715 pin, -8.5 to 710",
-      "trigger": "LONG DOES NOT ARM at spot - 1.5:1 to the 720 wall FAILS the headroom gate. Long only on ACCEPTED 720 break (then 722->725 = 3-6pts green-gamma runway). Better fade/pin structure otherwise (PUTS remain stood down per user 8/6). If the gap fades, 715 pin gravity is the magnet."
+      "trigger": "LONG DOES NOT ARM at spot - 1.5:1 to the 720 wall FAILS the headroom gate. Long only on ACCEPTED 720 break (then 722->725 = 3-6pts green-gamma runway). Better fade/pin structure otherwise (PUTS remain stood down per user 8/6). If the gap fades, 715 pin gravity is the magnet.",
+      "intraday_update_0950": "720 FLIPPED wall->support (+62k floor). Call chase 721-723 (723C 11.5x OI) overwhelming the 721P fade 2:1. 715 pin neutralized (dead-neutral). Path 724.5-725; 725 main wall +89k growing. Flow 1.71:1 call-dominant."
     },
     "read": "Flips MIGRATED DOWN overnight - the gap landed both names AT their new zero-gamma lines: SPY a hair above (constructive, the clean long), QQQ dead on its old rejection shelf (decision point). Friday pins: SPY 770, QQQ 715."
   },
@@ -500,6 +509,11 @@
     "account": "FLAT"
   },
   "log": [
+    {
+      "t": "2026-08-07T13:55Z",
+      "event": "flow",
+      "detail": "LIVE FLOW READ 9:50: SPY 2.36:1 call-dominant, continuation to 775 CONFIRMED - but wall GROWING (+173k) = absorb-and-reject expected -> wall_plan on the 772C: HARVEST into 774.3-775.0; runner only on >775.40 acceptance w/ flow migration; aborts VIX>15.8/put-overtake/770-fail; 775 untagged by 10:30 = BE stop. QQQ: 720 flipped to support, path to 725. VIX 15.11 compressing."
+    },
     {
       "t": "2026-08-07T13:42Z",
       "event": "fill",
