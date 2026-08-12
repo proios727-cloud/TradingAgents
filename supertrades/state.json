@@ -1,6 +1,6 @@
 {
  "schema": "supertrades-state-v2",
- "updated_at": "2026-08-12T00:58:00Z (8/11 20:55 ET - resumed, strategy backtest)",
+ "updated_at": "2026-08-12T01:10:00Z (8/11 21:10 ET - resumed for 8/12, backtest findings applied)",
  "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
  "eod_wrap": {
   "date": "2026-08-06",
@@ -219,7 +219,7 @@
   "engine": "BUILT v4.5: reporter.size_order() fills the per-trade cap with up to 3 lots (same risk envelope, enables scale-out); reporter.materialize_exit_rules() auto-stamps leg-A scale-out + leg-B strict giveback (0.20) on any >=2-lot entry (single lot -> never-red runner), index scalps get the VWAP trail. Wired into the entry action (qty + exit_rules). Small live BP (~$200) usually resolves to 1 lot until cheaper contracts / more BP.",
   "default_2lot_style": "BARBELL - confirmed (user 8/4). Scale out 1 at the reachable target (recovers most of cost -> house-money-ish), run 1 on the tiered tightening trail with the progressive stop underneath. free_roll (sell 1 at +100% -> runner fully free) is available as a one-flag alternative for high-conviction days, not the default."
  },
- "trading_date": "2026-08-10",
+ "trading_date": "2026-08-12",
  "rule_version": "4.15",
  "mode": {
   "cadence_min": 30,
@@ -389,7 +389,7 @@
   "halted": false,
   "open_pnl_est": 0.0,
   "day_pnl_est": 0.0,
-  "note": "8/10 lunch: NO TRADE morning - correct. Melt-up grind 9:30-10:50 never passed rvol gate (series 0.5/1.05/1.23/1.10/1.01/0.84/0.87/0.82), then 775 tag-and-fade vindicated the refusal (775.03 -> 773.48 in ~10 min; a break-long would have stopped -40%). Range day: SPY 772.5-775, QQQ 720.3-724.7 w/ two V-recoveries off 720-721.35. Afternoon: heartbeats 13:40/14:40 armed; plays = reversal-confirm at a shelf or expansion break w/ rvol >=1.2, else no-trade day stands."
+  "note": "8/12 fresh day. RESUMED after 8/10-8/11 stop (those sessions were no-ops, no trades, no P&L)."
  },
  "positions": {},
  "watchlist": [
@@ -965,7 +965,8 @@
   "16:35 ET AH REVIEW: 3 findings distilled - leader 8x gap, afternoon blind spot, trail-vs-wall. v4.15 code: index_leader + wall_trail_frac + rh_scan_rows frac_of_day. Heartbeat crons 13:45/14:45 to add. Monday plan written. 105 tests OK.",
   "8/10 8:50 ET PREMARKET: reconciled $542.48 settled. Funnel: 0 single-names (5 thin ETFs rejected; MNDY -9% gap-trap excluded). GEX 0DTE: SPY dual call blocks 773/775 (~10k ea), put shelf 771-772, opens inside the box - pin risk. QQQ flatter, 720 put support, more air. Arms: 773-break-hold (leader-checked) or 772/771-loss reversal-confirm. 9:40 open-read wakeup + 13:45/14:45 heartbeat crons armed. NO entries before 9:40.",
   "12:10 ET LUNCH: funnel 200->9 (VRTX top, inexpressible $200; KSPI earnings-excl; VAL gap-edge) - watchlist stays SPY/QQQ. GEX: 775 battleground 505k traded, range 772.5-775 defended both sides, IV crushed. Morning = disciplined no-trade (775 fade vindicated gates). Heartbeats 13:40/14:40 armed. Melt-up reclaim-hold hypothesis staged for AH + user OK. SILENT.",
-  "8/11 20:55 ET RESUME + BACKTEST: 4 scenarios on real bars. Leader miss 8/7 = +$90-99 foregone (index_leader fix validated); reclaim-hold-no-volume hypothesis FAILED (-$55 on 8/10, gate vindicated); absorb read-1 trap confirmed (-50%); harness matched live +$10 on the taken trade. Strategy ranking stamped in replay_2026_08_10."
+  "8/11 20:55 ET RESUME + BACKTEST: 4 scenarios on real bars. Leader miss 8/7 = +$90-99 foregone (index_leader fix validated); reclaim-hold-no-volume hypothesis FAILED (-$55 on 8/10, gate vindicated); absorb read-1 trap confirmed (-50%); harness matched live +$10 on the taken trade. Strategy ranking stamped in replay_2026_08_10.",
+  "8/11 21:10 ET RESUMED for 8/12. Strategy playbook stamped (top 5 ranked by real-bar impact; 2 rejected classes). Findings applied to next_session: leader-select enforced, rvol bar confirmed by failed hypothesis, absorb read-1 banned, wall-harvest live. Daily rhythm crons fire live again from 8:00 ET premarket."
  ],
  "management_cadence": {
   "principle": "poll faster the more extended a position, so the tightening trail catches a fast reversal near a peak (QQQ 8/4 +123%->+56% lesson). ops.poll_interval_seconds(peak_pct, extended).",
@@ -983,16 +984,21 @@
   }
  },
  "next_session": {
-  "date": "2026-08-10 (Monday)",
-  "posture": "Flat into the weekend, +$10 Friday, week net +$2. ~$542 settled for Monday.",
-  "plan": [
-   "Premarket: full GEX refresh both indices - Friday closed above 773; if dealers rolled the wall up from 775, continuation has air; if 775 held, Monday opens INSIDE the harvest zone.",
-   "Apply index_leader at every arm: rank SPY vs QQQ tape first, then gates.",
-   "Heartbeats: premarket 8:00, lunch 12:00, NEW 13:45 + 14:45, AH 16:15 (all ET).",
-   "MNDY am gap -> funnel test; PM reporters are Tuesday fuel.",
-   "Entries: 2/day baseline; 3rd only on full-gate single-name (standing)."
+  "date": "2026-08-12 (Wednesday)",
+  "posture": "Flat, $542.48 settled, 2 entries, $200/setup, pure cash. Backtest findings applied.",
+  "applied_findings": [
+   "index_leader enforced BEFORE any index entry - rank SPY vs QQQ, trade the leader (worth ~$90 on 8/7).",
+   "rvol gate CONFIRMED by out-of-sample test - reclaim-hold-no-volume hypothesis REJECTED, bar stays at 1.2 sustained / 1.5 break.",
+   "Wall-break absorb requires READ-2 + rvol; read-1 entries are banned (proven -50%).",
+   "wall_trail_frac live: headroom <= 0.75 pts -> 5% harvest trail.",
+   "Re-entries rest at mark. Time-stop demands a specific print."
   ],
-  "carry_rules": "v4.15: leader-select, wall-harvest trail, time-true scanner rvol, rest-at-mark re-entries."
+  "catalysts": "Tuesday PM reporters: SMCI, CRWV, LITE, CAH, SE/CAVA (am) - Wednesday gappers for the premarket funnel. SMCI/CRWV are the AI-sentiment reads; if either gaps hard it moves QQQ breadth.",
+  "plan": [
+   "Premarket 8:00 ET cron (live again): reconcile, funnel w/ frac_of_day, GEX maps SPY/QQQ 0DTE, arm 9:40 open read.",
+   "Entry classes in priority order: (1) leader-checked reclaim w/ participation, (2) expansion break w/ rvol >= 1.5 + headroom check. Nothing else.",
+   "Checkpoints: 8:00 premarket, 9:40 open read, 12:00 lunch, 13:45 + 14:45 heartbeats, 16:15 AH review."
+  ]
  },
  "dynamic_watchlist": {
   "authorized_by": "user 8/5: 'from open to EOD, constantly re-screen & adjust the watchlist, re-analyze all names for the best-scoring setups that STILL PASS ALL TESTS \u2014 not just looking for a trade'",
@@ -1194,5 +1200,64 @@
    "4. Wall-break absorb: requires read-2 + rvol, read-1 entries are traps.",
    "Exits: v4.15 ~= flat baseline on modest paths (+90 vs +99, +12 vs +10); v4.15 edge lives on big runners (8/6 +123% path) and in the execution layer (resting ratchet)."
   ]
+ },
+ "strategy_playbook": {
+  "as_of": "2026-08-11 21:10 ET",
+  "basis": "All numbers from REAL 5-min option bars (get_option_historicals) replayed through the live engine (simulate_trade + materialize_exit_rules + position_exit). No TradingView MCP in this session - broker bars are the higher-fidelity source since they price the exact contracts we trade.",
+  "ranked": [
+   {
+    "rank": 1,
+    "name": "LEADER-CHECKED RECLAIM / REVERSAL-CONFIRM (with participation)",
+    "trigger": "Index flushes to a GEX shelf -> bases (rising lows, 2+ reads) -> RECLAIMS the level, rvol >= 1.2 sustained and CLIMBING. Then index_leader(SPY,QQQ) picks the vehicle by day_pct (rvol tiebreak). Enter the LEADER 0.40-0.50d 0DTE call, $200.",
+    "evidence": "QQQ 720C 8/7 +$90-99 (missed - traded SPY instead); QQQ 715C 8/6 reclaim; SPY 772C 8/7 +$10 live.",
+    "why_it_works": "The only class that produced real money. Dealer flows flip from amplifying to dampening above the reclaimed level.",
+    "status": "PRIMARY - v4.15 index_leader now enforces vehicle choice."
+   },
+   {
+    "rank": 2,
+    "name": "THE REFUSAL ENGINE (breakout_confirmed rvol gate)",
+    "trigger": "Level break arms ONLY at rvol >= 1.5 (breaks) / 1.2 sustained (holds). Unknown rvol never confirms.",
+    "evidence": "8/10 saved ~$68: reclaim-hold-no-volume would have lost $55 (-32%), 775-absorb read-1 would have lost $13 (-50% in 2 bars). 8/5 NVDA creep avoided.",
+    "why_it_works": "Melt-up grinds and first-touch wall tags look identical to real breaks WITHOUT the volume tell.",
+    "status": "ACTIVE - highest-value non-entry strategy. Do not loosen."
+   },
+   {
+    "rank": 3,
+    "name": "RESTING RATCHET EXECUTION (v4.14.5)",
+    "trigger": "Peak >= ~+5% -> stop ratchets AND rests broker-side as stop_market (GFD), upward-only replaces >= 5c, cancel-before-any-other-exit.",
+    "evidence": "8/7 live 2-for-2: scratch at breakeven ($0 vs -$31 unmanaged) + win $1.96 fill with zero chase. 8/6 QQQ replay: -$13 actual flips to +$9-18 with the rest.",
+    "why_it_works": "Removes poll latency and chase-tax from the exit entirely - the broker holds the line.",
+    "status": "ACTIVE - validated live twice."
+   },
+   {
+    "rank": 4,
+    "name": "WALL-AWARE HARVEST (GEX headroom + wall_trail_frac, v4.15)",
+    "trigger": "Headroom to the next rejection node < 1.5x stop distance = SKIP entry. In-trade: headroom <= 0.75 pts -> trail snaps to 5% (harvest at the wall).",
+    "evidence": "8/6: every rally died 716-718. 8/7: SPY peak +16.4% banked +5.4% with the 775 wall 1.5 pts overhead (~11 pts given back). 8/10: 775 tag 775.03 -> 773.48 in 10 min.",
+    "why_it_works": "A runner pressing a heavy wall has no air; the development trail is mispriced there.",
+    "status": "ACTIVE - shipped v4.15, awaiting first live fire."
+   },
+   {
+    "rank": 5,
+    "name": "TIME-STOP PATIENCE (three-cents-of-proof)",
+    "trigger": "~30-40 min past entry: demand a specific recovery print (premium AND underlying level) or salvage. Meeting the bar = hold with full rails; missing = exit marketable, contained.",
+    "evidence": "SPY 772C 8/7 survived a -25% chase-tax drawdown, proved recovery at 11:00 (1.565/772.62), went on to +$10.",
+    "why_it_works": "Separates a failed thesis from noise using an objective print instead of nerve.",
+    "status": "ACTIVE - paired rule: re-entries REST AT MARK, accept the miss."
+   }
+  ],
+  "rejected": [
+   {
+    "name": "Reclaim-hold WITHOUT volume (structure-only entry)",
+    "tested": "8/11 out-of-sample on 8/10 real bars -> -$55 (-32%). Died on the 775 rejection 30 min after the hold.",
+    "verdict": "REJECTED. Structure alone does not substitute for participation."
+   },
+   {
+    "name": "Wall-break absorb, read-1 entry",
+    "tested": "SPY 776C 8/10 -> -$13 (-50% in 2 bars).",
+    "verdict": "REJECTED. Absorb needs read-2 + rvol; read-1 is the trap."
+   }
+  ],
+  "exit_ruleset_note": "v4.15 EM/progressive/tiered-trail vs flat +50/-30 are near-parity on modest paths (+$90 vs +$99 runner, +$12 vs +$10 grinder). The v4.15 edge is on BIG runners (8/6 +123% path) and in the execution layer, not on chop."
  }
 }
