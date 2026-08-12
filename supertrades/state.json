@@ -1,6 +1,6 @@
 {
  "schema": "supertrades-state-v2",
- "updated_at": "2026-08-10T16:10:00Z (12:10 ET lunch checkpoint)",
+ "updated_at": "2026-08-12T00:58:00Z (8/11 20:55 ET - resumed, strategy backtest)",
  "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
  "eod_wrap": {
   "date": "2026-08-06",
@@ -205,7 +205,7 @@
    "structure/ATR trail vs fixed give-back % - does swing-low trailing capture more of trends?",
    "EM exits: tune target_sigma/stop_sigma/hold_days per class toward the objective score (win rate vs size).",
    "GEX-headroom R:R gate (from 8/6 real-data replay): effective_target = min(EM_target, distance to next major rejection node); skip if headroom < 1.5x stop distance. Backtest against the 10-trade ledger with real paths.",
-   "MELT-UP TENSION (8/10): on no-participation grind days the rvol>=1.2-1.5 gates keep us flat while price ratchets (SPY +0.25% grind, QQQ two V-recoveries). 775 tag-and-fade PROVED the gate right at the wall - but the 9:56-10:22 QQQ reclaim (720.34->724.67, +0.6% in 26 min) was a real missed move. Hypothesis for user OK: a RECLAIM-HOLD entry class where structure (2+ reads held + higher lows + leader status) substitutes for the rvol bar, sized HALF ($100), stop at the reclaimed level. NOT enabled without approval."
+   "MELT-UP TENSION (8/10): on no-participation grind days the rvol>=1.2-1.5 gates keep us flat while price ratchets (SPY +0.25% grind, QQQ two V-recoveries). 775 tag-and-fade PROVED the gate right at the wall - but the 9:56-10:22 QQQ reclaim (720.34->724.67, +0.6% in 26 min) was a real missed move. Hypothesis for user OK: a RECLAIM-HOLD entry class where structure (2+ reads held + higher lows + leader status) substitutes for the rvol bar, sized HALF ($100), stop at the reclaimed level. NOT enabled without approval. [TESTED 8/11: FAILED on 8/10 real bars, -32% / -$55. Hypothesis rejected - rvol bar stays.]"
   ],
   "guardrail": "AUTO-APPLY only SAFE tweaks (tighten risk / fix a proven miss). Loosening risk, raising caps, or structural changes need EXPLICIT user OK. Never silently change a cap. Every applied tweak is a logged, reversible edit."
  },
@@ -228,7 +228,9 @@
   "push_policy": "fills_or_improvement_ideas",
   "set_at": "2026-08-04T18:24:00Z",
   "note": "user-set FILLS or IMPROVEMENT IDEAS (8/4). PUSH when: (a) an order FILLS, (b) a genuine high-value improvement idea, or (c) EXPLICIT one-off request - INTC OVERNIGHT GATE decision at 15:35-15:44 ET: push HOLD/FLATTEN + why regardless of fill (user asked 'ping me when intc hits the overnight gate'). Still NO per-cycle status. Halts/failures logged, not pushed.",
-  "surface_new_setups": "OFF in fills-only mode: do not surface or push setups. The loop reconciles + manages rails silently; it only reaches the phone on a fill."
+  "surface_new_setups": "OFF in fills-only mode: do not surface or push setups. The loop reconciles + manages rails silently; it only reaches the phone on a fill.",
+  "stopped": false,
+  "stop_note": "User STOP 8/10 13:50 ET -> RESUME 8/11 20:55 ET (strategy backtest request). 8/10 pm + 8/11 checkpoints were no-ops."
  },
  "dashboard_url": "https://claude.ai/code/artifact/0a42b805-1b5b-4668-936a-4d0631da0bd4",
  "pages": {
@@ -962,7 +964,8 @@
   "12:05 ET LUNCH CHECKPOINT: funnel 200->7, MSTR top (conv .548) but option-gate FAIL (18-20% spreads 0DTE, weeklies > $200). GEX refresh: pin migrated 770->772-773, 775 call wall 29.9k OI, put support 771-772, 773 heaviest call vol (416k). No trade armed; flat; tighten-only afternoon. SILENT per checkpoint discipline.",
   "16:35 ET AH REVIEW: 3 findings distilled - leader 8x gap, afternoon blind spot, trail-vs-wall. v4.15 code: index_leader + wall_trail_frac + rh_scan_rows frac_of_day. Heartbeat crons 13:45/14:45 to add. Monday plan written. 105 tests OK.",
   "8/10 8:50 ET PREMARKET: reconciled $542.48 settled. Funnel: 0 single-names (5 thin ETFs rejected; MNDY -9% gap-trap excluded). GEX 0DTE: SPY dual call blocks 773/775 (~10k ea), put shelf 771-772, opens inside the box - pin risk. QQQ flatter, 720 put support, more air. Arms: 773-break-hold (leader-checked) or 772/771-loss reversal-confirm. 9:40 open-read wakeup + 13:45/14:45 heartbeat crons armed. NO entries before 9:40.",
-  "12:10 ET LUNCH: funnel 200->9 (VRTX top, inexpressible $200; KSPI earnings-excl; VAL gap-edge) - watchlist stays SPY/QQQ. GEX: 775 battleground 505k traded, range 772.5-775 defended both sides, IV crushed. Morning = disciplined no-trade (775 fade vindicated gates). Heartbeats 13:40/14:40 armed. Melt-up reclaim-hold hypothesis staged for AH + user OK. SILENT."
+  "12:10 ET LUNCH: funnel 200->9 (VRTX top, inexpressible $200; KSPI earnings-excl; VAL gap-edge) - watchlist stays SPY/QQQ. GEX: 775 battleground 505k traded, range 772.5-775 defended both sides, IV crushed. Morning = disciplined no-trade (775 fade vindicated gates). Heartbeats 13:40/14:40 armed. Melt-up reclaim-hold hypothesis staged for AH + user OK. SILENT.",
+  "8/11 20:55 ET RESUME + BACKTEST: 4 scenarios on real bars. Leader miss 8/7 = +$90-99 foregone (index_leader fix validated); reclaim-hold-no-volume hypothesis FAILED (-$55 on 8/10, gate vindicated); absorb read-1 trap confirmed (-50%); harness matched live +$10 on the taken trade. Strategy ranking stamped in replay_2026_08_10."
  ],
  "management_cadence": {
   "principle": "poll faster the more extended a position, so the tightening trail catches a fast reversal near a peak (QQQ 8/4 +123%->+56% lesson). ops.poll_interval_seconds(peak_pct, extended).",
@@ -1155,5 +1158,41 @@
   "trade_2_715C": "engine replay -16 vs actual -13 (match). By TRADE prints it touched 2.31 (+39%) vs our quote-hwm 1.89 (+14%) \u2014 with the resting ratchet + 90s at-level cadence this trade is +$9 to +$18 instead of -13. The fix we shipped (v4.14.5) is validated by real data.",
   "tape_lesson": "EVERY rally attempt died at 716-718 all day (incl. a post-exit run to 1.98 at 14:15 that also collapsed). Deep-neg-gamma days below the flip offer NO runner trades on the long side \u2014 the EM target (+76%) was structurally unreachable with the 718-720 rejection ceiling 3 points overhead.",
   "new_hypothesis": "GEX-HEADROOM R:R GATE: cap the effective target at the distance to the next major rejection node; if that headroom < ~1.5x the stop distance, SKIP \u2014 the trade is structurally capped regardless of EM math. Both of today's trades fail this test (719C: 718-720 ceiling immediately overhead; 715C: same). Needs backtest before becoming a hard rail \u2014 applying as judgment premarket 8/7."
+ },
+ "replay_2026_08_10": {
+  "method": "REAL 5-min option bars (get_option_historicals) through simulate_trade + materialize_exit_rules; entries at trigger-bar close, paths truncated at 15:00 ET hard-flat.",
+  "scenarios": {
+   "qqq_720c_0807_leader_reclaim_missed": {
+    "entry": 1.89,
+    "peak_pct": 93.7,
+    "pnl_flat": 99.0,
+    "pnl_v415": 90.0,
+    "verdict": "The Friday leader miss was worth ~+$90-99. Vehicle selection, not gates - volume WAS confirming. v4.15 index_leader addresses exactly this."
+   },
+   "spy_772c_0807_taken": {
+    "entry": 1.86,
+    "pnl_flat": 10.0,
+    "pnl_v415": 12.05,
+    "verdict": "Harness matches the live result (+$10 actual) - sim validated against reality."
+   },
+   "qqq_723c_0810_reclaim_hold_no_volume": {
+    "entry": 1.73,
+    "peak_pct": 14.5,
+    "pnl_both": -55.0,
+    "verdict": "OPEN HYPOTHESIS FAILED first out-of-sample test: the structure-only reclaim (rvol 1.10, gate refused) died on the 775 rejection 30 min later. The rvol gate saved $55 (-32%)."
+   },
+   "spy_776c_0810_absorb_read1": {
+    "entry": 0.26,
+    "pnl": -13.0,
+    "verdict": "Absorb read-1 without volume = trap, -50% in 2 bars. Read-2 + rvol requirement confirmed."
+   }
+  },
+  "strategy_ranking": [
+   "1. Reclaim/reversal-confirm WITH participation on the LEADER: the only money-maker class (both 8/7 wins).",
+   "2. breakout_confirmed rvol gate: the money-saver (8/10 refusals saved ~$68 across two triggers).",
+   "3. Reclaim-hold w/o volume: REJECTED - hypothesis moved to failed (1-for-1 against, -32%).",
+   "4. Wall-break absorb: requires read-2 + rvol, read-1 entries are traps.",
+   "Exits: v4.15 ~= flat baseline on modest paths (+90 vs +99, +12 vs +10); v4.15 edge lives on big runners (8/6 +123% path) and in the execution layer (resting ratchet)."
+  ]
  }
 }
