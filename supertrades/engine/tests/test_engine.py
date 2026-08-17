@@ -1191,5 +1191,62 @@ class TestV415ReplayLessons(unittest.TestCase):
         self.assertEqual(GUARDRAILS["wall_harvest_headroom_pts"], 0.75)
 
 
+class TestBrokerReconcileV416(unittest.TestCase):
+    """v4.16 (8/17): the ledger reconciles against the broker instead of trusting itself."""
+
+    # the real 8/12-8/14 CRWV orders that drifted the account unnoticed
+    CRWV = [{"state": "filled", "chain_symbol": "CRWV", "placed_agent": "user",
+             "legs": [{"option_id": "d827ca79", "expiration_date": "2026-09-18",
+                       "strike_price": "165.0000", "option_type": "call",
+                       "position_effect": "open",
+                       "executions": [{"price": "0.94", "quantity": "1.00",
+                                       "timestamp": "2026-08-12T14:22:35Z"}]}]},
+            {"state": "filled", "chain_symbol": "CRWV", "placed_agent": "user",
+             "legs": [{"option_id": "d827ca79", "expiration_date": "2026-09-18",
+                       "strike_price": "165.0000", "option_type": "call",
+                       "position_effect": "close",
+                       "executions": [{"price": "0.44", "quantity": "1.00",
+                                       "timestamp": "2026-08-14T19:23:27Z"}]}]}]
+
+    def test_pairs_multi_day_round_trip(self):
+        trips = live.broker_round_trips(self.CRWV)
+        self.assertEqual(len(trips), 1)
+        t = trips[0]
+        self.assertEqual(t["key"], "CRWV 2026-09-18 165.0C")
+        self.assertEqual((t["entry"], t["exit"], t["pnl_usd"]), (0.94, 0.44, -50.0))
+        self.assertEqual(t["pct"], -53.2)
+        self.assertEqual(t["placed_agent"], "user")   # manual fills are labeled, not hidden
+
+    def test_unfilled_and_still_open_are_not_trades(self):
+        self.assertEqual(live.broker_round_trips([{**self.CRWV[0], "state": "queued"}]), [])
+        self.assertEqual(live.broker_round_trips([self.CRWV[0]]), [])   # open, no close yet
+
+    def test_surfaces_only_what_the_ledger_missed(self):
+        trips = live.broker_round_trips(self.CRWV)
+        self.assertEqual(len(live.untracked_round_trips(trips, [])), 1)      # empty book -> flagged
+        by_id = [{"option_id": "d827ca79"}]
+        self.assertEqual(live.untracked_round_trips(trips, by_id), [])        # matched by id
+        legacy = [{"contract": "CRWV 2026-09-18 165.0C", "closed": "2026-08-14T19:23:27Z"}]
+        self.assertEqual(live.untracked_round_trips(trips, legacy), [])       # legacy row, key+date
+        other_day = [{"contract": "CRWV 2026-09-18 165.0C", "closed": "2026-08-13T19:23:27Z"}]
+        self.assertEqual(len(live.untracked_round_trips(trips, other_day)), 1)
+
+    def test_scale_out_resolves_cost_weighted_entry(self):
+        orders = [{"state": "filled", "chain_symbol": "SPY", "placed_agent": "agentic",
+                   "legs": [{"option_id": "abc", "expiration_date": "2026-08-07",
+                             "strike_price": "772.0000", "option_type": "call",
+                             "position_effect": "open",
+                             "executions": [{"price": "1.00", "quantity": "1", "timestamp": "T1"},
+                                            {"price": "2.00", "quantity": "1", "timestamp": "T2"}]}]},
+                  {"state": "filled", "chain_symbol": "SPY", "placed_agent": "agentic",
+                   "legs": [{"option_id": "abc", "expiration_date": "2026-08-07",
+                             "strike_price": "772.0000", "option_type": "call",
+                             "position_effect": "close",
+                             "executions": [{"price": "2.50", "quantity": "2", "timestamp": "T3"}]}]}]
+        t = live.broker_round_trips(orders)[0]
+        self.assertEqual(t["entry"], 1.5)          # cost-weighted, not first or last
+        self.assertEqual(t["pnl_usd"], 200.0)      # (2.50-1.50)*100*2
+
+
 if __name__ == "__main__":
     unittest.main()

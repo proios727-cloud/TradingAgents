@@ -254,6 +254,93 @@ def funnel_rank(cands: list, top_n: int = 5) -> list:
     return scored[:max(0, top_n)]
 
 
+def _norm_key(symbol, expiry, strike, right) -> str:
+    """Canonical contract key: 'SPY 2026-08-07 772.0C'."""
+    r = (right or "")[:1].upper()
+    try:
+        strike = f"{float(strike):.1f}"
+    except (TypeError, ValueError):
+        strike = str(strike)
+    return f"{str(symbol).upper()} {expiry} {strike}{r}"
+
+
+def broker_round_trips(orders: list) -> list:
+    """Pair FILLED broker option orders into closed round trips (v4.16).
+
+    Walks each contract's executions in time order, matching close-side quantity
+    against open-side quantity, so a contract opened and closed on different days
+    (or scaled out) still resolves into whole round trips with a cost-weighted
+    entry. Only fully-closed quantity is emitted — an open position is not a trade
+    yet. Orders that aren't filled are ignored.
+    """
+    legs: dict[str, list] = {}
+    for o in orders or []:
+        if o.get("state") != "filled":
+            continue
+        for leg in o.get("legs", []):
+            key = _norm_key(o.get("chain_symbol"), leg.get("expiration_date"),
+                            leg.get("strike_price"), leg.get("option_type"))
+            for ex in leg.get("executions", []):
+                legs.setdefault(key, []).append({
+                    "at": ex.get("timestamp"), "qty": _f(ex.get("quantity")) or 0.0,
+                    "price": _f(ex.get("price")) or 0.0,
+                    "opening": leg.get("position_effect") == "open",
+                    "agent": o.get("placed_agent"), "option_id": leg.get("option_id")})
+    out = []
+    for key, exs in legs.items():
+        exs.sort(key=lambda e: e["at"] or "")
+        open_q = open_cost = 0.0
+        opened_at = None
+        for e in exs:
+            if e["opening"]:
+                if open_q == 0:
+                    opened_at = e["at"]
+                open_q += e["qty"]
+                open_cost += e["qty"] * e["price"]
+            elif open_q > 0:
+                q = min(e["qty"], open_q)
+                entry = open_cost / open_q
+                out.append({"key": key, "option_id": e["option_id"], "qty": q,
+                            "entry": round(entry, 4), "exit": round(e["price"], 4),
+                            "pnl_usd": round((e["price"] - entry) * 100 * q, 2),
+                            "pct": round((e["price"] - entry) / entry * 100, 1) if entry else None,
+                            "opened": opened_at, "closed": e["at"],
+                            "placed_agent": e["agent"]})
+                open_cost -= q * entry
+                open_q -= q
+    return sorted(out, key=lambda t: t["closed"] or "")
+
+
+def untracked_round_trips(round_trips: list, ledger: list) -> list:
+    """Broker round trips the LEDGER never recorded (v4.16, 8/17 finding).
+
+    The blind spot this closes: state.trades only ever captured engine-placed
+    fills, so a hand-placed trade — or anything at all while the session is
+    stopped — silently drifted the account (8/12-8/14 CRWV, -$50, unnoticed for
+    five days). Every checkpoint reconciles the broker against the book and
+    surfaces the difference instead of trusting its own memory.
+
+    Matching is by option_id when the ledger row carries one, else by the
+    canonical contract key plus close DATE (a contract can round-trip more than
+    once, but not twice on the same day at the same strike in this account).
+    """
+    seen_ids = {r.get("option_id") for r in ledger if r.get("option_id")}
+    seen_keys = set()
+    for r in ledger:
+        key = r.get("key") or r.get("contract")
+        closed = (r.get("closed") or "")[:10]
+        if key:
+            seen_keys.add((str(key).upper(), closed))
+    out = []
+    for t in round_trips:
+        if t.get("option_id") and t["option_id"] in seen_ids:
+            continue
+        if (t["key"].upper(), (t["closed"] or "")[:10]) in seen_keys:
+            continue
+        out.append(t)
+    return out
+
+
 def assemble_snapshot(state: dict, *, et_time: str, weekday: bool, bp: float,
                       equity_results: list, option_results: list,
                       vwap: dict | None = None, gex: dict | None = None,

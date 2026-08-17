@@ -1,6 +1,6 @@
 {
  "schema": "supertrades-state-v2",
- "updated_at": "2026-08-17T05:25:00Z (8/17 01:25 ET - week reconcile + Monday open plan)",
+ "updated_at": "2026-08-17T05:45:00Z (8/17 01:45 ET - v4.16 broker reconcile + watchlist schema fix)",
  "design_principle": "LEAN - less size is best (user 8/4). Keep the engine small enough to hold in your head: all rails in the single gate (reporter.py), refine existing rules over adding files, cherry-pick never bulk-merge. ~3.7k focused lines beats a 20k-line sprawl. Resist scope creep; consolidate when a feature can reuse an existing mechanism.",
  "eod_wrap": {
   "date": "2026-08-06",
@@ -60,17 +60,16 @@
   "note": "Capital preservation first. Served by: never-red floor (open positions can't go red), floor ratchets UP only, +50% give-back trail (locks ~60% of peak), v4.2 concentration ceilings, -$60 daily halt, and taking profit on real stalls. Balance with 'enough wiggle to reach target, no paperhand' - keep DD low WITHOUT choking runners: floors/trails, not tight noise-stops."
  },
  "performance": {
-  "window": "2026-07-21..2026-08-04 (visible log)",
-  "trades_closed": 11,
+  "trades_closed": 12,
   "wins": 4,
-  "losses": 7,
-  "win_rate": 0.36,
-  "gross_pnl_usd": -89,
+  "losses": 8,
+  "win_rate": 0.33,
+  "gross_pnl_usd": -139.0,
   "avg_win_usd": 25.75,
-  "avg_loss_usd": -27.43,
-  "expectancy_per_trade_usd": -8.09,
-  "read": "8/4 all 3 GREEN (+48/+36/+9). INTC's +9 was cut short by a competing session's hard-exit (would've been ~+35 as a runner) - a CONTRADICTION, not a strategy failure. Wins are clean; earlier edge was erased by 2 oversized losses (NVDA -55%, DIS -42%). Levers: green_lock, cap loss size (marketable stops, no gap), keep runner upside. Goal = raise win rate WITHOUT shrinking winners. Single-executor discipline matters as much as the rails.",
-  "recompute": "AUTO via engine/evolution.py::recompute_performance(state.trades) on each close (v4.7)."
+  "avg_loss_usd": -30.25,
+  "expectancy_per_trade_usd": -11.58,
+  "window": "2026-07-21..2026-08-14 (12 closes incl. 1 manual)",
+  "read": "Engine-placed 4W/7L. The 8/17 broker reconcile added the manual CRWV 9/18 165C (-$50), which no engine gate would have armed (0.05d, 37 DTE). v4.16 now reconciles the broker at every checkpoint so the book can never drift silently again."
  },
  "objective": {
   "north_star": "user 8/4: heavily weight SUCCESS + WIN RATE, with MINIMAL DRAWDOWN. The evolution loop tunes toward this; a tweak is kept only if it raises the score.",
@@ -233,7 +232,7 @@
   "default_2lot_style": "BARBELL - confirmed (user 8/4). Scale out 1 at the reachable target (recovers most of cost -> house-money-ish), run 1 on the tiered tightening trail with the progressive stop underneath. free_roll (sell 1 at +100% -> runner fully free) is available as a one-flag alternative for high-conviction days, not the default."
  },
  "trading_date": "2026-08-17",
- "rule_version": "4.15",
+ "rule_version": "4.16",
  "mode": {
   "cadence_min": 30,
   "dnd": true,
@@ -405,10 +404,7 @@
   "note": "8/17 Monday fresh. BP $492.38 settled, flat. Week 8/12-8/14 unlogged (session stopped) - CRWV manual -$50 reconciled."
  },
  "positions": {},
- "watchlist": [
-  "SPY",
-  "QQQ"
- ],
+ "watchlist": [],
  "pool": [
   {
    "id": "d68712fc-7956-4131-ae60-c1ef25d330ea",
@@ -966,7 +962,8 @@
   "12:10 ET LUNCH: funnel 200->9 (VRTX top, inexpressible $200; KSPI earnings-excl; VAL gap-edge) - watchlist stays SPY/QQQ. GEX: 775 battleground 505k traded, range 772.5-775 defended both sides, IV crushed. Morning = disciplined no-trade (775 fade vindicated gates). Heartbeats 13:40/14:40 armed. Melt-up reclaim-hold hypothesis staged for AH + user OK. SILENT.",
   "8/11 20:55 ET RESUME + BACKTEST: 4 scenarios on real bars. Leader miss 8/7 = +$90-99 foregone (index_leader fix validated); reclaim-hold-no-volume hypothesis FAILED (-$55 on 8/10, gate vindicated); absorb read-1 trap confirmed (-50%); harness matched live +$10 on the taken trade. Strategy ranking stamped in replay_2026_08_10.",
   "8/11 21:10 ET RESUMED for 8/12. Strategy playbook stamped (top 5 ranked by real-bar impact; 2 rejected classes). Findings applied to next_session: leader-select enforced, rvol bar confirmed by failed hypothesis, absorb read-1 banned, wall-harvest live. Daily rhythm crons fire live again from 8:00 ET premarket.",
-  "8/17 01:25 ET WEEK RECONCILE + MONDAY PLAN: broker shows BP $492.38 (-$50 from an untracked MANUAL CRWV 9/18 165C, 0.94->0.44, placed while the session was stopped; would have failed delta/DTE gates). Ledger updated to 12 closes. Monday: gap-up above the 776.85 ATH, QQQ leading 3:1, catalyst-light. Plan = do NOT chase the open; A) gap-fill reversal-confirm preferred, B) ATH acceptance w/ rvol>=1.5 to the 780 block (2.8pt headroom), C) no-trade. Premarket cron must refresh OI (Friday-settle numbers are one session stale)."
+  "8/17 01:25 ET WEEK RECONCILE + MONDAY PLAN: broker shows BP $492.38 (-$50 from an untracked MANUAL CRWV 9/18 165C, 0.94->0.44, placed while the session was stopped; would have failed delta/DTE gates). Ledger updated to 12 closes. Monday: gap-up above the 776.85 ATH, QQQ leading 3:1, catalyst-light. Plan = do NOT chase the open; A) gap-fill reversal-confirm preferred, B) ATH acceptance w/ rvol>=1.5 to the 780 block (2.8pt headroom), C) no-trade. Premarket cron must refresh OI (Friday-settle numbers are one session stale).",
+  "8/17 01:45 ET v4.16: broker reconcile shipped (broker_round_trips + untracked_round_trips, 4 tests) - every checkpoint now diffs the broker against the ledger so manual/offline fills self-reconcile. ALSO fixed a schema regression I introduced 8/10: state.watchlist held bare symbols instead of candidate rows, which crashed discovery.build_nodes on live state (undetected for a week - tests were not re-run after that premarket commit). 109 tests OK."
  ],
  "management_cadence": {
   "principle": "poll faster the more extended a position, so the tightening trail catches a fast reversal near a peak (QQQ 8/4 +123%->+56% lesson). ops.poll_interval_seconds(peak_pct, extended).",
@@ -1136,7 +1133,13 @@
    "ah_review_1615": "trig_01RZACkTdLaqms6ESMnyM1Yk \u2014 daily retro digest, slight tweaks only"
   },
   "flow": "08:00 premarket seed -> 09:40 open read (PING) -> intraday scans (at-level cadence) -> 12:00 lunch re-screen -> afternoon posture -> hard flats -> 16:15 AH review (PING) -> next day",
-  "user_pings": "9:40 open read + 16:15 AH digest + fills/armed setups. Everything else silent."
+  "user_pings": "9:40 open read + 16:15 AH digest + fills/armed setups. Everything else silent.",
+  "broker_reconcile": {
+   "added": "v4.16 (8/17)",
+   "when": "EVERY checkpoint (premarket, lunch, AH) - first step, before any funnel or map work",
+   "how": "get_option_orders(902341866, created_at_gte=last_reconcile, state=filled) -> live.broker_round_trips() -> live.untracked_round_trips(trips, state.trades). Anything returned gets appended to the ledger with its placed_agent, performance is recomputed, and the user is told - manual fills are labeled, never hidden or judged.",
+   "why": "8/12-8/14: a hand-placed CRWV round trip moved the account -$50 and the book did not notice for five days because the ledger only knew about engine-placed fills. The engine now trusts the broker, not its own memory."
+  }
  },
  "watchlist_today": {
   "date": "2026-08-10",
@@ -1145,7 +1148,8 @@
    "QQQ"
   ],
   "funnel_note": "Premarket sweep 8:40: scan returned 5 rows, all thin/leveraged ETFs (GOGL 2x, AIX, EMOT, FLXI, SCDL) - every one fails mcap floor / recognition. Zero single-name candidates. MNDY -9% earnings gap = excluded (gap-trap + earnings-day reporter). PM reporters tonight (SPG/HIMS/RKLB/ASTS/ACHR) are TUESDAY fuel.",
-  "checkpoints": "premarket DONE 8:45; open-read 9:40 (armed); lunch 12:00; heartbeats 13:45/14:45 (crons added); AH 16:15."
+  "checkpoints": "premarket DONE 8:45; open-read 9:40 (armed); lunch 12:00; heartbeats 13:45/14:45 (crons added); AH 16:15.",
+  "schema_note": "state.watchlist = option-level candidate ROWS only ({id, contract}); bare symbols belong here / in universe. Regression 8/10-8/17, fixed 8/17."
  },
  "replay_2026_08_06": {
   "method": "REAL 5-min option bars (get_option_historicals) for both traded contracts, replayed through the actual engine (simulate_trade + materialize_exit_rules) \u2014 the queued real-data upgrade, now proven live.",
